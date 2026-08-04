@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import engine, get_db
+from app.services.auth import hash_password, verify_password
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import match_job_to_profile, shortlist_jobs
@@ -24,6 +25,30 @@ def health_check():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     return {"status": "ok", "database": "connected"}
+
+
+@app.post("/auth/signup", response_model=schemas.AuthResponse)
+def signup(payload: schemas.SignupRequest, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.username == payload.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    user = models.User(
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/auth/login", response_model=schemas.AuthResponse)
+def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == payload.username).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return user
 
 
 @app.post("/ingest/greenhouse/{company_slug}")
@@ -201,7 +226,12 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    db_user = models.User(email=user.email, full_name=user.full_name)
+    db_user = models.User(
+        username=user.email,
+        password_hash=hash_password("temporary-dev-password"),
+        email=user.email,
+        full_name=user.full_name,
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
