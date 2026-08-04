@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -67,7 +68,9 @@ Assess the match."""
 STOPWORDS = {"and", "or", "the", "in", "of", "a", "for", "to", "with", "at"}
 
 
-def shortlist_jobs(db: Session, profile_data: dict, limit: int = 30) -> list[models.Job]:
+def shortlist_jobs(
+    db: Session, profile_data: dict, limit: int = 30, offset: int = 0
+) -> list[models.Job]:
     raw_terms = list(profile_data.get("preferred_roles", []))
     for skill in profile_data.get("skills", []):
         if isinstance(skill, dict) and skill.get("name"):
@@ -93,6 +96,101 @@ def shortlist_jobs(db: Session, profile_data: dict, limit: int = 30) -> list[mod
         db.query(models.Job)
         .filter(or_(*conditions))
         .order_by(models.Job.retrieved_at.desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )
+
+
+def get_or_create_matches(
+    db: Session, user_id: str, profile_data: dict, offset: int = 0, page_size: int = 10
+) -> list[dict]:
+    jobs = shortlist_jobs(db, profile_data, limit=page_size, offset=offset)
+    job_ids = [job.id for job in jobs]
+    existing_matches = (
+        db.query(models.JobMatch)
+        .filter(
+            models.JobMatch.user_id == user_id,
+            models.JobMatch.job_id.in_(job_ids),
+        )
+        .all()
+        if job_ids
+        else []
+    )
+    existing_by_job_id = {match.job_id: match for match in existing_matches}
+
+    results = []
+    jobs_to_score = []
+    for job in jobs:
+        existing = existing_by_job_id.get(job.id)
+        if existing:
+            results.append(_format_match_result(job, _match_from_record(existing)))
+        else:
+            jobs_to_score.append(job)
+
+    scored = []
+
+    def score_job(job: models.Job) -> tuple[models.Job, dict]:
+        try:
+            match = match_job_to_profile(
+                profile_data, job.title, job.description_text or ""
+            )
+        except Exception as exc:
+            match = {
+                "overall_score": None,
+                "strengths": [],
+                "missing": [],
+                "confidence": "low",
+                "error": str(exc),
+            }
+        return job, match
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(score_job, job) for job in jobs_to_score]
+        for future in as_completed(futures):
+            scored.append(future.result())
+
+    for job, match in scored:
+        if "error" not in match:
+            db.add(
+                models.JobMatch(
+                    user_id=user_id,
+                    job_id=job.id,
+                    overall_score=match.get("overall_score"),
+                    strengths=match.get("strengths", []),
+                    missing=match.get("missing", []),
+                    confidence=match.get("confidence"),
+                )
+            )
+        results.append(_format_match_result(job, match))
+
+    if scored:
+        db.commit()
+
+    results.sort(
+        key=lambda r: (
+            r["match"].get("overall_score") is None,
+            -(r["match"].get("overall_score") or 0),
+        )
+    )
+    return results
+
+
+def _match_from_record(record: models.JobMatch) -> dict:
+    return {
+        "overall_score": record.overall_score,
+        "strengths": record.strengths,
+        "missing": record.missing,
+        "confidence": record.confidence,
+    }
+
+
+def _format_match_result(job: models.Job, match: dict) -> dict:
+    return {
+        "job_id": str(job.id),
+        "job_title": job.title,
+        "company": job.company,
+        "location": job.location,
+        "application_url": job.application_url,
+        "match": match,
+    }
