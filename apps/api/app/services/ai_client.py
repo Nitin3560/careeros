@@ -6,12 +6,12 @@ from openai import OpenAI
 
 load_dotenv()
 
-MATCHING_MODEL = "deepseek-ai/deepseek-v4-flash"
+MATCHING_MODEL = "llama-3.3-70b-versatile"
 
 client = OpenAI(
-    base_url="https://integrate.api.nvidia.com/v1",
-    api_key=os.getenv("NVIDIA_API_KEY"),
-    timeout=60.0,
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY"),
+    timeout=30.0,
 )
 
 
