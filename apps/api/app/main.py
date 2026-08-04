@@ -12,6 +12,7 @@ from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import match_job_to_profile, shortlist_jobs
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
+from app.services.resume_tailoring import tailor_resume_for_job
 
 load_dotenv()
 
@@ -166,6 +167,30 @@ def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
     )
 
     return {"count": len(results), "results": results}
+
+
+@app.post("/users/{user_id}/tailor/{job_id}")
+def tailor_resume(user_id: str, job_id: str, db: Session = Depends(get_db)):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    suggestions = tailor_resume_for_job(profile.data, job.title, job.description_text or "")
+
+    return {
+        "job_id": str(job.id),
+        "job_title": job.title,
+        "company": job.company,
+        "suggestions": suggestions,
+    }
 
 
 # --- Users ---
