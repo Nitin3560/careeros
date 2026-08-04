@@ -45,3 +45,20 @@ class CandidateProfile(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="profile")
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    external_id: Mapped[str] = mapped_column(String, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    location: Mapped[str] = mapped_column(String, nullable=True)
+    description_text: Mapped[str] = mapped_column(String, nullable=True)
+    application_url: Mapped[str] = mapped_column(String, nullable=True)
+    date_posted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
