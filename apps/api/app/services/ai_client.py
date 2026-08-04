@@ -2,7 +2,7 @@ import os
 import time
 
 from dotenv import load_dotenv
-from openai import APIStatusError, OpenAI
+from openai import OpenAI
 
 load_dotenv()
 
@@ -15,8 +15,11 @@ client = OpenAI(
 )
 
 
-def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 800) -> str:
-    for attempt in range(3):
+def call_llm(
+    system_prompt: str, user_prompt: str, max_tokens: int = 800, max_retries: int = 3
+) -> str:
+    last_error = None
+    for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
                 model=MATCHING_MODEL,
@@ -28,9 +31,13 @@ def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 800) -> str
                 temperature=0.2,
             )
             return response.choices[0].message.content
-        except APIStatusError as exc:
-            if exc.status_code not in {429, 500, 502, 503, 504, 529} or attempt == 2:
-                raise
-            time.sleep(2**attempt)
+        except Exception as exc:
+            last_error = exc
+            wait_time = 2**attempt
+            print(
+                f"[ai_client] Attempt {attempt + 1} failed: {exc}. "
+                f"Retrying in {wait_time}s..."
+            )
+            time.sleep(wait_time)
 
-    raise RuntimeError("LLM request failed")
+    raise last_error

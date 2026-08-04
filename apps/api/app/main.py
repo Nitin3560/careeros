@@ -9,6 +9,7 @@ from app import models, schemas
 from app.database import engine, get_db
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
+from app.services.job_matching import match_job_to_profile
 
 load_dotenv()
 
@@ -61,6 +62,30 @@ def list_jobs(
             }
             for j in jobs
         ],
+    }
+
+
+@app.post("/users/{user_id}/match/{job_id}")
+def match_job(user_id: str, job_id: str, db: Session = Depends(get_db)):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    result = match_job_to_profile(profile.data, job.title, job.description_text or "")
+
+    return {
+        "job_id": str(job.id),
+        "job_title": job.title,
+        "company": job.company,
+        "match": result,
     }
 
 
