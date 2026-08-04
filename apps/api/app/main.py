@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -128,8 +129,7 @@ def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
 
     shortlisted = shortlist_jobs(db, profile.data, limit=limit)
 
-    results = []
-    for job in shortlisted:
+    def run_match(job):
         try:
             match = match_job_to_profile(
                 profile.data, job.title, job.description_text or ""
@@ -143,16 +143,20 @@ def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
                 "error": str(exc),
             }
 
-        results.append(
-            {
-                "job_id": str(job.id),
-                "job_title": job.title,
-                "company": job.company,
-                "location": job.location,
-                "application_url": job.application_url,
-                "match": match,
-            }
-        )
+        return {
+            "job_id": str(job.id),
+            "job_title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "application_url": job.application_url,
+            "match": match,
+        }
+
+    results = []
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(run_match, job) for job in shortlisted]
+        for future in as_completed(futures):
+            results.append(future.result())
 
     results.sort(
         key=lambda r: (

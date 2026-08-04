@@ -29,7 +29,7 @@ def match_job_to_profile(profile_data: dict, job_title: str, job_description: st
 JOB TITLE: {job_title}
 
 JOB DESCRIPTION:
-{job_description[:3000]}
+{job_description[:1500]}
 
 Assess the match."""
 
