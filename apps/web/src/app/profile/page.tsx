@@ -17,6 +17,7 @@ type ParsedProfile = {
   skills?: Skill[];
   experience?: unknown[];
   preferred_roles?: string[];
+  parse_warning?: string;
 };
 
 function getStoredUserId() {
@@ -32,6 +33,7 @@ export default function ProfilePage() {
   const userId = useSyncExternalStore(subscribeToUserChanges, getStoredUserId, () => null);
 
   const [file, setFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [parsedProfile, setParsedProfile] = useState<ParsedProfile | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -59,13 +61,20 @@ export default function ProfilePage() {
 
   async function handleUpload(event: FormEvent) {
     event.preventDefault();
-    if (!file || !userId) return;
+    if ((!file && !resumeText.trim()) || !userId) return;
 
     setUploading(true);
     setUploadError(null);
 
     const formData = new FormData();
-    formData.append("file", file);
+    if (file) {
+      formData.append("file", file);
+    } else {
+      const textFile = new File([resumeText], "pasted-resume.txt", {
+        type: "text/plain",
+      });
+      formData.append("file", textFile);
+    }
 
     try {
       const res = await fetch(`${API_URL}/users/${userId}/resume`, {
@@ -127,20 +136,28 @@ export default function ProfilePage() {
       {!parsedProfile ? (
         <form className="mt-6 flex flex-col gap-4" onSubmit={handleUpload}>
           <p className="text-sm text-zinc-600">
-            Upload your resume (.pdf or .txt) to get started.
+            Upload your resume (.pdf or .txt), or paste the text below.
           </p>
-          <input
-            className="text-sm"
-            type="file"
-            accept=".pdf,.txt"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
-            required
+          <label className="flex cursor-pointer flex-col gap-2 rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-700">
+            <span>{file ? file.name : "Choose a PDF or TXT file"}</span>
+            <input
+              className="text-sm"
+              type="file"
+              accept=".pdf,.txt"
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          <textarea
+            className="min-h-40 border border-zinc-300 p-3 text-sm outline-none focus:border-zinc-900"
+            placeholder="Or paste your resume text here"
+            value={resumeText}
+            onChange={(event) => setResumeText(event.target.value)}
           />
           {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
           <button
             className="h-11 bg-zinc-950 px-4 text-base font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
-            disabled={uploading || !file}
+            disabled={uploading || (!file && !resumeText.trim())}
           >
             {uploading ? "Parsing resume..." : "Upload"}
           </button>
@@ -148,6 +165,12 @@ export default function ProfilePage() {
       ) : (
         <>
           <div className="mt-6 rounded-md bg-zinc-100 p-4 text-sm text-zinc-700">
+            {parsedProfile.parse_warning && (
+              <p className="mb-3 text-yellow-700">
+                Resume uploaded. AI parsing is temporarily limited, so this is a
+                basic extracted profile.
+              </p>
+            )}
             <p>
               <strong>Extracted skills:</strong>{" "}
               {parsedProfile.skills?.map((skill) => skill.name).filter(Boolean).join(", ") ||
