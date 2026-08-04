@@ -1,3 +1,5 @@
+from typing import Optional
+
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
@@ -5,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import engine, get_db
+from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
+from app.services.job_ingestion.persist import save_jobs
 
 load_dotenv()
 
@@ -16,6 +20,48 @@ def health_check():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     return {"status": "ok", "database": "connected"}
+
+
+@app.post("/ingest/greenhouse/{company_slug}")
+def ingest_greenhouse(company_slug: str, db: Session = Depends(get_db)):
+    jobs = fetch_greenhouse_jobs(company_slug)
+    result = save_jobs(db, jobs)
+    return {"company": company_slug, **result}
+
+
+@app.get("/jobs")
+def list_jobs(
+    company: Optional[str] = None,
+    source: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Job)
+    if company:
+        query = query.filter(models.Job.company == company)
+    if source:
+        query = query.filter(models.Job.source == source)
+
+    total = query.count()
+    jobs = query.order_by(models.Job.retrieved_at.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "total": total,
+        "count": len(jobs),
+        "jobs": [
+            {
+                "id": str(j.id),
+                "title": j.title,
+                "company": j.company,
+                "location": j.location,
+                "source": j.source,
+                "application_url": j.application_url,
+                "date_posted": j.date_posted,
+            }
+            for j in jobs
+        ],
+    }
 
 
 # --- Users ---
