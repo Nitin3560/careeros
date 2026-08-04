@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getUser } from "@/lib/auth";
+import { useAuthUser } from "@/lib/useAuthUser";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const PAGE_SIZE = 10;
@@ -22,14 +22,6 @@ type MatchResult = {
   };
 };
 
-function getStoredUserId() {
-  return getUser()?.id ?? null;
-}
-
-function subscribeToUserChanges() {
-  return () => {};
-}
-
 function scoreColor(score: number | null) {
   if (score === null) return "bg-zinc-500";
   if (score >= 60) return "bg-green-700";
@@ -39,7 +31,8 @@ function scoreColor(score: number | null) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const userId = useSyncExternalStore(subscribeToUserChanges, getStoredUserId, () => null);
+  const { user, checked } = useAuthUser();
+  const userId = user?.id ?? null;
   const [results, setResults] = useState<MatchResult[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -51,10 +44,10 @@ export default function DashboardPage() {
   const hasMoreRef = useRef(true);
 
   useEffect(() => {
-    if (!userId) {
+    if (checked && !userId) {
       router.push("/");
     }
-  }, [router, userId]);
+  }, [checked, router, userId]);
 
   const loadMore = useCallback(async () => {
     if (!userId || loadingRef.current || !hasMoreRef.current) return;
@@ -110,7 +103,7 @@ export default function DashboardPage() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  if (!userId) return null;
+  if (!checked || !userId) return null;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-6 py-10">

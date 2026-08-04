@@ -1,10 +1,10 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getUser } from "@/lib/auth";
+import { useAuthUser } from "@/lib/useAuthUser";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -20,17 +20,10 @@ type ParsedProfile = {
   parse_warning?: string;
 };
 
-function getStoredUserId() {
-  return getUser()?.id ?? null;
-}
-
-function subscribeToUserChanges() {
-  return () => {};
-}
-
 export default function ProfilePage() {
   const router = useRouter();
-  const userId = useSyncExternalStore(subscribeToUserChanges, getStoredUserId, () => null);
+  const { user, checked } = useAuthUser();
+  const userId = user?.id ?? null;
 
   const [file, setFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState("");
@@ -45,10 +38,10 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) {
+    if (checked && !userId) {
       router.push("/");
     }
-  }, [router, userId]);
+  }, [checked, router, userId]);
 
   async function readError(res: Response, fallback: string) {
     try {
@@ -127,7 +120,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!userId) return null;
+  if (!checked || !userId) return null;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-6 py-12">

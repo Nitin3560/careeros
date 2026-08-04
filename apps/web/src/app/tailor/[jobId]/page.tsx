@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-import { getUser } from "@/lib/auth";
+import { useAuthUser } from "@/lib/useAuthUser";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -35,16 +35,13 @@ type TailorSuggestions = {
   gaps: string[];
 };
 
-function getStoredUserId() {
-  return getUser()?.id ?? null;
-}
-
-function subscribeToUserChanges() {
-  return () => {};
-}
-
 function friendlyError(message: string) {
-  if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
+  const lowerMessage = message.toLowerCase();
+  if (
+    message.includes("429") ||
+    lowerMessage.includes("rate limit") ||
+    lowerMessage.includes("temporarily unavailable")
+  ) {
     return "Tailoring is temporarily delayed by the AI provider limit. Try this job again later.";
   }
   return message;
@@ -54,7 +51,8 @@ export default function TailorPage() {
   const router = useRouter();
   const params = useParams<{ jobId: string }>();
   const jobId = params.jobId;
-  const userId = useSyncExternalStore(subscribeToUserChanges, getStoredUserId, () => null);
+  const { user, checked } = useAuthUser();
+  const userId = user?.id ?? null;
 
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [company, setCompany] = useState<string | null>(null);
@@ -68,10 +66,10 @@ export default function TailorPage() {
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) {
+    if (checked && !userId) {
       router.push("/");
     }
-  }, [router, userId]);
+  }, [checked, router, userId]);
 
   useEffect(() => {
     if (!userId || !jobId) return;
@@ -187,7 +185,7 @@ export default function TailorPage() {
     updateField("experience", updated);
   }
 
-  if (!userId) return null;
+  if (!checked || !userId) return null;
   if (loading) {
     return <p className="p-6 text-sm text-zinc-600">Loading editor...</p>;
   }
