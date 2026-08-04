@@ -58,3 +58,19 @@ class CandidateProfileOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ResumeVersionOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    job_id: uuid.UUID
+    content: dict
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ResumeVersionUpdate(BaseModel):
+    content: dict

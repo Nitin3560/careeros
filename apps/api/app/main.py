@@ -194,7 +194,15 @@ def tailor_resume(user_id: str, job_id: str, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    suggestions = tailor_resume_for_job(profile.data, job.title, job.description_text or "")
+    try:
+        suggestions = tailor_resume_for_job(
+            profile.data, job.title, job.description_text or ""
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Resume tailoring is temporarily unavailable. Try again later.",
+        )
 
     return {
         "job_id": str(job.id),
@@ -202,6 +210,79 @@ def tailor_resume(user_id: str, job_id: str, db: Session = Depends(get_db)):
         "company": job.company,
         "suggestions": suggestions,
     }
+
+
+@app.get(
+    "/users/{user_id}/resume-version/{job_id}",
+    response_model=schemas.ResumeVersionOut,
+)
+def get_resume_version(user_id: str, job_id: str, db: Session = Depends(get_db)):
+    version = (
+        db.query(models.ResumeVersion)
+        .filter(
+            models.ResumeVersion.user_id == user_id,
+            models.ResumeVersion.job_id == job_id,
+        )
+        .first()
+    )
+    if version:
+        return version
+
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    seeded_content = {
+        "full_name": profile.data.get("full_name", ""),
+        "summary": "",
+        "skills": profile.data.get("skills", []),
+        "experience": profile.data.get("experience", []),
+        "education": profile.data.get("education", []),
+    }
+
+    version = models.ResumeVersion(
+        user_id=user_id,
+        job_id=job_id,
+        content=seeded_content,
+    )
+    db.add(version)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@app.put(
+    "/users/{user_id}/resume-version/{job_id}",
+    response_model=schemas.ResumeVersionOut,
+)
+def update_resume_version(
+    user_id: str,
+    job_id: str,
+    payload: schemas.ResumeVersionUpdate,
+    db: Session = Depends(get_db),
+):
+    version = (
+        db.query(models.ResumeVersion)
+        .filter(
+            models.ResumeVersion.user_id == user_id,
+            models.ResumeVersion.job_id == job_id,
+        )
+        .first()
+    )
+    if not version:
+        raise HTTPException(
+            status_code=404,
+            detail="Resume version not found - GET first to initialize it",
+        )
+
+    version.content = payload.content
+    db.commit()
+    db.refresh(version)
+    return version
 
 
 # --- Users ---
