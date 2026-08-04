@@ -115,6 +115,54 @@ def get_shortlist(user_id: str, limit: int = 30, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/users/{user_id}/matches")
+def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    shortlisted = shortlist_jobs(db, profile.data, limit=limit)
+
+    results = []
+    for job in shortlisted:
+        try:
+            match = match_job_to_profile(
+                profile.data, job.title, job.description_text or ""
+            )
+        except Exception as exc:
+            match = {
+                "overall_score": None,
+                "strengths": [],
+                "missing": [],
+                "confidence": "low",
+                "error": str(exc),
+            }
+
+        results.append(
+            {
+                "job_id": str(job.id),
+                "job_title": job.title,
+                "company": job.company,
+                "location": job.location,
+                "application_url": job.application_url,
+                "match": match,
+            }
+        )
+
+    results.sort(
+        key=lambda r: (
+            r["match"].get("overall_score") is None,
+            -(r["match"].get("overall_score") or 0),
+        )
+    )
+
+    return {"count": len(results), "results": results}
+
+
 # --- Users ---
 
 
