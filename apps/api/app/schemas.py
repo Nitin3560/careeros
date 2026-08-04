@@ -43,6 +43,12 @@ class CandidateProfileUpdate(BaseModel):
     data: dict
 
 
+class ProfileBasicInfo(BaseModel):
+    full_name: Optional[str] = None
+    country: Optional[str] = None
+    remote_preference: Optional[str] = None
+
+
 class CandidateProfileOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID

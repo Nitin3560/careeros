@@ -283,6 +283,38 @@ def upsert_profile(
     return profile
 
 
+@app.patch(
+    "/users/{user_id}/profile/basic-info",
+    response_model=schemas.CandidateProfileOut,
+)
+def update_basic_info(
+    user_id: str, payload: schemas.ProfileBasicInfo, db: Session = Depends(get_db)
+):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found - upload a resume first",
+        )
+
+    updated_data = dict(profile.data or {})
+    if payload.full_name is not None:
+        updated_data["full_name"] = payload.full_name
+    if payload.country is not None:
+        updated_data["country"] = payload.country
+    if payload.remote_preference is not None:
+        updated_data["remote_preference"] = payload.remote_preference
+
+    profile.data = updated_data
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
 @app.post("/users/{user_id}/resume", response_model=schemas.CandidateProfileOut)
 async def upload_resume(
     user_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)
