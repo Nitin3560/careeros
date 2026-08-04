@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -12,7 +11,11 @@ from app.database import engine, get_db
 from app.services.auth import hash_password, verify_password
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
-from app.services.job_matching import match_job_to_profile, shortlist_jobs
+from app.services.job_matching import (
+    get_or_create_matches,
+    match_job_to_profile,
+    shortlist_jobs,
+)
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
 from app.services.resume_tailoring import tailor_resume_for_job
 
@@ -152,8 +155,10 @@ def get_shortlist(user_id: str, limit: int = 30, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/users/{user_id}/matches")
-def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
+@app.get("/users/{user_id}/matches")
+def get_matches(
+    user_id: str, offset: int = 0, limit: int = 10, db: Session = Depends(get_db)
+):
     profile = (
         db.query(models.CandidateProfile)
         .filter(models.CandidateProfile.user_id == user_id)
@@ -162,45 +167,17 @@ def get_matches(user_id: str, limit: int = 10, db: Session = Depends(get_db)):
     if not profile:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
-    shortlisted = shortlist_jobs(db, profile.data, limit=limit)
-
-    def run_match(job):
-        try:
-            match = match_job_to_profile(
-                profile.data, job.title, job.description_text or ""
-            )
-        except Exception as exc:
-            match = {
-                "overall_score": None,
-                "strengths": [],
-                "missing": [],
-                "confidence": "low",
-                "error": str(exc),
-            }
-
-        return {
-            "job_id": str(job.id),
-            "job_title": job.title,
-            "company": job.company,
-            "location": job.location,
-            "application_url": job.application_url,
-            "match": match,
-        }
-
-    results = []
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = [executor.submit(run_match, job) for job in shortlisted]
-        for future in as_completed(futures):
-            results.append(future.result())
-
-    results.sort(
-        key=lambda r: (
-            r["match"].get("overall_score") is None,
-            -(r["match"].get("overall_score") or 0),
-        )
+    results = get_or_create_matches(
+        db, user_id, profile.data, offset=offset, page_size=limit
     )
 
-    return {"count": len(results), "results": results}
+    return {
+        "offset": offset,
+        "limit": limit,
+        "count": len(results),
+        "has_more": len(results) == limit,
+        "results": results,
+    }
 
 
 @app.post("/users/{user_id}/tailor/{job_id}")
@@ -348,6 +325,9 @@ async def upload_resume(
     )
 
     if profile:
+        for key in ("country", "remote_preference"):
+            if key in (profile.data or {}) and key not in parsed_profile:
+                parsed_profile[key] = profile.data[key]
         profile.data = parsed_profile
     else:
         profile = models.CandidateProfile(user_id=user_id, data=parsed_profile)
