@@ -1,4 +1,5 @@
 import json
+import re
 
 from app.services.ai_client import call_llm
 
@@ -9,6 +10,7 @@ Rules:
 - Never invent a skill, project, number, or qualification that isn't in the profile.
 - Do not add outcomes or impact claims unless they are already stated in the profile.
 - Suggest reordering, rewording, and emphasis changes, not new content.
+- Reword by changing phrasing, not by appending new result or impact clauses.
 - If the job requires something genuinely missing from the profile, say so honestly in "gaps" rather than pretending it's covered.
 - Respond with ONLY valid JSON, no markdown formatting, no extra text.
 
@@ -61,20 +63,16 @@ Suggest tailoring changes."""
 def _ground_rewrite(item: dict) -> dict:
     original = item.get("original") or ""
     suggested = item.get("suggested") or original
+
+    if not _is_grounded(original, suggested):
+        suggested = original
+
+    return {"original": original, "suggested": suggested}
+
+
+def _is_grounded(original: str, suggested: str) -> bool:
     original_lower = original.lower()
     suggested_lower = suggested.lower()
-    allowed_words = {
-        "a",
-        "an",
-        "and",
-        "for",
-        "in",
-        "of",
-        "the",
-        "to",
-        "using",
-        "with",
-    }
     unsupported_terms = [
         "enhanc",
         "enabl",
@@ -82,31 +80,48 @@ def _ground_rewrite(item: dict) -> dict:
         "rigorous",
         "perception",
         "autonomous vehicle",
+        "autonomous system",
         "scalable",
         "comprehensive",
+        "complex",
+        "significant",
+        "successful",
+        "showcas",
+        "improv",
+        "optimiz",
+        "increas",
+        "reduc",
+        "boost",
+        "accelerat",
+        "streamlin",
+        "deliver",
+        "achiev",
+        "outcome",
+        "impact",
     ]
 
     if any(term in suggested_lower and term not in original_lower for term in unsupported_terms):
-        suggested = original
-    elif not _uses_original_words(original_lower, suggested_lower, allowed_words):
-        suggested = original
+        return False
 
-    return {"original": original, "suggested": suggested}
+    original_facts = _extract_facts(original)
+    suggested_facts = _extract_facts(suggested)
 
-
-def _uses_original_words(
-    original: str, suggested: str, allowed_words: set[str]
-) -> bool:
-    original_words = set(_content_words(original))
-    for word in _content_words(suggested):
-        if word not in original_words and word not in allowed_words:
-            return False
+    if not suggested_facts.issubset(original_facts):
+        return False
+    if not original_facts.issubset(suggested_facts):
+        return False
     return True
 
 
-def _content_words(value: str) -> list[str]:
-    return [
-        word.strip(",.():;").lower()
-        for word in value.split()
-        if len(word.strip(",.():;")) > 3
-    ]
+def _extract_facts(text: str) -> set[str]:
+    facts = set()
+    facts.update(match.lower() for match in re.findall(r"\d+[\w%+-]*", text))
+    for word in re.findall(r"[A-Za-z][A-Za-z0-9+#/.\-]*", text):
+        stripped = word.strip(",.():;")
+        if len(stripped) < 2:
+            continue
+        if stripped.isupper() or any(c.isdigit() for c in stripped) or (
+            stripped[0].isupper() and stripped[1:].islower() is False
+        ):
+            facts.add(stripped.lower())
+    return facts
