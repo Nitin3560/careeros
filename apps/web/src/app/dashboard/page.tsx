@@ -133,9 +133,9 @@ export default function DashboardPage() {
               <span
                 className={`${scoreColor(
                   result.match.overall_score,
-                )} shrink-0 rounded-full px-3 py-1 text-sm font-semibold text-white`}
+                )} shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-white`}
               >
-                {result.match.overall_score ?? "?"}
+                {result.match.overall_score ?? "Pending"}
               </span>
             </div>
 
@@ -147,6 +147,11 @@ export default function DashboardPage() {
             {result.match.missing.length > 0 && (
               <p className="mt-2 text-sm text-zinc-700">
                 <strong>Missing:</strong> {result.match.missing.join(", ")}
+              </p>
+            )}
+            {result.match.overall_score === null && (
+              <p className="mt-2 text-sm italic text-zinc-500">
+                Scoring is temporarily delayed. This job will be retried later.
               </p>
             )}
 
