@@ -9,7 +9,7 @@ from app import models, schemas
 from app.database import engine, get_db
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
-from app.services.job_matching import match_job_to_profile
+from app.services.job_matching import match_job_to_profile, shortlist_jobs
 
 load_dotenv()
 
@@ -86,6 +86,32 @@ def match_job(user_id: str, job_id: str, db: Session = Depends(get_db)):
         "job_title": job.title,
         "company": job.company,
         "match": result,
+    }
+
+
+@app.get("/users/{user_id}/shortlist")
+def get_shortlist(user_id: str, limit: int = 30, db: Session = Depends(get_db)):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    jobs = shortlist_jobs(db, profile.data, limit=limit)
+
+    return {
+        "count": len(jobs),
+        "jobs": [
+            {
+                "id": str(j.id),
+                "title": j.title,
+                "company": j.company,
+                "location": j.location,
+            }
+            for j in jobs
+        ],
     }
 
 

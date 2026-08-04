@@ -1,5 +1,9 @@
 import json
 
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from app import models
 from app.services.ai_client import call_llm
 
 SYSTEM_PROMPT = """You are a job-matching assistant. You compare a candidate's profile against a job description and produce a structured, honest assessment.
@@ -58,3 +62,37 @@ Assess the match."""
             "error": "Failed to parse model output",
             "raw_output": raw_output,
         }
+
+
+STOPWORDS = {"and", "or", "the", "in", "of", "a", "for", "to", "with", "at"}
+
+
+def shortlist_jobs(db: Session, profile_data: dict, limit: int = 30) -> list[models.Job]:
+    raw_terms = list(profile_data.get("preferred_roles", []))
+    for skill in profile_data.get("skills", []):
+        if isinstance(skill, dict) and skill.get("name"):
+            raw_terms.append(skill["name"])
+
+    keywords = set()
+    for term in raw_terms:
+        for word in term.split():
+            word = word.strip(",.()").lower()
+            if len(word) > 2 and word not in STOPWORDS:
+                keywords.add(word)
+
+    if not keywords:
+        return []
+
+    conditions = []
+    for kw in keywords:
+        pattern = f"%{kw}%"
+        conditions.append(models.Job.title.ilike(pattern))
+        conditions.append(models.Job.description_text.ilike(pattern))
+
+    return (
+        db.query(models.Job)
+        .filter(or_(*conditions))
+        .order_by(models.Job.retrieved_at.desc())
+        .limit(limit)
+        .all()
+    )
