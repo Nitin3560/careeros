@@ -9,7 +9,7 @@ def fetch_greenhouse_jobs(company_slug: str) -> list[dict]:
     Fetches live job postings from a company's public Greenhouse board
     and normalizes them into our standard job dict shape.
     """
-    url = f"https://boards-api.greenhouse.io/v1/boards/{company_slug}/jobs"
+    url = f"https://boards-api.greenhouse.io/v1/boards/{company_slug}/jobs?content=true"
     response = httpx.get(url, timeout=10.0)
     response.raise_for_status()
     raw_jobs = response.json().get("jobs", [])
