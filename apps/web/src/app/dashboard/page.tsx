@@ -38,6 +38,9 @@ export default function DashboardPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applicationStatus, setApplicationStatus] = useState<
+    Record<string, string | null>
+  >({});
   const observerRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
   const offsetRef = useRef(0);
@@ -48,6 +51,36 @@ export default function DashboardPage() {
       router.push("/");
     }
   }, [checked, router, userId]);
+
+  const checkApplicationStatus = useCallback(
+    async (jobId: string) => {
+      if (!userId) return;
+
+      const res = await fetch(`${API_URL}/users/${userId}/applications/by-job/${jobId}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setApplicationStatus((prev) => ({
+        ...prev,
+        [jobId]: data.tracked ? data.status : null,
+      }));
+    },
+    [userId],
+  );
+
+  async function markAsApplied(jobId: string) {
+    if (!userId) return;
+
+    const res = await fetch(`${API_URL}/users/${userId}/applications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: jobId }),
+    });
+
+    if (res.ok) {
+      setApplicationStatus((prev) => ({ ...prev, [jobId]: "Applied" }));
+    }
+  }
 
   const loadMore = useCallback(async () => {
     if (!userId || loadingRef.current || !hasMoreRef.current) return;
@@ -70,6 +103,9 @@ export default function DashboardPage() {
       hasMoreRef.current = data.has_more;
 
       setResults((prev) => [...prev, ...data.results]);
+      data.results.forEach((result: MatchResult) => {
+        void checkApplicationStatus(result.job_id);
+      });
       setOffset(nextOffset);
       setHasMore(data.has_more);
     } catch (err) {
@@ -78,7 +114,7 @@ export default function DashboardPage() {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [userId]);
+  }, [checkApplicationStatus, userId]);
 
   useEffect(() => {
     if (userId && results.length === 0) {
@@ -107,7 +143,16 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Recommended for you</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Recommended for you</h1>
+        <button
+          className="h-10 border border-zinc-300 px-4 text-sm font-medium"
+          type="button"
+          onClick={() => router.push("/applications")}
+        >
+          My applications
+        </button>
+      </div>
 
       <div className="mt-6 flex flex-col gap-3">
         {results.map((result) => (
@@ -165,6 +210,19 @@ export default function DashboardPage() {
                 >
                   Apply now
                 </a>
+              )}
+              {applicationStatus[result.job_id] ? (
+                <span className="inline-flex h-10 items-center text-sm font-medium text-green-700">
+                  Tracked: {applicationStatus[result.job_id]}
+                </span>
+              ) : (
+                <button
+                  className="h-10 border border-zinc-300 px-4 text-sm font-medium"
+                  type="button"
+                  onClick={() => void markAsApplied(result.job_id)}
+                >
+                  I applied
+                </button>
               )}
             </div>
           </article>
