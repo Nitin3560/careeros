@@ -1,7 +1,7 @@
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from sqlalchemy import or_
+from sqlalchemy import case, desc, or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -72,42 +72,92 @@ Assess the match."""
 
 
 STOPWORDS = {"and", "or", "the", "in", "of", "a", "for", "to", "with", "at"}
+GENERIC_TERMS = {
+    "technical",
+    "developed",
+    "built",
+    "integrated",
+    "created",
+    "using",
+    "managed",
+    "led",
+    "improved",
+    "improving",
+    "supported",
+    "maintained",
+    "restructuring",
+    "documentation",
+    "automating",
+    "workflows",
+    "testing",
+    "deployment",
+    "program",
+    "solutions",
+    "operations",
+    "systems",
+    "responsible",
+    "worked",
+    "helped",
+    "assisted",
+    "various",
+    "multiple",
+    "ensured",
+    "provided",
+    "designed",
+    "implemented",
+    "collaborated",
+}
 
 
 def shortlist_jobs(
     db: Session, profile_data: dict, limit: int = 30, offset: int = 0
 ) -> list[models.Job]:
-    raw_terms = list(profile_data.get("preferred_roles", []))
-    for skill in profile_data.get("skills", []):
-        if isinstance(skill, dict) and skill.get("name"):
-            raw_terms.append(skill["name"])
-
-    for exp in profile_data.get("experience", []):
-        if not isinstance(exp, dict):
-            continue
-        for highlight in exp.get("highlights", []):
-            raw_terms.append(highlight)
-
     keywords = set()
-    for term in raw_terms:
+
+    for term in profile_data.get("preferred_roles", []):
         for word in term.split():
             word = word.strip(",.()").lower()
             if len(word) > 2 and word not in STOPWORDS:
                 keywords.add(word)
 
+    for skill in profile_data.get("skills", []):
+        if isinstance(skill, dict) and skill.get("name"):
+            for word in skill["name"].split():
+                word = word.strip(",.()").lower()
+                if len(word) > 2 and word not in STOPWORDS:
+                    keywords.add(word)
+
+    for exp in profile_data.get("experience", []):
+        if not isinstance(exp, dict):
+            continue
+        for highlight in exp.get("highlights", []):
+            for word in highlight.split():
+                word = word.strip(",.()").lower()
+                if (
+                    len(word) > 4
+                    and word not in STOPWORDS
+                    and word not in GENERIC_TERMS
+                ):
+                    keywords.add(word)
+
     if not keywords:
         return []
 
     conditions = []
+    rank_parts = []
     for kw in keywords:
         pattern = f"%{kw}%"
         conditions.append(models.Job.title.ilike(pattern))
         conditions.append(models.Job.description_text.ilike(pattern))
+        rank_parts.append(case((models.Job.title.ilike(pattern), 3), else_=0))
+        rank_parts.append(case((models.Job.description_text.ilike(pattern), 1), else_=0))
+
+    rank = sum(rank_parts)
 
     return (
         db.query(models.Job)
         .filter(or_(*conditions))
-        .order_by(models.Job.retrieved_at.desc())
+        .order_by(desc(rank), models.Job.retrieved_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
