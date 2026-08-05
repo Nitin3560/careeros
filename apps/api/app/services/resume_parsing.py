@@ -39,6 +39,7 @@ def parse_resume_to_profile(resume_text: str) -> dict:
         raw_output = call_llm(
             PARSE_SYSTEM_PROMPT,
             f"RESUME TEXT:\n{truncated}",
+            provider_order=["groq", "gemini"],
             max_tokens=1500,
             max_retries=1,
         )

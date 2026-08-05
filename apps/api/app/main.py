@@ -182,7 +182,7 @@ def get_matches(
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
     results = get_or_create_matches(
-        db, user_id, profile.data, offset=offset, page_size=limit
+        db, user_id, profile, offset=offset, page_size=limit
     )
 
     return {
@@ -595,6 +595,7 @@ async def upload_resume(
             if key in (profile.data or {}) and key not in parsed_profile:
                 parsed_profile[key] = profile.data[key]
         profile.data = parsed_profile
+        profile.profile_version = (profile.profile_version or 1) + 1
     else:
         profile = models.CandidateProfile(user_id=user_id, data=parsed_profile)
         db.add(profile)

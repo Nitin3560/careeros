@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.ai_client import call_llm
 
+MATCHING_PROMPT_VERSION = 1
+
 SYSTEM_PROMPT = """You are a job-matching assistant. You compare a candidate's profile against a job description and produce a structured, honest assessment.
 
 Rules:
@@ -34,7 +36,11 @@ JOB DESCRIPTION:
 
 Assess the match."""
 
-    raw_output = call_llm(SYSTEM_PROMPT, user_prompt)
+    raw_output = call_llm(
+        SYSTEM_PROMPT,
+        user_prompt,
+        provider_order=["gemini", "groq"],
+    )
 
     try:
         parsed = json.loads(raw_output)
@@ -102,9 +108,35 @@ def shortlist_jobs(
     )
 
 
+def fallback_match_score(profile_data: dict, job_title: str, job_description: str) -> dict:
+    keywords = set()
+    for skill in profile_data.get("skills", []):
+        if isinstance(skill, dict) and skill.get("name"):
+            keywords.add(skill["name"].lower())
+    for role in profile_data.get("preferred_roles", []):
+        keywords.update(w.lower() for w in role.split() if len(w) > 2)
+
+    text = f"{job_title} {job_description}".lower()
+    matched = sorted(kw for kw in keywords if kw in text)
+    score = min(100, len(matched) * 15) if matched else 5
+
+    return {
+        "overall_score": score,
+        "strengths": matched[:4],
+        "missing": [],
+        "confidence": "low",
+    }
+
+
 def get_or_create_matches(
-    db: Session, user_id: str, profile_data: dict, offset: int = 0, page_size: int = 10
+    db: Session,
+    user_id: str,
+    profile: models.CandidateProfile,
+    offset: int = 0,
+    page_size: int = 10,
 ) -> list[dict]:
+    profile_data = profile.data
+    current_profile_version = profile.profile_version
     jobs = shortlist_jobs(db, profile_data, limit=page_size, offset=offset)
     job_ids = [job.id for job in jobs]
     existing_matches = (
@@ -123,7 +155,13 @@ def get_or_create_matches(
     jobs_to_score = []
     for job in jobs:
         existing = existing_by_job_id.get(job.id)
-        if existing:
+        cache_valid = (
+            existing
+            and existing.profile_version == current_profile_version
+            and existing.prompt_version == MATCHING_PROMPT_VERSION
+            and not existing.is_estimated
+        )
+        if cache_valid:
             results.append(_format_match_result(job, _match_from_record(existing)))
         else:
             jobs_to_score.append(job)
@@ -135,14 +173,12 @@ def get_or_create_matches(
             match = match_job_to_profile(
                 profile_data, job.title, job.description_text or ""
             )
-        except Exception as exc:
-            match = {
-                "overall_score": None,
-                "strengths": [],
-                "missing": [],
-                "confidence": "low",
-                "error": str(exc),
-            }
+            match["estimated"] = False
+        except Exception:
+            match = fallback_match_score(
+                profile_data, job.title, job.description_text or ""
+            )
+            match["estimated"] = True
         return job, match
 
     with ThreadPoolExecutor(max_workers=3) as executor:
@@ -151,15 +187,27 @@ def get_or_create_matches(
             scored.append(future.result())
 
     for job, match in scored:
-        if "error" not in match:
+        existing = existing_by_job_id.get(job.id)
+        if existing:
+            existing.overall_score = match.get("overall_score")
+            existing.strengths = match.get("strengths", [])
+            existing.missing = match.get("missing", [])
+            existing.confidence = match.get("confidence")
+            existing.profile_version = current_profile_version
+            existing.prompt_version = MATCHING_PROMPT_VERSION
+            existing.is_estimated = match.get("estimated", False)
+        else:
             db.add(
                 models.JobMatch(
                     user_id=user_id,
                     job_id=job.id,
+                    profile_version=current_profile_version,
+                    prompt_version=MATCHING_PROMPT_VERSION,
                     overall_score=match.get("overall_score"),
                     strengths=match.get("strengths", []),
                     missing=match.get("missing", []),
                     confidence=match.get("confidence"),
+                    is_estimated=match.get("estimated", False),
                 )
             )
         results.append(_format_match_result(job, match))
@@ -182,6 +230,7 @@ def _match_from_record(record: models.JobMatch) -> dict:
         "strengths": record.strengths,
         "missing": record.missing,
         "confidence": record.confidence,
+        "estimated": record.is_estimated,
     }
 
 

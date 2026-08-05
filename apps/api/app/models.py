@@ -37,6 +37,7 @@ class CandidateProfile(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
     )
     data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    profile_version: Mapped[int] = mapped_column(default=1, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -82,6 +83,9 @@ class JobMatch(Base):
     strengths: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     missing: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     confidence: Mapped[str | None] = mapped_column(String, nullable=True)
+    profile_version: Mapped[int] = mapped_column(nullable=False, default=1)
+    prompt_version: Mapped[int] = mapped_column(nullable=False, default=1)
+    is_estimated: Mapped[bool] = mapped_column(default=False)
     scored_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

@@ -19,6 +19,7 @@ type MatchResult = {
     strengths: string[];
     missing: string[];
     confidence: string | null;
+    estimated?: boolean;
   };
 };
 
@@ -173,7 +174,7 @@ export default function DashboardPage() {
                   result.match.overall_score,
                 )} shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-white`}
               >
-                {result.match.overall_score ?? "Pending"}
+                {result.match.overall_score}
               </span>
             </div>
 
@@ -187,9 +188,9 @@ export default function DashboardPage() {
                 <strong>Missing:</strong> {result.match.missing.join(", ")}
               </p>
             )}
-            {result.match.overall_score === null && (
+            {result.match.estimated && (
               <p className="mt-2 text-sm italic text-zinc-500">
-                Scoring is temporarily delayed. This job will be retried later.
+                Estimated match - will refine automatically with AI scoring.
               </p>
             )}
 

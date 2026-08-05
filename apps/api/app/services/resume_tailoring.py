@@ -36,7 +36,12 @@ JOB DESCRIPTION:
 
 Suggest tailoring changes."""
 
-    raw_output = call_llm(TAILOR_SYSTEM_PROMPT, user_prompt, max_tokens=1000)
+    raw_output = call_llm(
+        TAILOR_SYSTEM_PROMPT,
+        user_prompt,
+        provider_order=["groq", "gemini"],
+        max_tokens=1000,
+    )
 
     try:
         parsed = json.loads(raw_output)
