@@ -57,6 +57,7 @@ export default function TailorPage() {
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [company, setCompany] = useState<string | null>(null);
   const [content, setContent] = useState<ResumeContent | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -145,6 +146,7 @@ export default function TailorPage() {
         throw new Error("Save failed");
       }
 
+      setIsDirty(false);
       setSaveStatus("Saved");
       window.setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
@@ -159,6 +161,14 @@ export default function TailorPage() {
     value: ResumeContent[K],
   ) {
     setContent((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setIsDirty(true);
+  }
+
+  function downloadResume(format: "pdf" | "docx") {
+    window.open(
+      `${API_URL}/users/${userId}/resume-version/${jobId}/export?format=${format}`,
+      "_blank",
+    );
   }
 
   function updateExperience(
@@ -214,7 +224,7 @@ export default function TailorPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {saveStatus && <span className="text-sm text-zinc-600">{saveStatus}</span>}
           <button
             className="h-10 bg-zinc-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -224,6 +234,29 @@ export default function TailorPage() {
           >
             {saving ? "Saving..." : "Save"}
           </button>
+          <button
+            className="h-10 border border-zinc-300 px-4 text-sm font-medium text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={() => downloadResume("pdf")}
+            disabled={isDirty}
+            title={isDirty ? "Save your changes first" : ""}
+          >
+            Download PDF
+          </button>
+          <button
+            className="h-10 border border-zinc-300 px-4 text-sm font-medium text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={() => downloadResume("docx")}
+            disabled={isDirty}
+            title={isDirty ? "Save your changes first" : ""}
+          >
+            Download Word
+          </button>
+          {isDirty && (
+            <span className="text-sm text-amber-700">
+              Unsaved changes - save before downloading
+            </span>
+          )}
         </div>
       </div>
 
