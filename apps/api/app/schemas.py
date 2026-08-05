@@ -74,3 +74,28 @@ class ResumeVersionOut(BaseModel):
 
 class ResumeVersionUpdate(BaseModel):
     content: dict
+
+
+class ApplicationCreate(BaseModel):
+    job_id: uuid.UUID
+    resume_version_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+
+
+class ApplicationUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ApplicationOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    job_id: uuid.UUID
+    resume_version_id: Optional[uuid.UUID]
+    status: str
+    notes: Optional[str]
+    applied_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

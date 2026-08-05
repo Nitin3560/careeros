@@ -34,6 +34,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+VALID_STATUSES = {
+    "Applied",
+    "OA",
+    "Recruiter Screen",
+    "Technical",
+    "Final",
+    "Offer",
+    "Rejected",
+    "Ghosted",
+}
+
 
 @app.get("/health")
 def health_check():
@@ -326,6 +337,143 @@ def export_resume(
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/users/{user_id}/applications", response_model=schemas.ApplicationOut)
+def create_application(
+    user_id: str,
+    payload: schemas.ApplicationCreate,
+    db: Session = Depends(get_db),
+):
+    job = db.query(models.Job).filter(models.Job.id == payload.job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing = (
+        db.query(models.Application)
+        .filter(
+            models.Application.user_id == user_id,
+            models.Application.job_id == payload.job_id,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Application already tracked for this job",
+        )
+
+    application = models.Application(
+        user_id=user_id,
+        job_id=payload.job_id,
+        resume_version_id=payload.resume_version_id,
+        notes=payload.notes,
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+@app.get("/users/{user_id}/applications")
+def list_applications(
+    user_id: str,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(models.Application, models.Job)
+        .join(models.Job, models.Application.job_id == models.Job.id)
+        .filter(models.Application.user_id == user_id)
+    )
+
+    if status:
+        query = query.filter(models.Application.status == status)
+
+    results = query.order_by(models.Application.applied_at.desc()).all()
+
+    return {
+        "count": len(results),
+        "applications": [
+            {
+                "id": str(application.id),
+                "job_id": str(application.job_id),
+                "job_title": job.title,
+                "company": job.company,
+                "status": application.status,
+                "notes": application.notes,
+                "applied_at": application.applied_at,
+                "updated_at": application.updated_at,
+                "resume_version_id": (
+                    str(application.resume_version_id)
+                    if application.resume_version_id
+                    else None
+                ),
+            }
+            for application, job in results
+        ],
+    }
+
+
+@app.patch(
+    "/users/{user_id}/applications/{application_id}",
+    response_model=schemas.ApplicationOut,
+)
+def update_application(
+    user_id: str,
+    application_id: str,
+    payload: schemas.ApplicationUpdate,
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(models.Application)
+        .filter(
+            models.Application.id == application_id,
+            models.Application.user_id == user_id,
+        )
+        .first()
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    if payload.status is not None:
+        if payload.status not in VALID_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"status must be one of {sorted(VALID_STATUSES)}",
+            )
+        application.status = payload.status
+
+    if payload.notes is not None:
+        application.notes = payload.notes
+
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+@app.get("/users/{user_id}/applications/by-job/{job_id}")
+def get_application_for_job(
+    user_id: str,
+    job_id: str,
+    db: Session = Depends(get_db),
+):
+    application = (
+        db.query(models.Application)
+        .filter(
+            models.Application.user_id == user_id,
+            models.Application.job_id == job_id,
+        )
+        .first()
+    )
+    if not application:
+        return {"tracked": False}
+
+    return {
+        "tracked": True,
+        "status": application.status,
+        "id": str(application.id),
+    }
 
 
 # --- Users ---
