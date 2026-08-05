@@ -25,38 +25,64 @@ PROVIDER_TPM_BUDGET = {
     "gemini": 200_000,
     "groq": 10_000,
 }
+PROVIDER_RPM_BUDGET = {
+    "gemini": 12,
+    "groq": 25,
+}
 
 
 class RateLimiter:
     def __init__(self):
-        self._usage = {name: deque() for name in PROVIDER_TPM_BUDGET}
+        provider_names = set(PROVIDER_TPM_BUDGET) | set(PROVIDER_RPM_BUDGET)
+        self._tokens = {name: deque() for name in provider_names}
+        self._requests = {name: deque() for name in provider_names}
         self._lock = threading.Lock()
 
     def _prune(self, provider_name: str, now: float):
-        window = self._usage[provider_name]
-        while window and window[0][0] < now - 60:
-            window.popleft()
+        token_window = self._tokens[provider_name]
+        while token_window and token_window[0][0] < now - 60:
+            token_window.popleft()
+
+        request_window = self._requests[provider_name]
+        while request_window and request_window[0] < now - 60:
+            request_window.popleft()
 
     def wait_if_needed(self, provider_name: str, estimated_tokens: int):
-        budget = PROVIDER_TPM_BUDGET.get(provider_name)
-        if budget is None:
+        token_budget = PROVIDER_TPM_BUDGET.get(provider_name)
+        request_budget = PROVIDER_RPM_BUDGET.get(provider_name)
+        if token_budget is None and request_budget is None:
             return
 
         while True:
             with self._lock:
                 now = time.time()
                 self._prune(provider_name, now)
-                current_usage = sum(tokens for _, tokens in self._usage[provider_name])
+                current_tokens = sum(tokens for _, tokens in self._tokens[provider_name])
+                current_requests = len(self._requests[provider_name])
 
-                if current_usage + estimated_tokens <= budget:
-                    self._usage[provider_name].append((now, estimated_tokens))
+                token_ok = (
+                    token_budget is None
+                    or current_tokens + estimated_tokens <= token_budget
+                )
+                request_ok = (
+                    request_budget is None
+                    or current_requests + 1 <= request_budget
+                )
+
+                if token_ok and request_ok:
+                    self._tokens[provider_name].append((now, estimated_tokens))
+                    self._requests[provider_name].append(now)
                     return
 
-                oldest_time = self._usage[provider_name][0][0]
-                wait_time = max(0.5, 60 - (now - oldest_time))
+                wait_candidates = []
+                if not token_ok:
+                    wait_candidates.append(60 - (now - self._tokens[provider_name][0][0]))
+                if not request_ok:
+                    wait_candidates.append(60 - (now - self._requests[provider_name][0]))
+                wait_time = max(0.5, min(wait_candidates))
 
             print(
-                f"[ai_client] {provider_name} would exceed {budget} TPM, "
+                f"[ai_client] {provider_name} would exceed local rate budget, "
                 f"waiting {wait_time:.1f}s..."
             )
             time.sleep(min(wait_time, 5))
@@ -87,8 +113,6 @@ def call_llm(
         if not provider["api_key"]:
             continue
 
-        _rate_limiter.wait_if_needed(provider_name, estimated_tokens)
-
         client = OpenAI(
             base_url=provider["base_url"],
             api_key=provider["api_key"],
@@ -97,6 +121,7 @@ def call_llm(
 
         for attempt in range(max_retries):
             try:
+                _rate_limiter.wait_if_needed(provider_name, estimated_tokens)
                 response = client.chat.completions.create(
                     model=provider["model"],
                     messages=[
