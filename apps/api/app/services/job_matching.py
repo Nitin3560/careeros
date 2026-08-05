@@ -1,7 +1,7 @@
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from sqlalchemy import case, desc, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -72,6 +72,9 @@ Assess the match."""
 
 
 STOPWORDS = {"and", "or", "the", "in", "of", "a", "for", "to", "with", "at"}
+TITLE_WEIGHT = 3
+DESCRIPTION_WEIGHT = 1
+MIN_MATCH_SCORE = 3
 GENERIC_TERMS = {
     "technical",
     "developed",
@@ -112,30 +115,34 @@ GENERIC_TERMS = {
 def shortlist_jobs(
     db: Session, profile_data: dict, limit: int = 30, offset: int = 0
 ) -> list[models.Job]:
+    scored = get_scored_matching_jobs(db, profile_data)
+    return [job for job, score in scored[offset : offset + limit]]
+
+
+def count_matching_jobs(db: Session, profile_data: dict) -> int:
+    return len(get_scored_matching_jobs(db, profile_data))
+
+
+def get_scored_matching_jobs(db: Session, profile_data: dict) -> list[tuple]:
     keywords = build_search_keywords(profile_data)
     if not keywords:
         return []
 
     conditions = build_search_conditions(keywords)
-    rank = build_search_rank(keywords)
+    candidates = db.query(models.Job).filter(or_(*conditions)).all()
 
-    return (
-        db.query(models.Job)
-        .filter(or_(*conditions))
-        .order_by(desc(rank), models.Job.retrieved_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    scored = []
+    for job in candidates:
+        title_lower = (job.title or "").lower()
+        desc_lower = (job.description_text or "").lower()
+        title_hits = sum(1 for kw in keywords if kw in title_lower)
+        desc_hits = sum(1 for kw in keywords if kw in desc_lower)
+        score = title_hits * TITLE_WEIGHT + desc_hits * DESCRIPTION_WEIGHT
+        if score >= MIN_MATCH_SCORE:
+            scored.append((job, score))
 
-
-def count_matching_jobs(db: Session, profile_data: dict) -> int:
-    keywords = build_search_keywords(profile_data)
-    if not keywords:
-        return 0
-
-    conditions = build_search_conditions(keywords)
-    return db.query(models.Job).filter(or_(*conditions)).count()
+    scored.sort(key=lambda pair: -pair[1])
+    return scored
 
 
 def build_search_keywords(profile_data: dict) -> set[str]:
@@ -177,15 +184,6 @@ def build_search_conditions(keywords: set[str]):
         conditions.append(models.Job.title.ilike(pattern))
         conditions.append(models.Job.description_text.ilike(pattern))
     return conditions
-
-
-def build_search_rank(keywords: set[str]):
-    rank_parts = []
-    for kw in keywords:
-        pattern = f"%{kw}%"
-        rank_parts.append(case((models.Job.title.ilike(pattern), 3), else_=0))
-        rank_parts.append(case((models.Job.description_text.ilike(pattern), 1), else_=0))
-    return sum(rank_parts)
 
 
 def fallback_match_score(profile_data: dict, job_title: str, job_description: str) -> dict:
