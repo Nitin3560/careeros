@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalMatches, setTotalMatches] = useState<number | null>(null);
   const [applicationStatus, setApplicationStatus] = useState<
     Record<string, string | null>
   >({});
@@ -52,6 +53,15 @@ export default function DashboardPage() {
       router.push("/");
     }
   }, [checked, router, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    fetch(`${API_URL}/users/${userId}/matches/count`)
+      .then((res) => res.json())
+      .then((data) => setTotalMatches(data.total_matches))
+      .catch(() => setTotalMatches(null));
+  }, [userId]);
 
   const checkApplicationStatus = useCallback(
     async (jobId: string) => {
@@ -145,7 +155,14 @@ export default function DashboardPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Recommended for you</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Recommended for you</h1>
+          {totalMatches !== null && (
+            <p className="mt-1 text-sm text-zinc-600">
+              {totalMatches} job{totalMatches !== 1 ? "s" : ""} match your profile
+            </p>
+          )}
+        </div>
         <button
           className="h-10 border border-zinc-300 px-4 text-sm font-medium"
           type="button"

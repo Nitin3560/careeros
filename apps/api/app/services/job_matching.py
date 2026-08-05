@@ -112,6 +112,33 @@ GENERIC_TERMS = {
 def shortlist_jobs(
     db: Session, profile_data: dict, limit: int = 30, offset: int = 0
 ) -> list[models.Job]:
+    keywords = build_search_keywords(profile_data)
+    if not keywords:
+        return []
+
+    conditions = build_search_conditions(keywords)
+    rank = build_search_rank(keywords)
+
+    return (
+        db.query(models.Job)
+        .filter(or_(*conditions))
+        .order_by(desc(rank), models.Job.retrieved_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+def count_matching_jobs(db: Session, profile_data: dict) -> int:
+    keywords = build_search_keywords(profile_data)
+    if not keywords:
+        return 0
+
+    conditions = build_search_conditions(keywords)
+    return db.query(models.Job).filter(or_(*conditions)).count()
+
+
+def build_search_keywords(profile_data: dict) -> set[str]:
     keywords = set()
 
     for term in profile_data.get("preferred_roles", []):
@@ -140,28 +167,25 @@ def shortlist_jobs(
                 ):
                     keywords.add(word)
 
-    if not keywords:
-        return []
+    return keywords
 
+
+def build_search_conditions(keywords: set[str]):
     conditions = []
-    rank_parts = []
     for kw in keywords:
         pattern = f"%{kw}%"
         conditions.append(models.Job.title.ilike(pattern))
         conditions.append(models.Job.description_text.ilike(pattern))
+    return conditions
+
+
+def build_search_rank(keywords: set[str]):
+    rank_parts = []
+    for kw in keywords:
+        pattern = f"%{kw}%"
         rank_parts.append(case((models.Job.title.ilike(pattern), 3), else_=0))
         rank_parts.append(case((models.Job.description_text.ilike(pattern), 1), else_=0))
-
-    rank = sum(rank_parts)
-
-    return (
-        db.query(models.Job)
-        .filter(or_(*conditions))
-        .order_by(desc(rank), models.Job.retrieved_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    return sum(rank_parts)
 
 
 def fallback_match_score(profile_data: dict, job_title: str, job_description: str) -> dict:

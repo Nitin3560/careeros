@@ -14,6 +14,7 @@ from app.services.auth import hash_password, verify_password
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import (
+    count_matching_jobs,
     get_or_create_matches,
     match_job_to_profile,
     shortlist_jobs,
@@ -167,6 +168,20 @@ def get_shortlist(user_id: str, limit: int = 30, db: Session = Depends(get_db)):
             for j in jobs
         ],
     }
+
+
+@app.get("/users/{user_id}/matches/count")
+def get_matches_count(user_id: str, db: Session = Depends(get_db)):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    total = count_matching_jobs(db, profile.data)
+    return {"total_matches": total}
 
 
 @app.get("/users/{user_id}/matches")
