@@ -1,8 +1,10 @@
+import io
 from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,7 @@ from app.services.job_matching import (
     shortlist_jobs,
 )
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
+from app.services.resume_export import generate_docx, generate_pdf
 from app.services.resume_tailoring import tailor_resume_for_job
 
 load_dotenv()
@@ -283,6 +286,46 @@ def update_resume_version(
     db.commit()
     db.refresh(version)
     return version
+
+
+@app.get("/users/{user_id}/resume-version/{job_id}/export")
+def export_resume(
+    user_id: str,
+    job_id: str,
+    format: str = "pdf",
+    db: Session = Depends(get_db),
+):
+    version = (
+        db.query(models.ResumeVersion)
+        .filter(
+            models.ResumeVersion.user_id == user_id,
+            models.ResumeVersion.job_id == job_id,
+        )
+        .first()
+    )
+    if not version:
+        raise HTTPException(status_code=404, detail="Resume version not found")
+
+    filename_base = (version.content.get("full_name") or "resume").replace(" ", "_")
+
+    if format == "docx":
+        file_bytes = generate_docx(version.content)
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        filename = f"{filename_base}.docx"
+    elif format == "pdf":
+        file_bytes = generate_pdf(version.content)
+        media_type = "application/pdf"
+        filename = f"{filename_base}.pdf"
+    else:
+        raise HTTPException(status_code=400, detail="format must be 'pdf' or 'docx'")
+
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --- Users ---
