@@ -476,9 +476,6 @@ def get_application_for_job(
     }
 
 
-# --- Users ---
-
-
 @app.post("/users", response_model=schemas.UserOut)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user.email).first()
@@ -502,9 +499,6 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-
-# --- Candidate Profile ---
 
 
 @app.put("/users/{user_id}/profile", response_model=schemas.CandidateProfileOut)

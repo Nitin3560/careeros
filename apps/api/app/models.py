@@ -36,9 +36,6 @@ class CandidateProfile(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
     )
-
-    # Structured profile data (skills, experience, evidence, preferences)
-    # stored as JSONB so it's flexible now, queryable later.
     data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
