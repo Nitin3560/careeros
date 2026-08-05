@@ -19,8 +19,9 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
 PARSE_SYSTEM_PROMPT = """You extract structured candidate data from resume text.
 
 Rules:
-- Only extract what is explicitly stated in the resume. Never invent, infer, or embellish.
+- Only extract what is explicitly stated in the resume. Never invent, infer, or embellish facts.
 - For each skill, include supporting evidence (a project, role, or achievement that demonstrates it) if present in the text.
+- For preferred_roles specifically, infer broadly and return 5-8 job titles this person is realistically qualified for, based on their actual skills and experience. Include the most obvious title, plus adjacent titles that use the same underlying skills in a different context. Do not invent skills to justify a role.
 - Respond with ONLY valid JSON, no markdown formatting, no extra text.
 
 Output this exact JSON shape:
@@ -29,7 +30,7 @@ Output this exact JSON shape:
   "skills": [{"name": <string>, "evidence": [<short strings>]}],
   "experience": [{"title": <string>, "company": <string>, "duration": <string>, "highlights": [<short strings>]}],
   "education": [{"degree": <string>, "institution": <string>, "year": <string or null>}],
-  "preferred_roles": [<inferred job titles this person is likely targeting, based on their experience>]
+  "preferred_roles": [<5-8 job titles, broad but genuinely supported by the extracted skills/experience>]
 }"""
 
 

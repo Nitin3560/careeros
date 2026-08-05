@@ -82,6 +82,12 @@ def shortlist_jobs(
         if isinstance(skill, dict) and skill.get("name"):
             raw_terms.append(skill["name"])
 
+    for exp in profile_data.get("experience", []):
+        if not isinstance(exp, dict):
+            continue
+        for highlight in exp.get("highlights", []):
+            raw_terms.append(highlight)
+
     keywords = set()
     for term in raw_terms:
         for word in term.split():
