@@ -1,4 +1,5 @@
 import io
+from datetime import datetime
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -76,6 +77,90 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return user
+
+
+@app.post("/company-targets/bulk")
+def add_company_targets_bulk(
+    payload: schemas.CompanyTargetBulkCreate,
+    db: Session = Depends(get_db),
+):
+    added = 0
+    skipped = 0
+
+    for raw_slug in payload.slugs:
+        slug = raw_slug.strip().lower()
+        if not slug:
+            continue
+
+        existing = (
+            db.query(models.CompanyTarget)
+            .filter(models.CompanyTarget.slug == slug)
+            .first()
+        )
+        if existing:
+            skipped += 1
+            continue
+
+        db.add(models.CompanyTarget(slug=slug, source=payload.source))
+        added += 1
+
+    db.commit()
+    return {"added": added, "skipped": skipped}
+
+
+@app.get("/company-targets")
+def list_company_targets(db: Session = Depends(get_db)):
+    targets = db.query(models.CompanyTarget).order_by(models.CompanyTarget.slug).all()
+    return {
+        "count": len(targets),
+        "targets": [
+            {
+                "slug": t.slug,
+                "source": t.source,
+                "active": t.active,
+                "last_ingested_at": t.last_ingested_at,
+            }
+            for t in targets
+        ],
+    }
+
+
+@app.post("/ingest/greenhouse/bulk")
+def bulk_ingest_greenhouse(db: Session = Depends(get_db)):
+    targets = (
+        db.query(models.CompanyTarget)
+        .filter(
+            models.CompanyTarget.source == "greenhouse",
+            models.CompanyTarget.active.is_(True),
+        )
+        .all()
+    )
+
+    results = []
+    for target in targets:
+        try:
+            jobs = fetch_greenhouse_jobs(target.slug)
+            result = save_jobs(db, jobs)
+            target.last_ingested_at = datetime.utcnow()
+            target.active = True
+            db.commit()
+            results.append({"company": target.slug, **result})
+        except Exception as exc:
+            target.active = False
+            db.commit()
+            results.append({"company": target.slug, "error": str(exc)})
+
+    succeeded = sum(1 for result in results if "error" not in result)
+    failed = len(results) - succeeded
+    total_inserted = sum(result.get("inserted", 0) for result in results)
+
+    return {
+        "companies_processed": len(results),
+        "succeeded": succeeded,
+        "failed": failed,
+        "total_jobs_inserted": total_inserted,
+        "results": results,
+    }
 
 
 @app.post("/ingest/greenhouse/{company_slug}")

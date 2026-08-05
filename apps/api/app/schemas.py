@@ -76,6 +76,27 @@ class ResumeVersionUpdate(BaseModel):
     content: dict
 
 
+class CompanyTargetCreate(BaseModel):
+    slug: str
+    source: str = "greenhouse"
+
+
+class CompanyTargetBulkCreate(BaseModel):
+    slugs: list[str]
+    source: str = "greenhouse"
+
+
+class CompanyTargetOut(BaseModel):
+    id: uuid.UUID
+    slug: str
+    source: str
+    active: bool
+    last_ingested_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class ApplicationCreate(BaseModel):
     job_id: uuid.UUID
     resume_version_id: Optional[uuid.UUID] = None

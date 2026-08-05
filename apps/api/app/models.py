@@ -64,6 +64,19 @@ class Job(Base):
     retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class CompanyTarget(Base):
+    __tablename__ = "company_targets"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False, default="greenhouse")
+    active: Mapped[bool] = mapped_column(default=True)
+    last_ingested_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class JobMatch(Base):
     __tablename__ = "job_matches"
     __table_args__ = (
