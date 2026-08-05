@@ -1,5 +1,7 @@
 import os
+import threading
 import time
+from collections import deque
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -19,6 +21,54 @@ ALL_PROVIDERS = {
     },
 }
 
+PROVIDER_TPM_BUDGET = {
+    "gemini": 200_000,
+    "groq": 10_000,
+}
+
+
+class RateLimiter:
+    def __init__(self):
+        self._usage = {name: deque() for name in PROVIDER_TPM_BUDGET}
+        self._lock = threading.Lock()
+
+    def _prune(self, provider_name: str, now: float):
+        window = self._usage[provider_name]
+        while window and window[0][0] < now - 60:
+            window.popleft()
+
+    def wait_if_needed(self, provider_name: str, estimated_tokens: int):
+        budget = PROVIDER_TPM_BUDGET.get(provider_name)
+        if budget is None:
+            return
+
+        while True:
+            with self._lock:
+                now = time.time()
+                self._prune(provider_name, now)
+                current_usage = sum(tokens for _, tokens in self._usage[provider_name])
+
+                if current_usage + estimated_tokens <= budget:
+                    self._usage[provider_name].append((now, estimated_tokens))
+                    return
+
+                oldest_time = self._usage[provider_name][0][0]
+                wait_time = max(0.5, 60 - (now - oldest_time))
+
+            print(
+                f"[ai_client] {provider_name} would exceed {budget} TPM, "
+                f"waiting {wait_time:.1f}s..."
+            )
+            time.sleep(min(wait_time, 5))
+
+
+_rate_limiter = RateLimiter()
+
+
+def estimate_tokens(system_prompt: str, user_prompt: str, max_tokens: int) -> int:
+    input_tokens = (len(system_prompt) + len(user_prompt)) // 4
+    return input_tokens + max_tokens
+
 
 def call_llm(
     system_prompt: str,
@@ -28,6 +78,7 @@ def call_llm(
     max_retries: int = 2,
 ) -> str:
     last_error = None
+    estimated_tokens = estimate_tokens(system_prompt, user_prompt, max_tokens)
 
     for provider_name in provider_order:
         provider = ALL_PROVIDERS.get(provider_name)
@@ -35,6 +86,8 @@ def call_llm(
             continue
         if not provider["api_key"]:
             continue
+
+        _rate_limiter.wait_if_needed(provider_name, estimated_tokens)
 
         client = OpenAI(
             base_url=provider["base_url"],
