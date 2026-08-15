@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalMatches, setTotalMatches] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<
     Record<string, string | null>
   >({});
@@ -118,6 +119,43 @@ export default function DashboardPage() {
     }
   }
 
+  const refreshPage = useCallback(
+    async (pageOffset: number) => {
+      if (!userId) return;
+
+      setRefreshing(true);
+      try {
+        const refreshRes = await fetch(
+          `${API_URL}/users/${userId}/matches/refresh?offset=${pageOffset}&limit=${PAGE_SIZE}`,
+          { method: "POST" },
+        );
+        if (!refreshRes.ok) return;
+
+        const job = (await refreshRes.json()) as BackgroundJob;
+        await waitForJob(job.id);
+
+        const res = await fetch(
+          `${API_URL}/users/${userId}/matches/cached?offset=${pageOffset}&limit=${PAGE_SIZE}`,
+        );
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setResults((prev) => {
+          const next = [...prev];
+          data.results.forEach((result: MatchResult, index: number) => {
+            next[pageOffset + index] = result;
+          });
+          return next.filter(Boolean);
+        });
+      } catch {
+        return;
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [userId, waitForJob],
+  );
+
   const loadMore = useCallback(async () => {
     if (!userId || loadingRef.current || !hasMoreRef.current) return;
 
@@ -126,17 +164,6 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const refreshRes = await fetch(
-        `${API_URL}/users/${userId}/matches/refresh?offset=${offsetRef.current}&limit=${PAGE_SIZE}`,
-        { method: "POST" },
-      );
-      if (!refreshRes.ok) {
-        throw new Error("Failed to refresh matches");
-      }
-
-      const job = (await refreshRes.json()) as BackgroundJob;
-      await waitForJob(job.id);
-
       const res = await fetch(
         `${API_URL}/users/${userId}/matches/cached?offset=${offsetRef.current}&limit=${PAGE_SIZE}`,
       );
@@ -145,6 +172,7 @@ export default function DashboardPage() {
       }
 
       const data = await res.json();
+      const currentOffset = offsetRef.current;
       const nextOffset = offsetRef.current + PAGE_SIZE;
       offsetRef.current = nextOffset;
       hasMoreRef.current = data.has_more;
@@ -155,13 +183,14 @@ export default function DashboardPage() {
       });
       setOffset(nextOffset);
       setHasMore(data.has_more);
+      void refreshPage(currentOffset);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [checkApplicationStatus, userId, waitForJob]);
+  }, [checkApplicationStatus, refreshPage, userId]);
 
   useEffect(() => {
     if (userId && results.length === 0) {
@@ -203,6 +232,11 @@ export default function DashboardPage() {
           {totalMatches !== null && (
             <p className="mt-2 text-sm font-medium text-zinc-500">
               {totalMatches} job{totalMatches !== 1 ? "s" : ""} match your profile
+            </p>
+          )}
+          {refreshing && (
+            <p className="mt-1 text-xs font-medium text-zinc-400">
+              Refreshing scores in the background
             </p>
           )}
         </div>
