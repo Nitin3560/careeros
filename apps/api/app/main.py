@@ -1,8 +1,9 @@
 import io
+from time import perf_counter
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
@@ -24,6 +25,7 @@ from app.services.job_matching import (
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
 from app.services.resume_export import generate_docx, generate_pdf
 from app.services.resume_tailoring import tailor_resume_for_job
+from app.services.metrics import metrics_snapshot, record_http_request
 from app.services.upload_validation import validate_resume_upload
 from app.services.queue import get_queue
 from app.workers.ingestion import run_bulk_greenhouse_ingestion
@@ -40,6 +42,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def collect_http_metrics(request: Request, call_next):
+    started = perf_counter()
+    response = await call_next(request)
+    latency_ms = (perf_counter() - started) * 1000
+    route = request.scope.get("route")
+    path = getattr(route, "path", request.url.path)
+    record_http_request(request.method, path, response.status_code, latency_ms)
+    response.headers["X-Process-Time-Ms"] = f"{latency_ms:.2f}"
+    return response
+
 
 VALID_STATUSES = {
     "Applied",
@@ -58,6 +73,11 @@ def health_check():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     return {"status": "ok", "database": "connected"}
+
+
+@app.get("/metrics")
+def get_metrics():
+    return metrics_snapshot()
 
 
 @app.post("/auth/signup", response_model=schemas.AuthResponse)
