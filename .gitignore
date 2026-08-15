@@ -22,6 +22,9 @@ build/
 # Docker
 postgres_data/
 
+# Local reports
+reports/
+
 # Editor
 .vscode/*
 !.vscode/settings.json
