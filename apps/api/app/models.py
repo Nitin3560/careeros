@@ -159,6 +159,7 @@ class BackgroundJob(Base):
     job_type: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
     queue_job_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    dedupe_key: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(String, nullable=True)

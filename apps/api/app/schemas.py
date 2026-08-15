@@ -127,6 +127,7 @@ class BackgroundJobOut(BaseModel):
     job_type: str
     status: str
     queue_job_id: Optional[str]
+    dedupe_key: Optional[str]
     payload: dict
     result: Optional[dict]
     error: Optional[str]
