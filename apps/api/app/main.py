@@ -77,6 +77,49 @@ VALID_STATUSES = {
 }
 
 
+def enqueue_match_refresh(
+    db: Session,
+    user_id: str,
+    offset: int = 0,
+    limit: int = 10,
+    profile_version: int | None = None,
+):
+    payload = {"user_id": user_id, "offset": offset, "limit": limit}
+    key_parts = ["match_refresh", user_id, str(offset), str(limit)]
+    if profile_version is not None:
+        payload["profile_version"] = profile_version
+        key_parts.append(str(profile_version))
+
+    background_job, created = get_or_create_background_job(
+        db,
+        job_type="match_refresh",
+        payload=payload,
+        dedupe_key=":".join(key_parts),
+    )
+    if not created:
+        return background_job
+
+    queue_job = get_queue().enqueue(
+        run_match_refresh,
+        str(background_job.id),
+        job_timeout=900,
+    )
+    return set_queue_job_id(db, background_job, queue_job.id)
+
+
+def warm_profile_matches(db: Session, user_id: str, profile: models.CandidateProfile):
+    try:
+        enqueue_match_refresh(
+            db,
+            user_id,
+            offset=0,
+            limit=10,
+            profile_version=profile.profile_version,
+        )
+    except Exception:
+        pass
+
+
 @app.get("/health")
 def health_check():
     with engine.connect() as conn:
@@ -365,24 +408,12 @@ def refresh_matches(
     if not profile:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
-    payload = {"user_id": user_id, "offset": offset, "limit": limit}
-    dedupe_key = f"match_refresh:{user_id}:{offset}:{limit}"
-
-    background_job, created = get_or_create_background_job(
+    return enqueue_match_refresh(
         db,
-        job_type="match_refresh",
-        payload=payload,
-        dedupe_key=dedupe_key,
+        user_id,
+        offset=offset,
+        limit=limit,
     )
-    if not created:
-        return background_job
-
-    queue_job = get_queue().enqueue(
-        run_match_refresh,
-        str(background_job.id),
-        job_timeout=900,
-    )
-    return set_queue_job_id(db, background_job, queue_job.id)
 
 
 @app.post("/users/{user_id}/tailor/{job_id}")
@@ -720,12 +751,14 @@ def upsert_profile(
 
     if profile:
         profile.data = payload.data
+        profile.profile_version = (profile.profile_version or 1) + 1
     else:
         profile = models.CandidateProfile(user_id=user_id, data=payload.data)
         db.add(profile)
 
     db.commit()
     db.refresh(profile)
+    warm_profile_matches(db, user_id, profile)
     return profile
 
 
@@ -806,6 +839,7 @@ async def upload_resume(
 
     db.commit()
     db.refresh(profile)
+    warm_profile_matches(db, user_id, profile)
     return profile
 
 
