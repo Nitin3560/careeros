@@ -9,8 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: sqlite+pysqlite:///:memory:
-      REDIS_URL: redis://localhost:6379/0
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
+      REDIS_URL: "redis://localhost:6379/0"
     defaults:
       run:
         working-directory: apps/api
