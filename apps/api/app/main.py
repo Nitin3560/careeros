@@ -1,5 +1,4 @@
 import io
-from datetime import datetime
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -12,6 +11,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import engine, get_db
 from app.services.auth import hash_password, verify_password
+from app.services.background_jobs import create_background_job, set_queue_job_id
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import (
@@ -23,6 +23,8 @@ from app.services.job_matching import (
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
 from app.services.resume_export import generate_docx, generate_pdf
 from app.services.resume_tailoring import tailor_resume_for_job
+from app.services.queue import get_queue
+from app.workers.ingestion import run_bulk_greenhouse_ingestion
 
 load_dotenv()
 
@@ -125,42 +127,32 @@ def list_company_targets(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/ingest/greenhouse/bulk")
+@app.post("/ingest/greenhouse/bulk", response_model=schemas.BackgroundJobOut)
 def bulk_ingest_greenhouse(db: Session = Depends(get_db)):
-    targets = (
-        db.query(models.CompanyTarget)
-        .filter(
-            models.CompanyTarget.source == "greenhouse",
-            models.CompanyTarget.active.is_(True),
-        )
-        .all()
+    background_job = create_background_job(
+        db,
+        job_type="greenhouse_bulk_ingest",
+        payload={"source": "greenhouse"},
     )
+    queue_job = get_queue().enqueue(
+        run_bulk_greenhouse_ingestion,
+        str(background_job.id),
+        job_timeout=900,
+    )
+    return set_queue_job_id(db, background_job, queue_job.id)
 
-    results = []
-    for target in targets:
-        try:
-            jobs = fetch_greenhouse_jobs(target.slug)
-            result = save_jobs(db, jobs)
-            target.last_ingested_at = datetime.utcnow()
-            target.active = True
-            db.commit()
-            results.append({"company": target.slug, **result})
-        except Exception as exc:
-            target.active = False
-            db.commit()
-            results.append({"company": target.slug, "error": str(exc)})
 
-    succeeded = sum(1 for result in results if "error" not in result)
-    failed = len(results) - succeeded
-    total_inserted = sum(result.get("inserted", 0) for result in results)
+@app.get("/background-jobs/{job_id}", response_model=schemas.BackgroundJobOut)
+def get_background_job(job_id: str, db: Session = Depends(get_db)):
+    background_job = (
+        db.query(models.BackgroundJob)
+        .filter(models.BackgroundJob.id == job_id)
+        .first()
+    )
+    if not background_job:
+        raise HTTPException(status_code=404, detail="Background job not found")
 
-    return {
-        "companies_processed": len(results),
-        "succeeded": succeeded,
-        "failed": failed,
-        "total_jobs_inserted": total_inserted,
-        "results": results,
-    }
+    return background_job
 
 
 @app.post("/ingest/greenhouse/{company_slug}")

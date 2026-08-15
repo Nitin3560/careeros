@@ -30,6 +30,15 @@ def create_background_job(
     return job
 
 
+def set_queue_job_id(
+    db: Session, job: models.BackgroundJob, queue_job_id: str
+) -> models.BackgroundJob:
+    job.queue_job_id = queue_job_id
+    db.commit()
+    db.refresh(job)
+    return job
+
+
 def mark_job_running(db: Session, job: models.BackgroundJob) -> models.BackgroundJob:
     job.status = RUNNING
     job.attempts += 1
