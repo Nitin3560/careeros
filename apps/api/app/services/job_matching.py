@@ -32,7 +32,7 @@ def match_job_to_profile(profile_data: dict, job_title: str, job_description: st
 JOB TITLE: {job_title}
 
 JOB DESCRIPTION:
-{job_description[:1500]}
+{job_description[:900]}
 
 Assess the match."""
 
@@ -40,6 +40,7 @@ Assess the match."""
         SYSTEM_PROMPT,
         user_prompt,
         provider_order=["gemini", "groq"],
+        max_tokens=450,
     )
 
     try:
