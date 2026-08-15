@@ -54,3 +54,75 @@ def test_bulk_ingest_endpoint_enqueues_background_job(monkeypatch):
     assert response.json()["queue_job_id"] == "rq-job-1"
     assert queued["background_job_id"] == str(created_job.id)
     assert queued["job_timeout"] == 900
+
+
+def test_match_refresh_endpoint_enqueues_background_job(monkeypatch):
+    user_id = uuid.uuid4()
+    created_job = SimpleNamespace(
+        id=uuid.uuid4(),
+        job_type="match_refresh",
+        status="queued",
+        queue_job_id=None,
+        payload={"user_id": str(user_id), "offset": 10, "limit": 5},
+        result=None,
+        error=None,
+        attempts=0,
+        created_at=datetime.utcnow(),
+        started_at=None,
+        finished_at=None,
+        updated_at=datetime.utcnow(),
+    )
+    queued = {}
+
+    class FakeQuery:
+        def filter(self, *args):
+            return self
+
+        def first(self):
+            return object()
+
+    class FakeDb:
+        def query(self, model):
+            return FakeQuery()
+
+    class FakeQueue:
+        def enqueue(self, fn, background_job_id, job_timeout):
+            queued["fn"] = fn
+            queued["background_job_id"] = background_job_id
+            queued["job_timeout"] = job_timeout
+            return SimpleNamespace(id="rq-match-job-1")
+
+    def fake_get_db():
+        yield FakeDb()
+
+    def fake_create_background_job(db, job_type, payload):
+        created_job.job_type = job_type
+        created_job.payload = payload
+        return created_job
+
+    def fake_set_queue_job_id(db, job, queue_job_id):
+        job.queue_job_id = queue_job_id
+        return job
+
+    monkeypatch.setattr("app.main.get_queue", lambda: FakeQueue())
+    monkeypatch.setattr("app.main.create_background_job", fake_create_background_job)
+    monkeypatch.setattr("app.main.set_queue_job_id", fake_set_queue_job_id)
+    app.dependency_overrides[get_db] = fake_get_db
+
+    try:
+        response = TestClient(app).post(
+            f"/users/{user_id}/matches/refresh?offset=10&limit=5"
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["job_type"] == "match_refresh"
+    assert response.json()["queue_job_id"] == "rq-match-job-1"
+    assert response.json()["payload"] == {
+        "user_id": str(user_id),
+        "offset": 10,
+        "limit": 5,
+    }
+    assert queued["background_job_id"] == str(created_job.id)
+    assert queued["job_timeout"] == 900
