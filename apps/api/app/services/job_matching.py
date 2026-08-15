@@ -1,7 +1,7 @@
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from sqlalchemy import or_
+from sqlalchemy import desc, func, literal_column, or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -115,34 +115,54 @@ GENERIC_TERMS = {
 def shortlist_jobs(
     db: Session, profile_data: dict, limit: int = 30, offset: int = 0
 ) -> list[models.Job]:
-    scored = get_scored_matching_jobs(db, profile_data)
-    return [job for job, score in scored[offset : offset + limit]]
+    scored = get_scored_matching_jobs(db, profile_data, limit=limit, offset=offset)
+    return [job for job, score in scored]
 
 
 def count_matching_jobs(db: Session, profile_data: dict) -> int:
-    return len(get_scored_matching_jobs(db, profile_data))
+    keywords = build_title_search_keywords(profile_data)
+    if not keywords:
+        return 0
+
+    if _is_postgresql_session(db):
+        search_vector = build_postgres_title_search_vector()
+        search_query = build_postgres_search_query(keywords)
+        return db.query(models.Job).filter(search_vector.op("@@")(search_query)).count()
+
+    return len(_score_matching_jobs_in_python(db, keywords))
 
 
-def get_scored_matching_jobs(db: Session, profile_data: dict) -> list[tuple]:
+def get_scored_matching_jobs(
+    db: Session,
+    profile_data: dict,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[tuple]:
     keywords = build_search_keywords(profile_data)
+    title_keywords = build_title_search_keywords(profile_data)
+    if title_keywords:
+        keywords = title_keywords
+
     if not keywords:
         return []
 
-    conditions = build_search_conditions(keywords)
-    candidates = db.query(models.Job).filter(or_(*conditions)).all()
+    if not _is_postgresql_session(db):
+        scored = _score_matching_jobs_in_python(db, keywords)
+        return scored[offset : offset + limit] if limit is not None else scored[offset:]
 
-    scored = []
-    for job in candidates:
-        title_lower = (job.title or "").lower()
-        desc_lower = (job.description_text or "").lower()
-        title_hits = sum(1 for kw in keywords if kw in title_lower)
-        desc_hits = sum(1 for kw in keywords if kw in desc_lower)
-        score = title_hits * TITLE_WEIGHT + desc_hits * DESCRIPTION_WEIGHT
-        if score >= MIN_MATCH_SCORE:
-            scored.append((job, score))
+    search_vector = build_postgres_title_search_vector()
+    search_query = build_postgres_search_query(keywords)
+    score_expr = func.ts_rank_cd(search_vector, search_query).label("match_score")
+    query = (
+        db.query(models.Job, score_expr)
+        .filter(search_vector.op("@@")(search_query))
+        .order_by(desc(score_expr), models.Job.retrieved_at.desc())
+        .offset(offset)
+    )
+    if limit is not None:
+        query = query.limit(limit)
 
-    scored.sort(key=lambda pair: -pair[1])
-    return scored
+    return query.all()
 
 
 def build_search_keywords(profile_data: dict) -> set[str]:
@@ -177,6 +197,24 @@ def build_search_keywords(profile_data: dict) -> set[str]:
     return keywords
 
 
+def build_title_search_keywords(profile_data: dict) -> set[str]:
+    keywords = set()
+    broad_title_terms = {"engineer", "developer", "scientist", "software", "systems"}
+
+    for term in profile_data.get("preferred_roles", []):
+        for word in term.split():
+            word = word.strip(",.()").lower()
+            if (
+                len(word) > 2
+                and word not in STOPWORDS
+                and word not in GENERIC_TERMS
+                and word not in broad_title_terms
+            ):
+                keywords.add(word)
+
+    return keywords
+
+
 def build_search_conditions(keywords: set[str]):
     conditions = []
     for kw in keywords:
@@ -184,6 +222,39 @@ def build_search_conditions(keywords: set[str]):
         conditions.append(models.Job.title.ilike(pattern))
         conditions.append(models.Job.description_text.ilike(pattern))
     return conditions
+
+
+def build_postgres_title_search_vector():
+    english = literal_column("'english'")
+    return func.to_tsvector(english, func.coalesce(models.Job.title, ""))
+
+
+def build_postgres_search_query(keywords: set[str]):
+    english = literal_column("'english'")
+    query_text = " OR ".join(sorted(keywords))
+    return func.websearch_to_tsquery(english, query_text)
+
+
+def _score_matching_jobs_in_python(db: Session, keywords: set[str]) -> list[tuple]:
+    conditions = build_search_conditions(keywords)
+    candidates = db.query(models.Job).filter(or_(*conditions)).all()
+
+    scored = []
+    for job in candidates:
+        title_lower = (job.title or "").lower()
+        desc_lower = (job.description_text or "").lower()
+        title_hits = sum(1 for kw in keywords if kw in title_lower)
+        desc_hits = sum(1 for kw in keywords if kw in desc_lower)
+        score = title_hits * TITLE_WEIGHT + desc_hits * DESCRIPTION_WEIGHT
+        if score >= MIN_MATCH_SCORE:
+            scored.append((job, score))
+
+    scored.sort(key=lambda pair: -pair[1])
+    return scored
+
+
+def _is_postgresql_session(db: Session) -> bool:
+    return db.get_bind().dialect.name == "postgresql"
 
 
 def fallback_match_score(profile_data: dict, job_title: str, job_description: str) -> dict:

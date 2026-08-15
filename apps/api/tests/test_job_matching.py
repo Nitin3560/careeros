@@ -64,6 +64,21 @@ def test_build_search_keywords_filters_generic_highlight_terms():
     assert "workflows" not in keywords
 
 
+def test_build_title_search_keywords_keeps_role_signal_terms():
+    profile = {
+        "preferred_roles": [
+            "Robotics Software Engineer",
+            "Simulation Validation Engineer",
+        ]
+    }
+
+    keywords = job_matching.build_title_search_keywords(profile)
+
+    assert {"robotics", "simulation", "validation"}.issubset(keywords)
+    assert "software" not in keywords
+    assert "engineer" not in keywords
+
+
 def test_cache_validity_rejects_estimated_stale_or_wrong_prompt_version():
     valid = SimpleNamespace(
         profile_version=2,
