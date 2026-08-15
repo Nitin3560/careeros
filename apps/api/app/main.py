@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import engine, get_db
 from app.services.auth import hash_password, verify_password
-from app.services.background_jobs import create_background_job, set_queue_job_id
+from app.services.background_jobs import get_or_create_background_job, set_queue_job_id
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import (
@@ -130,11 +130,15 @@ def list_company_targets(db: Session = Depends(get_db)):
 
 @app.post("/ingest/greenhouse/bulk", response_model=schemas.BackgroundJobOut)
 def bulk_ingest_greenhouse(db: Session = Depends(get_db)):
-    background_job = create_background_job(
+    background_job, created = get_or_create_background_job(
         db,
         job_type="greenhouse_bulk_ingest",
         payload={"source": "greenhouse"},
+        dedupe_key="greenhouse_bulk_ingest:greenhouse",
     )
+    if not created:
+        return background_job
+
     queue_job = get_queue().enqueue(
         run_bulk_greenhouse_ingestion,
         str(background_job.id),
@@ -305,11 +309,18 @@ def refresh_matches(
     if not profile:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
-    background_job = create_background_job(
+    payload = {"user_id": user_id, "offset": offset, "limit": limit}
+    dedupe_key = f"match_refresh:{user_id}:{offset}:{limit}"
+
+    background_job, created = get_or_create_background_job(
         db,
         job_type="match_refresh",
-        payload={"user_id": user_id, "offset": offset, "limit": limit},
+        payload=payload,
+        dedupe_key=dedupe_key,
     )
+    if not created:
+        return background_job
+
     queue_job = get_queue().enqueue(
         run_match_refresh,
         str(background_job.id),
