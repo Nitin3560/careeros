@@ -120,3 +120,21 @@ class ApplicationOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class BackgroundJobOut(BaseModel):
+    id: uuid.UUID
+    job_type: str
+    status: str
+    queue_job_id: Optional[str]
+    payload: dict
+    result: Optional[dict]
+    error: Optional[str]
+    attempts: int
+    created_at: datetime
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
