@@ -24,12 +24,6 @@ type MatchResult = {
   };
 };
 
-type BackgroundJob = {
-  id: string;
-  status: "queued" | "running" | "succeeded" | "failed";
-  error: string | null;
-};
-
 function scoreColor(score: number | null) {
   if (score === null) return "bg-zinc-100 text-zinc-600";
   if (score >= 60) return "bg-green-100 text-green-700";
@@ -56,6 +50,7 @@ export default function DashboardPage() {
   const loadingRef = useRef(false);
   const offsetRef = useRef(0);
   const hasMoreRef = useRef(true);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
     if (checked && !userId) {
@@ -88,23 +83,6 @@ export default function DashboardPage() {
     [userId],
   );
 
-  const waitForJob = useCallback(async (jobId: string) => {
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      const res = await fetch(`${API_URL}/background-jobs/${jobId}`);
-      if (!res.ok) throw new Error("Failed to check background job");
-
-      const job = (await res.json()) as BackgroundJob;
-      if (job.status === "succeeded") return;
-      if (job.status === "failed") {
-        throw new Error(job.error || "Background job failed");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    throw new Error("Match refresh is still running");
-  }, []);
-
   async function markAsApplied(jobId: string) {
     if (!userId) return;
 
@@ -121,21 +99,13 @@ export default function DashboardPage() {
 
   const refreshPage = useCallback(
     async (pageOffset: number) => {
-      if (!userId) return;
+      if (!userId || refreshingRef.current) return;
 
+      refreshingRef.current = true;
       setRefreshing(true);
       try {
-        const refreshRes = await fetch(
-          `${API_URL}/users/${userId}/matches/refresh?offset=${pageOffset}&limit=${PAGE_SIZE}`,
-          { method: "POST" },
-        );
-        if (!refreshRes.ok) return;
-
-        const job = (await refreshRes.json()) as BackgroundJob;
-        await waitForJob(job.id);
-
         const res = await fetch(
-          `${API_URL}/users/${userId}/matches/cached?offset=${pageOffset}&limit=${PAGE_SIZE}`,
+          `${API_URL}/users/${userId}/matches?offset=${pageOffset}&limit=${PAGE_SIZE}`,
         );
         if (!res.ok) return;
 
@@ -150,14 +120,22 @@ export default function DashboardPage() {
       } catch {
         return;
       } finally {
+        refreshingRef.current = false;
         setRefreshing(false);
       }
     },
-    [userId, waitForJob],
+    [userId],
   );
 
   const loadMore = useCallback(async () => {
-    if (!userId || loadingRef.current || !hasMoreRef.current) return;
+    if (
+      !userId ||
+      loadingRef.current ||
+      refreshingRef.current ||
+      !hasMoreRef.current
+    ) {
+      return;
+    }
 
     loadingRef.current = true;
     setLoading(true);
