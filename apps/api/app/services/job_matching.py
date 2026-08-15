@@ -233,13 +233,7 @@ def get_or_create_matches(
     jobs_to_score = []
     for job in jobs:
         existing = existing_by_job_id.get(job.id)
-        cache_valid = (
-            existing
-            and existing.profile_version == current_profile_version
-            and existing.prompt_version == MATCHING_PROMPT_VERSION
-            and not existing.is_estimated
-        )
-        if cache_valid:
+        if is_match_cache_valid(existing, current_profile_version):
             results.append(_format_match_result(job, _match_from_record(existing)))
         else:
             jobs_to_score.append(job)
@@ -300,6 +294,15 @@ def get_or_create_matches(
         )
     )
     return results
+
+
+def is_match_cache_valid(record, profile_version: int) -> bool:
+    return bool(
+        record
+        and record.profile_version == profile_version
+        and record.prompt_version == MATCHING_PROMPT_VERSION
+        and not record.is_estimated
+    )
 
 
 def _match_from_record(record: models.JobMatch) -> dict:
