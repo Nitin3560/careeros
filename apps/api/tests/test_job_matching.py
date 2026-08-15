@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from uuid import uuid4
 
 from app.services import job_matching
 
@@ -90,3 +91,59 @@ def test_cache_validity_rejects_estimated_stale_or_wrong_prompt_version():
     assert not job_matching.is_match_cache_valid(stale, 2)
     assert not job_matching.is_match_cache_valid(old_prompt, 2)
     assert not job_matching.is_match_cache_valid(None, 2)
+
+
+def test_get_cached_matches_returns_records_and_pending(monkeypatch):
+    scored_job_id = uuid4()
+    pending_job_id = uuid4()
+    user_id = str(uuid4())
+    jobs = [
+        SimpleNamespace(
+            id=scored_job_id,
+            title="Robotics Engineer",
+            company="waymo",
+            location="Mountain View",
+            application_url="https://example.com/1",
+        ),
+        SimpleNamespace(
+            id=pending_job_id,
+            title="Simulation Engineer",
+            company="waymo",
+            location="Mountain View",
+            application_url="https://example.com/2",
+        ),
+    ]
+    match = SimpleNamespace(
+        job_id=scored_job_id,
+        overall_score=72,
+        strengths=["ROS 2"],
+        missing=["Safety"],
+        confidence="medium",
+        is_estimated=True,
+    )
+
+    class FakeQuery:
+        def filter(self, *args):
+            return self
+
+        def all(self):
+            return [match]
+
+    class FakeDb:
+        def query(self, model):
+            return FakeQuery()
+
+    monkeypatch.setattr(job_matching, "shortlist_jobs", lambda *args, **kwargs: jobs)
+
+    results = job_matching.get_cached_matches(
+        FakeDb(),
+        user_id,
+        SimpleNamespace(data={}, profile_version=1),
+        page_size=2,
+    )
+
+    assert results[0]["job_id"] == str(scored_job_id)
+    assert results[0]["match"]["overall_score"] == 72
+    assert results[0]["match"]["estimated"] is True
+    assert results[1]["job_id"] == str(pending_job_id)
+    assert results[1]["match"]["overall_score"] is None
