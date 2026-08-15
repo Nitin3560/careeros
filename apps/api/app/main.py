@@ -25,6 +25,7 @@ from app.services.resume_export import generate_docx, generate_pdf
 from app.services.resume_tailoring import tailor_resume_for_job
 from app.services.queue import get_queue
 from app.workers.ingestion import run_bulk_greenhouse_ingestion
+from app.workers.matching import run_match_refresh
 
 load_dotenv()
 
@@ -284,6 +285,37 @@ def get_matches(
         "has_more": len(results) == limit,
         "results": results,
     }
+
+
+@app.post("/users/{user_id}/matches/refresh", response_model=schemas.BackgroundJobOut)
+def refresh_matches(
+    user_id: str,
+    offset: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    if limit < 1 or limit > 30:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 30")
+
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    background_job = create_background_job(
+        db,
+        job_type="match_refresh",
+        payload={"user_id": user_id, "offset": offset, "limit": limit},
+    )
+    queue_job = get_queue().enqueue(
+        run_match_refresh,
+        str(background_job.id),
+        job_timeout=900,
+    )
+    return set_queue_job_id(db, background_job, queue_job.id)
 
 
 @app.post("/users/{user_id}/tailor/{job_id}")
