@@ -20,6 +20,7 @@ from app.services.job_matching import (  # noqa: E402
     build_search_keywords,
     count_matching_jobs,
     get_or_create_matches,
+    build_title_search_keywords,
     shortlist_jobs,
 )
 
@@ -122,6 +123,7 @@ def main():
 
         user_id = str(profile.user_id)
         keywords = build_search_keywords(profile.data)
+        title_keywords = build_title_search_keywords(profile.data)
 
         total_matches, total_matches_timing = timed(
             lambda: count_matching_jobs(db, profile.data), args.repeats
@@ -173,6 +175,8 @@ def main():
             },
             "database_counts": table_counts(db),
             "keyword_count": len(keywords),
+            "title_keyword_count": len(title_keywords),
+            "retrieval_strategy": "postgres_title_full_text_rank",
             "total_matching_jobs": total_matches,
             "timings": {
                 "count_matching_jobs": total_matches_timing,
