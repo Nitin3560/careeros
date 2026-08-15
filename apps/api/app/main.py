@@ -16,6 +16,7 @@ from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import (
     count_matching_jobs,
+    get_cached_matches,
     get_or_create_matches,
     match_job_to_profile,
     shortlist_jobs,
@@ -279,6 +280,31 @@ def get_matches(
         raise HTTPException(status_code=404, detail="Candidate profile not found")
 
     results = get_or_create_matches(
+        db, user_id, profile, offset=offset, page_size=limit
+    )
+
+    return {
+        "offset": offset,
+        "limit": limit,
+        "count": len(results),
+        "has_more": len(results) == limit,
+        "results": results,
+    }
+
+
+@app.get("/users/{user_id}/matches/cached")
+def get_cached_user_matches(
+    user_id: str, offset: int = 0, limit: int = 10, db: Session = Depends(get_db)
+):
+    profile = (
+        db.query(models.CandidateProfile)
+        .filter(models.CandidateProfile.user_id == user_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+
+    results = get_cached_matches(
         db, user_id, profile, offset=offset, page_size=limit
     )
 

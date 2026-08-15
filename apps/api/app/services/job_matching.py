@@ -296,6 +296,45 @@ def get_or_create_matches(
     return results
 
 
+def get_cached_matches(
+    db: Session,
+    user_id: str,
+    profile: models.CandidateProfile,
+    offset: int = 0,
+    page_size: int = 10,
+) -> list[dict]:
+    profile_data = profile.data
+    jobs = shortlist_jobs(db, profile_data, limit=page_size, offset=offset)
+    job_ids = [job.id for job in jobs]
+    existing_matches = (
+        db.query(models.JobMatch)
+        .filter(
+            models.JobMatch.user_id == user_id,
+            models.JobMatch.job_id.in_(job_ids),
+            models.JobMatch.profile_version == profile.profile_version,
+            models.JobMatch.prompt_version == MATCHING_PROMPT_VERSION,
+        )
+        .all()
+        if job_ids
+        else []
+    )
+    existing_by_job_id = {match.job_id: match for match in existing_matches}
+
+    results = []
+    for job in jobs:
+        existing = existing_by_job_id.get(job.id)
+        match = _match_from_record(existing) if existing else _pending_match()
+        results.append(_format_match_result(job, match))
+
+    results.sort(
+        key=lambda r: (
+            r["match"].get("overall_score") is None,
+            -(r["match"].get("overall_score") or 0),
+        )
+    )
+    return results
+
+
 def is_match_cache_valid(record, profile_version: int) -> bool:
     return bool(
         record
@@ -312,6 +351,16 @@ def _match_from_record(record: models.JobMatch) -> dict:
         "missing": record.missing,
         "confidence": record.confidence,
         "estimated": record.is_estimated,
+    }
+
+
+def _pending_match() -> dict:
+    return {
+        "overall_score": None,
+        "strengths": [],
+        "missing": [],
+        "confidence": None,
+        "estimated": False,
     }
 
 
