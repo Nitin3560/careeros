@@ -229,3 +229,54 @@ def test_match_refresh_endpoint_reuses_active_background_job(monkeypatch):
     assert response.status_code == 200
     assert response.json()["id"] == str(existing_job.id)
     assert response.json()["queue_job_id"] == "rq-existing-match"
+
+
+def test_enqueue_match_refresh_can_include_profile_version(monkeypatch):
+    from app.main import enqueue_match_refresh
+
+    user_id = str(uuid.uuid4())
+    created_job = SimpleNamespace(id=uuid.uuid4(), queue_job_id=None)
+    captured = {}
+
+    class FakeQueue:
+        def enqueue(self, fn, background_job_id, job_timeout):
+            captured["fn"] = fn
+            captured["background_job_id"] = background_job_id
+            captured["job_timeout"] = job_timeout
+            return SimpleNamespace(id="rq-warm-match")
+
+    def fake_get_or_create_background_job(db, job_type, payload, dedupe_key):
+        captured["job_type"] = job_type
+        captured["payload"] = payload
+        captured["dedupe_key"] = dedupe_key
+        return created_job, True
+
+    def fake_set_queue_job_id(db, job, queue_job_id):
+        job.queue_job_id = queue_job_id
+        return job
+
+    monkeypatch.setattr("app.main.get_queue", lambda: FakeQueue())
+    monkeypatch.setattr(
+        "app.main.get_or_create_background_job", fake_get_or_create_background_job
+    )
+    monkeypatch.setattr("app.main.set_queue_job_id", fake_set_queue_job_id)
+
+    result = enqueue_match_refresh(
+        object(),
+        user_id,
+        offset=0,
+        limit=10,
+        profile_version=4,
+    )
+
+    assert result.queue_job_id == "rq-warm-match"
+    assert captured["job_type"] == "match_refresh"
+    assert captured["payload"] == {
+        "user_id": user_id,
+        "offset": 0,
+        "limit": 10,
+        "profile_version": 4,
+    }
+    assert captured["dedupe_key"] == f"match_refresh:{user_id}:0:10:4"
+    assert captured["background_job_id"] == str(created_job.id)
+    assert captured["job_timeout"] == 900
