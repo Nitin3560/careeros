@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-08-15T03:52:16.747353+00:00",
+  "user_id": "dcf25187-dd40-4663-83b7-27b64e91601a",
+  "profile_id": "41d5878b-fd97-416c-9032-2a2aed5f5c90",
+  "profile_version": 2,
+  "parameters": {
+    "offset": 0,
+    "limit": 10,
+    "repeats": 5,
+    "allow_llm": false
+  },
+  "database_counts": {
+    "users": 8,
+    "candidate_profiles": 6,
+    "jobs": 978,
+    "job_matches": 192,
+    "resume_versions": 7,
+    "applications": 4,
+    "company_targets": 0
+  },
+  "keyword_count": 106,
+  "total_matching_jobs": 956,
+  "timings": {
+    "count_matching_jobs": {
+      "runs": 5,
+      "min_ms": 672.87,
+      "median_ms": 676.3,
+      "max_ms": 732.95
+    },
+    "shortlist_jobs_page": {
+      "runs": 5,
+      "min_ms": 683.73,
+      "median_ms": 692.72,
+      "max_ms": 704.14
+    },
+    "get_or_create_matches": {
+      "runs": 5,
+      "min_ms": 689.55,
+      "median_ms": 691.99,
+      "max_ms": 698.13
+    }
+  },
+  "cache_state": {
+    "page_size": 10,
+    "valid_cached": 10,
+    "estimated_cached": 0,
+    "stale_cached": 0,
+    "missing": 0,
+    "valid_cache_hit_rate": 1.0
+  },
+  "sample_shortlist": [
+    {
+      "title": "Senior Machine Learning Engineer, Simulation Evaluation",
+      "company": "waymo",
+      "location": "Mountain View, CA, USA; San Francisco, CA, USA"
+    },
+    {
+      "title": "Senior/Staff ML Engineer, 3D/4D World Modeling, Simulation ",
+      "company": "waymo",
+      "location": "Mountain View, CA, USA"
+    },
+    {
+      "title": "Senior Software Engineer, Simulation, Vehicle & Autonomous Driving Realism",
+      "company": "waymo",
+      "location": "Mountain View, CA, USA; San Francisco, CA, USA"
+    },
+    {
+      "title": "Software Engineer Backend - Simulation",
+      "company": "waymo",
+      "location": "Mountain View"
+    },
+    {
+      "title": "Senior/Staff Machine Learning Engineer, Simulation Realism ",
+      "company": "waymo",
+      "location": "Mountain View, CA, USA"
+    }
+  ],
+  "sample_results": [
+    {
+      "title": "Senior Software Engineer, Simulation, Vehicle & Autonomous Driving Realism",
+      "company": "waymo",
+      "score": 68,
+      "estimated": false
+    },
+    {
+      "title": "Software Engineer Backend - Simulation",
+      "company": "waymo",
+      "score": 65,
+      "estimated": false
+    },
+    {
+      "title": "Staff Software Engineer - Simulation Realism",
+      "company": "waymo",
+      "score": 62,
+      "estimated": false
+    },
+    {
+      "title": "Machine Learning Engineer, Simulation Realism",
+      "company": "waymo",
+      "score": 52,
+      "estimated": false
+    },
+    {
+      "title": "Senior Machine Learning Engineer, Simulation Evaluation",
+      "company": "waymo",
+      "score": 45,
+      "estimated": false
+    }
+  ],
+  "skipped_reason": null
+}
