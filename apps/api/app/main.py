@@ -24,6 +24,7 @@ from app.services.job_matching import (
 from app.services.resume_parsing import extract_text, parse_resume_to_profile
 from app.services.resume_export import generate_docx, generate_pdf
 from app.services.resume_tailoring import tailor_resume_for_job
+from app.services.upload_validation import validate_resume_upload
 from app.services.queue import get_queue
 from app.workers.ingestion import run_bulk_greenhouse_ingestion
 from app.workers.matching import run_match_refresh
@@ -524,6 +525,18 @@ def create_application(
             detail="Application already tracked for this job",
         )
 
+    if payload.resume_version_id:
+        resume_version = (
+            db.query(models.ResumeVersion)
+            .filter(
+                models.ResumeVersion.id == payload.resume_version_id,
+                models.ResumeVersion.user_id == user_id,
+            )
+            .first()
+        )
+        if not resume_version:
+            raise HTTPException(status_code=400, detail="Invalid resume version")
+
     application = models.Application(
         user_id=user_id,
         job_id=payload.job_id,
@@ -730,6 +743,7 @@ async def upload_resume(
     file_bytes = await file.read()
 
     try:
+        validate_resume_upload(file.filename, file.content_type, file_bytes)
         resume_text = extract_text(file.filename, file_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
