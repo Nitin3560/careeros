@@ -4,9 +4,13 @@ An AI-powered platform that manages the complete software engineering job search
 
 ## Demo
 
-<video src="https://raw.githubusercontent.com/Nitin3560/careeros/main/docs/careeros-demo.mp4" controls width="100%"></video>
+<p align="center">
+<b>End-to-end CareerOS demonstration showing resume upload, AI-ranked job matches, and per-job resume tailoring.</b>
+</p>
 
-[Watch the demo](docs/careeros-demo.mp4)
+![CareerOS Demo](docs/careeros-demo.gif)
+
+[Watch the full demo video](docs/careeros-demo.mp4)
 
 ## Status
 Early development (MVP in progress).
