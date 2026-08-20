@@ -13,4 +13,4 @@ An AI-powered platform that manages the complete software engineering job search
 [Watch the full demo video](docs/careeros-demo.mp4)
 
 ## Status
-Early development (MVP in progress).
+Platform is running as an MVP. README polish and supporting documentation will be updated soon.
