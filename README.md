@@ -26,134 +26,14 @@ It continuously collects jobs from supported company sources, normalizes them in
 
 ## Key Capabilities
 
-### Multi-Source Job Aggregation
-
-CareerOS collects job postings across a configured company source set rather than depending on one job board.
-
-Source-specific adapters handle differences between external applicant tracking systems and convert incoming jobs into a common internal representation.
-
-```text
-Company Career Pages
-        |
-        v
-   Source Resolver
-        |
-   +----+----+
-   v    v    v
-Greenhouse Lever Ashby
-   |    |    |
-   +----+----+
-        |
-        v
-   Normalization
-        |
-        v
-    PostgreSQL
-```
-
-This keeps source-specific behavior outside the rest of the application.
-
----
-
-### Candidate-to-Job Matching
-
-CareerOS evaluates jobs against candidate information and produces ranked matches.
-
-The matching pipeline considers job requirements and candidate signals before returning the strongest opportunities.
-
-```text
-Candidate Profile
-        +
-Available Jobs
-        |
-        v
-Filtering + Matching
-        |
-        v
-Scored Candidates
-        |
-        v
-Ranked Job Matches
-```
-
-Expensive filtering and ranking operations are pushed toward the database rather than repeatedly processing the complete job corpus in application memory.
-
----
-
-### Resume-Aware Workflow
-
-A candidate can upload a resume and use it as part of the matching and application workflow.
-
-CareerOS connects:
-
-```text
-Resume
-   |
-   v
-Candidate Profile
-   |
-   v
-Job Matching
-   |
-   v
-Relevant Opportunities
-   |
-   v
-Per-Job Resume Tailoring
-```
-
-The goal is to keep discovery and application preparation inside the same system rather than treating them as unrelated tools.
-
----
-
-### Background Job Processing
-
-Job ingestion and other long-running work should not block user-facing API requests.
-
-CareerOS separates those workloads through background workers.
-
-```text
-API Request
-    |
-    v
-Job Queue
-    |
-    v
-Background Worker
-    |
-    v
-External Sources
-    |
-    v
-PostgreSQL
-```
-
-This keeps external network work outside latency-sensitive request paths and provides a cleaner boundary for retries and failure handling.
-
----
-
-### Cached Match Results
-
-Repeatedly recomputing the same job matches is unnecessary.
-
-CareerOS uses caching for reusable results and frequently requested data.
-
-```text
-Request
-   |
-   v
-Cache
- |    |
-Hit   Miss
- |    |
- v    v
-Return Compute
-       |
-       v
-      Cache
-```
-
-Cached results are validated before being returned so incomplete or invalid matching records do not silently become user-facing results.
+- **Job ingestion** - collects roles from supported company sources.
+- **Source adapters** - normalizes Greenhouse, Lever, and Ashby jobs.
+- **Resume parsing** - converts uploaded resumes into structured profiles.
+- **Job matching** - ranks roles against candidate skills and experience.
+- **Match caching** - reuses valid scores instead of recomputing.
+- **Background workers** - moves slow ingestion and matching work out of API requests.
+- **Resume tailoring** - creates per-job resume versions.
+- **Application tracking** - stores applied jobs, status, and notes.
 
 ---
 
@@ -161,53 +41,7 @@ Cached results are validated before being returned so incomplete or invalid matc
 
 CareerOS separates external job ingestion, persistent storage, candidate matching, background processing, caching, API delivery, and the frontend application.
 
-```text
-                        JOB SOURCES
-                            |
-              +-------------+-------------+
-              v             v             v
-          Greenhouse       Lever         Ashby
-              |             |             |
-              +-------------+-------------+
-                            |
-                            v
-                     Source Adapters
-                            |
-                            v
-                    Ingestion Pipeline
-                            |
-                       Redis / RQ
-                            |
-                            v
-                    Background Workers
-                            |
-                            v
-                       PostgreSQL
-                            |
-                +-----------+-----------+
-                v                       v
-          Job Repository          Candidate Data
-                |                       |
-                +-----------+-----------+
-                            |
-                            v
-                     Matching Engine
-                            |
-                            v
-                      Ranked Matches
-                            |
-                            v
-                          Redis
-                            |
-                            v
-                         FastAPI
-                            |
-                            v
-                         Next.js
-                            |
-                            v
-                           User
-```
+![CareerOS End-to-End Architecture](docs/careeros-architecture.png)
 
 The architecture keeps the major workloads independent.
 
