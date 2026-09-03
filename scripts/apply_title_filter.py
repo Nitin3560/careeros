@@ -11,6 +11,7 @@ from app.database import SessionLocal  # noqa: E402
 
 V1 = 1
 V2 = 2
+V3 = 3
 
 V1_ROLE_HEAD_PATTERN = (
     r"\y(sales|solutions?|support|field|service|customer|forward.?deployed|"
@@ -24,6 +25,14 @@ V1_WRONG_DISCIPLINE_PATTERN = (
 V1_SENIORITY_PATTERN = (
     r"\y(staff|principal|distinguished|fellow|architect|director|vp|"
     r"vice president|head of|manager|lead engineer|engineering lead)\y"
+)
+V3_SENIORITY_PATTERN = (
+    r"\y(staff|principal|distinguished|fellow|architect|director|vp|"
+    r"vice president|head of|manager|lead engineer|engineering lead|"
+    r"lead software engineer|lead backend engineer|lead frontend engineer|"
+    r"lead full.?stack engineer|lead platform engineer|lead data engineer|"
+    r"lead machine learning engineer|lead ml engineer|lead ai engineer|"
+    r"lead security engineer|lead devops engineer)\y"
 )
 V1_SWE_TITLE_PATTERN = (
     r"\y(software engineer|software developer|backend|back.?end|frontend|"
@@ -44,6 +53,12 @@ V2_SWE_TITLE_PATTERN = (
     r"mobile engineer|qa automation engineer|security engineer|"
     r"release engineer)\y"
 )
+V3_LOCATION_PATTERN = r"(United States|USA|, [A-Z]{2}\y|Remote)"
+V3_CLEARANCE_TITLE_PATTERN = (
+    r"\y(ts/sci|top secret|security clearance|polygraph|public trust|"
+    r"active clearance)\y"
+)
+V3_EARLY_CAREER_PATTERN = r"\y(new grad|new graduate|entry|entry level|junior|intern)\y"
 
 FILTERS = {
     "v1": {
@@ -59,6 +74,16 @@ FILTERS = {
         "wrong_discipline": V1_WRONG_DISCIPLINE_PATTERN,
         "seniority": V1_SENIORITY_PATTERN,
         "swe_title": V2_SWE_TITLE_PATTERN,
+    },
+    "v3": {
+        "version": V3,
+        "role_head": V1_ROLE_HEAD_PATTERN,
+        "wrong_discipline": V1_WRONG_DISCIPLINE_PATTERN,
+        "seniority": V3_SENIORITY_PATTERN,
+        "swe_title": V2_SWE_TITLE_PATTERN,
+        "location": V3_LOCATION_PATTERN,
+        "clearance_title": V3_CLEARANCE_TITLE_PATTERN,
+        "seniority_exemption": V3_EARLY_CAREER_PATTERN,
     },
 }
 
@@ -101,11 +126,26 @@ def apply_filter(filter_name: str = "v1"):
                 """
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'seniority', filter_version = :version
-                WHERE eligible IS NULL AND title ~* :pattern
+                WHERE eligible IS NULL
+                  AND title ~* :pattern
+                  AND (:exemption IS NULL OR title !~* :exemption)
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["seniority"],
+                exemption=selected.get("seniority_exemption"),
+            ),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'clearance_title', filter_version = :version
+                WHERE eligible IS NULL
+                  AND :pattern IS NOT NULL
+                  AND title ~* :pattern
+                """
+            ).bindparams(
+                version=selected["version"],
+                pattern=selected.get("clearance_title"),
             ),
             text(
                 """
@@ -117,6 +157,32 @@ def apply_filter(filter_name: str = "v1"):
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["swe_title"],
+            ),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'stale_posting', filter_version = :version
+                WHERE eligible = true
+                  AND :location_pattern IS NOT NULL
+                  AND date_posted IS NOT NULL
+                  AND date_posted <= now() - interval '30 days'
+                """
+            ).bindparams(
+                version=selected["version"],
+                location_pattern=selected.get("location"),
+            ),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'non_us_location', filter_version = :version
+                WHERE eligible = true
+                  AND :pattern IS NOT NULL
+                  AND location IS NOT NULL
+                  AND location !~* :pattern
+                """
+            ).bindparams(
+                version=selected["version"],
+                pattern=selected.get("location"),
             ),
             text(
                 """
@@ -186,7 +252,7 @@ def print_review(limit: int):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", choices=sorted(FILTERS), default="v1")
+    parser.add_argument("--version", choices=sorted(FILTERS), default="v3")
     parser.add_argument("--review-limit", type=int, default=40)
     args = parser.parse_args()
 
