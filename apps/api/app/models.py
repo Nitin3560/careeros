@@ -38,6 +38,7 @@ class CandidateProfile(Base):
     )
     data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     profile_version: Mapped[int] = mapped_column(default=1, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="ACTIVE")
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
