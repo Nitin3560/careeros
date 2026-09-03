@@ -30,3 +30,13 @@ def test_swe_title_filter_keeps_early_career_relevant_titles():
     assert matches(apply_title_filter.SWE_TITLE_PATTERN, "Software Engineer")
     assert matches(apply_title_filter.SWE_TITLE_PATTERN, "Backend Engineer")
     assert matches(apply_title_filter.SWE_TITLE_PATTERN, "Machine Learning Engineer")
+
+
+def test_current_filter_is_named_v1():
+    assert apply_title_filter.FILTERS["v1"]["version"] == 1
+    assert apply_title_filter.FILTERS["v1"]["role_head"] == (
+        apply_title_filter.ROLE_HEAD_PATTERN
+    )
+    assert apply_title_filter.FILTERS["v1"]["swe_title"] == (
+        apply_title_filter.SWE_TITLE_PATTERN
+    )
