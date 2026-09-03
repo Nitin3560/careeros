@@ -118,7 +118,15 @@ def test_role_family_and_seniority_shape_sorting():
 
 def test_willing_to_relocate_satisfies_location_requirement():
     decision = matcher.evaluate(
-        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "FastAPI", "weight": 5},
+                {"name": "PostgreSQL", "weight": 5},
+                {"name": "Docker", "weight": 5},
+            ],
+            "experience": [],
+        },
         {
             "hard_requirements": [
                 {
@@ -128,15 +136,198 @@ def test_willing_to_relocate_satisfies_location_requirement():
                     "source_text": "This role is based in San Francisco, CA.",
                 }
             ],
-            "preferred": [{"skill": "Python"}],
+            "preferred": [{"skill": "Python"}, {"skill": "FastAPI"}, {"skill": "PostgreSQL"}, {"skill": "Docker"}],
             "years_required": {"min": None},
         },
         attested={"current_location": "Arlington, TX", "willing_to_relocate": True},
         years=1,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
     )
 
     assert decision.action == "APPLY"
     assert decision.review_reasons == []
+
+
+def test_years_tolerance_keeps_near_boundary_job_apply_eligible():
+    decision = matcher.evaluate(
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "FastAPI", "weight": 5},
+                {"name": "PostgreSQL", "weight": 5},
+                {"name": "Docker", "weight": 5},
+            ],
+            "experience": [],
+        },
+        {
+            "hard_requirements": [],
+            "preferred": [{"skill": "Python"}, {"skill": "FastAPI"}, {"skill": "PostgreSQL"}, {"skill": "Docker"}],
+            "years_required": {"min": 2},
+        },
+        years=1.66,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "APPLY"
+
+
+def test_years_gap_routes_to_stretch():
+    decision = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "Python"}], "years_required": {"min": 3}},
+        years=1.66,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "STRETCH"
+
+
+def test_non_consequential_ambiguity_does_not_block_apply():
+    decision = matcher.evaluate(
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "FastAPI", "weight": 5},
+                {"name": "PostgreSQL", "weight": 5},
+                {"name": "Docker", "weight": 5},
+            ],
+            "education": [{"degree": "M.S. Computer Science"}],
+        },
+        {
+            "hard_requirements": [
+                {
+                    "type": "education",
+                    "value": "Bachelor's degree",
+                    "verification_state": "AMBIGUOUS",
+                    "source_text": "Bachelor's degree preferred",
+                }
+            ],
+            "preferred": [{"skill": "Python"}, {"skill": "FastAPI"}, {"skill": "PostgreSQL"}, {"skill": "Docker"}],
+            "years_required": {"min": None},
+        },
+        years=1.66,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "APPLY"
+    assert "ambiguous_requirement" not in decision.review_reasons
+
+
+def test_consequential_ambiguity_still_routes_to_review():
+    decision = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}]},
+        {
+            "hard_requirements": [
+                {
+                    "type": "clearance",
+                    "value": "clearance eligibility",
+                    "verification_state": "AMBIGUOUS",
+                    "source_text": "Clearance eligibility may be required",
+                }
+            ],
+            "preferred": [{"skill": "Python"}],
+            "years_required": {"min": None},
+        },
+        attested={"security_clearance": "none"},
+        years=1.66,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "REVIEW"
+    assert "ambiguous_requirement" in decision.review_reasons
+
+
+def test_apply_uses_positive_signal_not_half_of_all_preferences():
+    decision = matcher.evaluate(
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "Go", "weight": 5},
+                {"name": "Java", "weight": 5},
+                {"name": "FastAPI", "weight": 5},
+            ],
+            "experience": [],
+        },
+        {
+            "hard_requirements": [],
+            "preferred": [
+                {"skill": "Python"},
+                {"skill": "Go"},
+                {"skill": "Java"},
+                {"skill": "FastAPI"},
+                {"skill": "Kubernetes"},
+                {"skill": "AWS"},
+                {"skill": "Terraform"},
+                {"skill": "Kafka"},
+                {"skill": "Spark"},
+            ],
+            "years_required": {"min": 2},
+        },
+        years=1.66,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "APPLY"
+    assert len(decision.missing) > len(decision.matched)
+
+
+def test_low_priority_role_family_does_not_apply_on_generic_overlap():
+    decision = matcher.evaluate(
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "SQL", "weight": 5},
+                {"name": "R", "weight": 1},
+                {"name": "Statistics", "weight": 1},
+            ],
+            "experience": [],
+        },
+        {
+            "hard_requirements": [],
+            "preferred": [
+                {"skill": "Python"},
+                {"skill": "SQL"},
+                {"skill": "R"},
+                {"skill": "Statistics"},
+                {"skill": "Causal inference"},
+            ],
+            "years_required": {"min": 2},
+        },
+        years=1.66,
+        job_context={"title": "Data Scientist", "company": "example"},
+    )
+
+    assert decision.action == "REVIEW"
+    assert decision.role_family == "data"
+
+
+def test_senior_title_mismatch_does_not_apply_without_years_requirement():
+    decision = matcher.evaluate(
+        {
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "Go", "weight": 5},
+                {"name": "PostgreSQL", "weight": 5},
+                {"name": "Docker", "weight": 5},
+            ],
+            "experience": [],
+        },
+        {
+            "hard_requirements": [],
+            "preferred": [
+                {"skill": "Python"},
+                {"skill": "Go"},
+                {"skill": "PostgreSQL"},
+                {"skill": "Docker"},
+            ],
+            "years_required": {"min": None},
+        },
+        years=1.66,
+        job_context={"title": "Senior Backend Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "REVIEW"
+    assert decision.seniority_penalty == 2
 
 
 def test_load_db_items_returns_requirement_rows(monkeypatch):
@@ -255,7 +446,12 @@ def test_avoid_domain_routes_to_review():
 def test_btech_or_ms_satisfies_bachelor_requirement():
     decision = matcher.evaluate(
         {
-            "skills": [{"name": "Python", "weight": 5}],
+            "skills": [
+                {"name": "Python", "weight": 5},
+                {"name": "FastAPI", "weight": 5},
+                {"name": "PostgreSQL", "weight": 5},
+                {"name": "Docker", "weight": 5},
+            ],
             "education": [
                 {"degree": "M.S. Computer Science"},
                 {"degree": "B.Tech Computer Science"},
@@ -271,9 +467,10 @@ def test_btech_or_ms_satisfies_bachelor_requirement():
                     "source_text": "Bachelor's degree in Computer Science or related field",
                 }
             ],
-            "preferred": [{"skill": "Python"}],
+            "preferred": [{"skill": "Python"}, {"skill": "FastAPI"}, {"skill": "PostgreSQL"}, {"skill": "Docker"}],
             "years_required": {"min": None},
         },
+        job_context={"title": "Backend Software Engineer", "company": "example"},
     )
 
     assert decision.action == "APPLY"

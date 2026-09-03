@@ -22,8 +22,12 @@ from app.services.skill_ontology import expanded_profile_terms, requirement_term
 DEFAULT_USER_ID = "b57ae27a-e0b1-4ceb-bab0-3010778465b2"
 REVIEW_TYPES = {"citizenship", "clearance", "authorization", "residency"}
 CONSEQUENTIAL_TYPES = {"citizenship", "clearance", "authorization", "residency", "location", "education"}
+CONSEQUENTIAL_AMBIGUITY_TYPES = {"citizenship", "clearance", "authorization", "residency"}
 YEARS_STRETCH_MIN = 3
 YEARS_SKIP_MIN = 5
+YEARS_TOLERANCE = 0.5
+APPLY_MATCH_MIN = 4
+APPLY_WEIGHT_MIN = 20
 BROAD_SKILL_TERMS = {
     "ability",
     "capability",
@@ -444,8 +448,9 @@ def evaluate(
         state = req.get("verification_state")
         label = requirement_label(req)
         if state == "AMBIGUOUS":
-            decision.unresolved.append(label)
-            decision.review_reasons.append("ambiguous_requirement")
+            if req.get("type") in CONSEQUENTIAL_AMBIGUITY_TYPES:
+                decision.unresolved.append(label)
+                decision.review_reasons.append("ambiguous_requirement")
         if state != "VERIFIED":
             continue
         if req.get("type") == "years":
@@ -506,9 +511,20 @@ def evaluate(
     if decision.matched_weight == 0:
         decision.action = "REVIEW"
         decision.review_reasons.append("no_positive_match_signal")
-    elif isinstance(years_min, (int, float)) and years_min >= YEARS_STRETCH_MIN:
+    elif (
+        isinstance(years_min, (int, float))
+        and years_min >= YEARS_STRETCH_MIN
+        and facts["years"] + YEARS_TOLERANCE < years_min
+    ):
         decision.action = "STRETCH"
-    elif len(decision.matched) >= len(decision.missing):
+    elif (
+        decision.role_family_score > 0
+        and decision.seniority_penalty == 0
+        and (
+            len(decision.matched) >= APPLY_MATCH_MIN
+            or decision.matched_weight >= APPLY_WEIGHT_MIN
+        )
+    ):
         decision.action = "APPLY"
     else:
         decision.action = "REVIEW"
