@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import time
+from html import unescape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,9 +19,33 @@ API = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generate
 
 N_JOBS = int(os.getenv("REQUIREMENT_TEST_JOBS", "10"))
 MAX_JD_CHARS = 12000
-CONSEQUENTIAL = {"citizenship", "clearance", "authorization", "education", "years"}
+MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "2"))
+ALLOWED_HARD_TYPES = {
+    "years",
+    "education",
+    "skill",
+    "citizenship",
+    "clearance",
+    "authorization",
+    "location",
+    "residency",
+}
+CONSEQUENTIAL = {
+    "citizenship",
+    "clearance",
+    "authorization",
+    "education",
+    "years",
+    "residency",
+}
 MANDATORY = re.compile(
-    r"\b(must|required|require[sd]?|mandatory|only|shall|need to be|minimum of|at least)\b",
+    r"\b(must|required|require[sd]?|mandatory|only|shall|need to be|minimum of|"
+    r"at least|does not offer|unable to sponsor|will not sponsor)\b",
+    re.I,
+)
+MANDATORY_CONTEXT = re.compile(
+    r"\b(basic qualifications|required qualifications|minimum qualifications|"
+    r"requirements|what to bring|what you'll bring|you have)\b",
     re.I,
 )
 SOFTENER = re.compile(
@@ -39,14 +64,17 @@ RULES
 - preferred = "nice to have", "a plus", "preferred", "ideally", "bonus".
 - If a requirement is hedged in any way it is NOT hard.
 - Every requirement MUST include source_text: a VERBATIM substring copied
-  exactly from the description, no paraphrasing, no ellipsis, under 200 chars.
+  exactly from the visible job description text, no paraphrasing, no ellipsis,
+  under 200 chars.
+- Copy source_text with the same words in the same order. Do not rewrite HTML,
+  simplify wording, or combine separate phrases.
 - If you cannot copy an exact supporting substring, omit the requirement.
 - Never invent years, degrees, technologies, or restrictions not written down.
 
 Output ONLY valid JSON, no markdown fences.
 
 SCHEMA
-{"hard_requirements":[{"type":"years|education|skill|citizenship|clearance|authorization|location",
+{"hard_requirements":[{"type":"years|education|skill|citizenship|clearance|authorization|location|residency",
                        "value":str,"skill":str|null,"min_years":number|null,
                        "source_text":str}],
  "preferred":[{"type":str,"value":str,"source_text":str}],
@@ -74,11 +102,22 @@ def call_gemini(jd: str) -> tuple[str, dict]:
         ],
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
     }
-    response = httpx.post(API, params={"key": key}, json=payload, timeout=60.0)
-    response.raise_for_status()
-    data = response.json()
-    text_output = data["candidates"][0]["content"]["parts"][0]["text"]
-    return text_output, data.get("usageMetadata", {})
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = httpx.post(API, params={"key": key}, json=payload, timeout=60.0)
+            response.raise_for_status()
+            data = response.json()
+            text_output = data["candidates"][0]["content"]["parts"][0]["text"]
+            return text_output, data.get("usageMetadata", {})
+        except httpx.HTTPStatusError as exc:
+            retryable = exc.response.status_code in {429, 500, 502, 503, 504}
+            if not retryable or attempt == MAX_RETRIES:
+                raise
+        wait_seconds = 5 * (attempt + 1)
+        print(f"    retrying Gemini after {wait_seconds}s")
+        time.sleep(wait_seconds)
+
+    raise RuntimeError("Gemini retry loop exited unexpectedly")
 
 
 def safe_error(exc: Exception) -> str:
@@ -92,10 +131,21 @@ def safe_error(exc: Exception) -> str:
 
 
 def normalize(value: str) -> str:
+    value = unescape(value)
+    value = re.sub(r"<[^>]+>", " ", value)
     value = value.replace("\u2018", "'").replace("\u2019", "'")
     value = value.replace("\u201c", '"').replace("\u201d", '"')
     value = value.replace("\u2013", "-")
     return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def source_context(source_text: str, jd: str) -> str:
+    normalized_jd = normalize(jd)
+    normalized_source = normalize(source_text)
+    index = normalized_jd.find(normalized_source)
+    if index < 0:
+        return ""
+    return normalized_jd[max(0, index - 500) : index + len(normalized_source) + 200]
 
 
 def verify(req: dict, jd: str) -> tuple[str, str]:
@@ -103,14 +153,19 @@ def verify(req: dict, jd: str) -> tuple[str, str]:
     if not source_text:
         return "REJECTED", "no source_text"
 
+    req_type = req.get("type")
+    if req_type not in ALLOWED_HARD_TYPES:
+        return "REJECTED", f"unknown hard requirement type: {req_type}"
+
     if normalize(source_text) not in normalize(jd):
         return "REJECTED", "source_text not found verbatim in JD"
 
-    if req.get("type") in CONSEQUENTIAL:
+    if req_type in CONSEQUENTIAL:
         softener = SOFTENER.search(source_text)
         if softener:
             return "AMBIGUOUS", f"hedged: {softener.group(0)}"
-        if not MANDATORY.search(source_text):
+        context = source_context(source_text, jd)
+        if not MANDATORY.search(source_text) and not MANDATORY_CONTEXT.search(context):
             return "AMBIGUOUS", "no mandatory language in snippet"
 
     return "VERIFIED", ""
