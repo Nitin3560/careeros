@@ -22,6 +22,7 @@ MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 API = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 DEFAULT_OUT = "adjudicator_experiment.json"
 KEY_DELAY_SECONDS = 6.0
+CALL_TIMEOUT = httpx.Timeout(25.0, connect=10.0, read=15.0, write=10.0, pool=10.0)
 
 STOPWORDS = {
     "a",
@@ -163,13 +164,13 @@ def call_gemini(scheduler: KeyScheduler, requirement: str, facts: list[dict]) ->
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
     }
     last_error = None
-    for attempt in range(4):
+    for attempt in range(2):
         try:
             api_key = scheduler.take()
-            response = httpx.post(API, params={"key": api_key}, json=payload, timeout=60)
+            response = httpx.post(API, params={"key": api_key}, json=payload, timeout=CALL_TIMEOUT)
             if response.status_code in {429, 500, 502, 503, 504}:
                 last_error = f"http {response.status_code}"
-                time.sleep((attempt + 1) * 5)
+                time.sleep((attempt + 1) * 3)
                 continue
             response.raise_for_status()
             data = response.json()
@@ -272,7 +273,7 @@ def main():
     pending = pending[: args.max_requirements]
 
     grouped = {}
-    for item in pending:
+    for index, item in enumerate(pending, start=1):
         job_id = item["item"]["job_id"]
         if job_id not in grouped:
             grouped[job_id] = {
@@ -281,6 +282,11 @@ def main():
                 "adjudications": [],
             }
 
+        print(
+            f"[{index}/{len(pending)}] {item['item']['company']} | "
+            f"{item['requirement'][:80]}",
+            flush=True,
+        )
         run1 = call_gemini(scheduler, item["requirement"], item["facts"])
         run2 = call_gemini(scheduler, item["requirement"], item["facts"])
         consistent = run1["verdict"] == run2["verdict"]
