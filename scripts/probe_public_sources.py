@@ -4,16 +4,12 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import httpx
-
 ROOT = Path(__file__).resolve().parents[1]
 API_DIR = ROOT / "apps" / "api"
 sys.path.insert(0, str(API_DIR))
 
 from app.services.job_ingestion.public_sources import (  # noqa: E402
-    KNOWN_PUBLIC_SOURCES,
-    default_candidates,
-    normalize_company_key,
+    discover_public_source,
 )
 
 DEFAULT_COMPANIES = [
@@ -70,46 +66,17 @@ DEFAULT_COMPANIES = [
 ]
 
 
-def probe_candidate(client: httpx.Client, source: str, slug: str) -> int:
-    if source == "greenhouse":
-        url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
-        data = client.get(url).json()
-        return len(data.get("jobs", []))
-
-    if source == "lever":
-        url = f"https://api.lever.co/v0/postings/{slug}?mode=json"
-        data = client.get(url).json()
-        return len(data if isinstance(data, list) else [])
-
-    if source == "ashby":
-        url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
-        data = client.get(url).json()
-        return len(data.get("jobs", []))
-
-    return 0
-
-
-def probe_company(company: str, timeout: float) -> dict:
-    key = normalize_company_key(company)
-    candidates = KNOWN_PUBLIC_SOURCES.get(key, default_candidates(key))
-
-    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-        for source, slug in candidates:
-            try:
-                count = probe_candidate(client, source, slug)
-            except httpx.HTTPError:
-                continue
-            except (KeyError, TypeError, ValueError):
-                continue
-
-            if count:
-                return {
-                    "company": company,
-                    "status": "found",
-                    "source": source,
-                    "slug": slug,
-                    "job_count": count,
-                }
+def probe_company(company: str) -> dict:
+    source = discover_public_source(company, probe_unknown=True)
+    if source:
+        jobs = source.fetch(source.slug)
+        return {
+            "company": company,
+            "status": "found",
+            "source": source.source,
+            "slug": source.slug,
+            "job_count": len(jobs),
+        }
 
     return {"company": company, "status": "not_found"}
 
@@ -118,7 +85,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--company", action="append")
     parser.add_argument("--workers", type=int, default=10)
-    parser.add_argument("--timeout", type=float, default=4.0)
     parser.add_argument("--output", default="reports/job-pool-probe.json")
     args = parser.parse_args()
 
@@ -127,7 +93,7 @@ def main():
 
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {
-            executor.submit(probe_company, company, args.timeout): company
+            executor.submit(probe_company, company): company
             for company in companies
         }
         for future in as_completed(futures):
