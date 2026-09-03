@@ -115,6 +115,29 @@ def test_role_family_and_seniority_shape_sorting():
     assert matcher.fit_sort_key(({}, junior_backend)) > matcher.fit_sort_key(({}, senior_security))
 
 
+def test_willing_to_relocate_satisfies_location_requirement():
+    decision = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {
+            "hard_requirements": [
+                {
+                    "type": "location",
+                    "value": "San Francisco, CA",
+                    "verification_state": "VERIFIED",
+                    "source_text": "This role is based in San Francisco, CA.",
+                }
+            ],
+            "preferred": [{"skill": "Python"}],
+            "years_required": {"min": None},
+        },
+        attested={"current_location": "Arlington, TX", "willing_to_relocate": True},
+        years=1,
+    )
+
+    assert decision.action == "APPLY"
+    assert decision.review_reasons == []
+
+
 def test_load_db_items_returns_requirement_rows(monkeypatch):
     row = type(
         "Row",

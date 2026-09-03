@@ -325,7 +325,14 @@ def has_fact(facts: dict, req: dict) -> bool:
         min_years = req.get("min_years")
         return min_years is None or facts["years"] >= float(min_years)
     if req_type == "location":
-        return "remote" in source or "united states" in source or "usa" in source
+        label = norm(requirement_label(req))
+        location_text = " ".join([label, source])
+        current_location = norm(facts["attested"].get("current_location") or facts["attested"].get("location"))
+        if any(term in location_text for term in ("remote", "united states", "usa")):
+            return True
+        if current_location and current_location in location_text:
+            return True
+        return facts["attested"].get("willing_to_relocate") is True
     if req_type in REVIEW_TYPES:
         return bool(facts["attested"].get(req_type))
     return norm(requirement_label(req)) in facts["text"]
@@ -345,7 +352,11 @@ def missing_reason(facts: dict, req: dict) -> str:
     req_type = req.get("type")
     if req_type in REVIEW_TYPES:
         return "missing_attested_profile_fact"
-    if req_type == "location" and not facts["attested"].get("location"):
+    if req_type == "location" and not (
+        facts["attested"].get("location")
+        or facts["attested"].get("current_location")
+        or facts["attested"].get("willing_to_relocate") is True
+    ):
         return "missing_attested_profile_fact"
     if req_type == "skill":
         return "missing_profile_fact_or_exact_match"
@@ -387,6 +398,8 @@ def has_attested_contradiction(facts: dict, req: dict) -> bool:
         ):
             return True
     if req_type == "residency":
+        if attested.get("willing_to_relocate") is True:
+            return False
         current_location = norm(attested.get("current_location") or attested.get("location"))
         return bool(current_location and current_location not in label)
     return False
@@ -399,7 +412,11 @@ def should_block_when_missing(facts: dict, req: dict) -> bool:
         return False
     if req_type in CONSEQUENTIAL_TYPES:
         return has_attested_contradiction(facts, req)
-    if req_type == "location" and not facts["attested"].get("location"):
+    if req_type == "location" and not (
+        facts["attested"].get("location")
+        or facts["attested"].get("current_location")
+        or facts["attested"].get("willing_to_relocate") is True
+    ):
         return False
     if req_type == "skill":
         return False
