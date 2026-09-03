@@ -62,6 +62,36 @@ class Job(Base):
     application_url: Mapped[str] = mapped_column(String, nullable=True)
     date_posted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    eligible: Mapped[bool | None] = mapped_column(nullable=True)
+    skip_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    matched_pattern: Mapped[str | None] = mapped_column(String, nullable=True)
+    filter_version: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class AtsBoard(Base):
+    __tablename__ = "ats_boards"
+    __table_args__ = (UniqueConstraint("ats", "slug", name="uq_ats_board"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    ats: Mapped[str] = mapped_column(String, nullable=False)
+    slug: Mapped[str] = mapped_column(String, nullable=False)
+    company_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
+    job_count: Mapped[int | None] = mapped_column(nullable=True)
+    last_ingested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(String, nullable=True)
+    consecutive_failures: Mapped[int] = mapped_column(default=0, nullable=False)
+    source_list: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class CompanyTarget(Base):
