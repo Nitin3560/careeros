@@ -10,6 +10,7 @@ from sqlalchemy import text  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 
 V1 = 1
+V2 = 2
 
 V1_ROLE_HEAD_PATTERN = (
     r"\y(sales|solutions?|support|field|service|customer|forward.?deployed|"
@@ -32,6 +33,17 @@ V1_SWE_TITLE_PATTERN = (
     r"research engineer|data engineer|sde|swe|member of technical staff|"
     r"web developer|application developer)\y"
 )
+V2_SWE_TITLE_PATTERN = (
+    r"\y(software engineer|software developer|backend|back.?end|frontend|"
+    r"front.?end|full.?stack|platform engineer|infrastructure engineer|"
+    r"systems engineer|distributed systems|site reliability|sre|devops|"
+    r"machine learning engineer|ml engineer|ai engineer|applied scientist|"
+    r"research engineer|data engineer|data scientist|sde|swe|"
+    r"member of technical staff|web developer|application developer|"
+    r"react engineer|react native engineer|ios engineer|android engineer|"
+    r"mobile engineer|qa automation engineer|security engineer|"
+    r"release engineer)\y"
+)
 
 FILTERS = {
     "v1": {
@@ -40,7 +52,14 @@ FILTERS = {
         "wrong_discipline": V1_WRONG_DISCIPLINE_PATTERN,
         "seniority": V1_SENIORITY_PATTERN,
         "swe_title": V1_SWE_TITLE_PATTERN,
-    }
+    },
+    "v2": {
+        "version": V2,
+        "role_head": V1_ROLE_HEAD_PATTERN,
+        "wrong_discipline": V1_WRONG_DISCIPLINE_PATTERN,
+        "seniority": V1_SENIORITY_PATTERN,
+        "swe_title": V2_SWE_TITLE_PATTERN,
+    },
 }
 
 ROLE_HEAD_PATTERN = V1_ROLE_HEAD_PATTERN
