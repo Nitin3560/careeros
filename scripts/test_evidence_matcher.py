@@ -71,6 +71,42 @@ def load_profile(user_id: str) -> dict:
         db.close()
 
 
+def load_json_items(path: str) -> list[dict]:
+    return json.loads(Path(path).read_text())
+
+
+def load_db_items(limit: int | None = None) -> list[dict]:
+    limit_sql = "LIMIT :limit" if limit else ""
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            text(
+                f"""
+                SELECT j.id, j.title, j.company, j.location, jr.requirements
+                FROM job_requirements jr
+                JOIN jobs j ON j.id = jr.job_id
+                WHERE jr.status = 'ok'
+                ORDER BY j.date_posted DESC NULLS LAST
+                {limit_sql}
+                """
+            ),
+            {"limit": limit},
+        ).fetchall()
+    finally:
+        db.close()
+
+    return [
+        {
+            "job_id": str(row.id),
+            "title": row.title,
+            "company": row.company,
+            "location": row.location,
+            "requirements": row.requirements,
+        }
+        for row in rows
+    ]
+
+
 def profile_facts(profile: dict, attested: dict | None = None, years: float | None = None) -> dict:
     skills = {
         norm(skill.get("name"))
@@ -266,6 +302,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--user-id", default=DEFAULT_USER_ID)
     parser.add_argument("--requirements", default="requirements_test.json")
+    parser.add_argument("--from-db", action="store_true")
+    parser.add_argument("--limit", type=int)
+    parser.add_argument("--top", type=int)
     args = parser.parse_args()
 
     profile = load_profile(args.user_id)
@@ -275,7 +314,7 @@ def main():
         years = compute_professional_swe_years(db, args.user_id)
     finally:
         db.close()
-    items = json.loads(Path(args.requirements).read_text())
+    items = load_db_items(args.limit) if args.from_db else load_json_items(args.requirements)
 
     rows = []
     counts = {}
@@ -289,7 +328,11 @@ def main():
             review_reason_counts[reason] = review_reason_counts.get(reason, 0) + 1
         rows.append((item, decision))
 
-    for rank, (item, decision) in enumerate(sorted(rows, key=fit_sort_key, reverse=True), start=1):
+    ranked = sorted(rows, key=fit_sort_key, reverse=True)
+    if args.top:
+        ranked = ranked[: args.top]
+
+    for rank, (item, decision) in enumerate(ranked, start=1):
         matched_preview = "; ".join(decision.matched[:3]) or "-"
         missing_preview = "; ".join(decision.missing[:3]) or "-"
         fit = f"matched={len(decision.matched)} missing={len(decision.missing)}"

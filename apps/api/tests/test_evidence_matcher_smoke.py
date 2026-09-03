@@ -54,3 +54,40 @@ def test_verified_clearance_contradiction_skips_hard():
 
     assert decision.action == "SKIP_HARD"
     assert decision.blocked_by == ["Active security clearance"]
+
+
+def test_load_db_items_returns_requirement_rows(monkeypatch):
+    row = type(
+        "Row",
+        (),
+        {
+            "id": "job-id",
+            "title": "Software Engineer",
+            "company": "example",
+            "location": "Remote",
+            "requirements": {"hard_requirements": [], "preferred": []},
+        },
+    )()
+
+    class FakeResult:
+        def fetchall(self):
+            return [row]
+
+    class FakeDb:
+        def execute(self, sql, params):
+            return FakeResult()
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(matcher, "SessionLocal", lambda: FakeDb())
+
+    assert matcher.load_db_items(limit=20) == [
+        {
+            "job_id": "job-id",
+            "title": "Software Engineer",
+            "company": "example",
+            "location": "Remote",
+            "requirements": {"hard_requirements": [], "preferred": []},
+        }
+    ]
