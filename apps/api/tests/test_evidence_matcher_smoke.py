@@ -82,7 +82,7 @@ def test_verified_us_person_requirement_skips_hard():
     assert decision.blocked_by == ["U.S. Person"]
 
 
-def test_company_us_person_policy_skips_hard():
+def test_company_policy_routes_to_review_without_verified_job_gate():
     decision = matcher.evaluate(
         {"skills": [{"name": "Python", "weight": 5}], "experience": []},
         {"hard_requirements": [], "preferred": [{"skill": "Python"}]},
@@ -91,8 +91,9 @@ def test_company_us_person_policy_skips_hard():
         job_context={"title": "Software Engineer", "company": "andurilindustries"},
     )
 
-    assert decision.action == "SKIP_HARD"
-    assert decision.blocked_by == ["company_requires_us_person_or_export_control_access"]
+    assert decision.action == "REVIEW"
+    assert decision.blocked_by == []
+    assert "company_defense_or_export_control_risk" in decision.review_reasons
 
 
 def test_role_family_and_seniority_shape_sorting():

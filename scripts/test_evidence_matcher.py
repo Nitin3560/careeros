@@ -39,8 +39,7 @@ BROAD_SKILL_TERMS = {
 
 COMPANY_POLICY = {
     "andurilindustries": {
-        "requires_us_person": True,
-        "reason": "company_requires_us_person_or_export_control_access",
+        "review_reason": "company_defense_or_export_control_risk",
     }
 }
 
@@ -237,14 +236,12 @@ def avoid_domain_hits(facts: dict, requirements: dict, job_context: dict | None 
     return [domain for domain in domains if norm(domain) in haystack]
 
 
-def company_policy_block(facts: dict, job_context: dict | None = None) -> str | None:
+def company_policy_review_reason(job_context: dict | None = None) -> str | None:
     company = norm((job_context or {}).get("company", "")).replace(" ", "")
     policy = COMPANY_POLICY.get(company)
     if not policy:
         return None
-    if policy.get("requires_us_person") and facts["attested"].get("us_person") is False:
-        return policy["reason"]
-    return None
+    return policy["review_reason"]
 
 
 def role_family(title: str) -> str:
@@ -482,9 +479,10 @@ def evaluate(
     if decision.avoid_domain_hits:
         decision.unresolved.extend(decision.avoid_domain_hits)
         decision.review_reasons.append("avoid_domain_match")
-    company_block = company_policy_block(facts, job_context)
-    if company_block:
-        decision.blocked_by.append(company_block)
+    company_review_reason = company_policy_review_reason(job_context)
+    if company_review_reason:
+        decision.unresolved.append(company_review_reason)
+        decision.review_reasons.append(company_review_reason)
     if decision.seniority_penalty:
         decision.review_reasons.append("seniority_mismatch")
 
