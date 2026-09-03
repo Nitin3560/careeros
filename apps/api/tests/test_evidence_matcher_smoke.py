@@ -91,3 +91,41 @@ def test_load_db_items_returns_requirement_rows(monkeypatch):
             "requirements": {"hard_requirements": [], "preferred": []},
         }
     ]
+
+
+def test_load_profile_refuses_empty_candidate_facts(monkeypatch):
+    class FakeDb:
+        def close(self):
+            return None
+
+    monkeypatch.setattr(matcher, "SessionLocal", lambda: FakeDb())
+    monkeypatch.setattr(matcher, "load_candidate_fact_profile", lambda db, user_id: {})
+    monkeypatch.setattr(matcher, "has_candidate_evidence", lambda profile: False)
+
+    try:
+        matcher.load_profile("user-id")
+    except SystemExit as exc:
+        assert "candidate_facts is empty" in str(exc)
+    else:
+        raise AssertionError("expected SystemExit")
+
+
+def test_load_profile_can_use_legacy_profile_when_allowed(monkeypatch):
+    row = type("Row", (), {"data": {"skills": []}, "status": "ACTIVE"})()
+
+    class FakeResult:
+        def first(self):
+            return row
+
+    class FakeDb:
+        def execute(self, sql, params):
+            return FakeResult()
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(matcher, "SessionLocal", lambda: FakeDb())
+    monkeypatch.setattr(matcher, "load_candidate_fact_profile", lambda db, user_id: {})
+    monkeypatch.setattr(matcher, "has_candidate_evidence", lambda profile: False)
+
+    assert matcher.load_profile("user-id", allow_legacy_profile=True) == {"skills": []}

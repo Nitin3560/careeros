@@ -13,6 +13,8 @@ from sqlalchemy import text  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.services.candidate_evidence import (  # noqa: E402
     compute_professional_swe_years,
+    has_candidate_evidence,
+    load_candidate_fact_profile,
     load_attested_facts,
 )
 from app.services.skill_ontology import expanded_profile_terms, requirement_terms  # noqa: E402
@@ -60,13 +62,34 @@ def norm(value) -> str:
     return re.sub(r"[^a-z0-9+#.]+", " ", str(value or "").lower()).strip()
 
 
-def load_profile(user_id: str) -> dict:
+def load_profile(user_id: str, allow_legacy_profile: bool = False) -> dict:
     db = SessionLocal()
     try:
-        return db.execute(
-            text("SELECT data FROM candidate_profiles WHERE user_id::text = :user_id"),
+        evidence_profile = load_candidate_fact_profile(db, user_id)
+        if has_candidate_evidence(evidence_profile):
+            return evidence_profile
+
+        if not allow_legacy_profile:
+            raise SystemExit(
+                "candidate_facts is empty for this user; refusing to match against stale candidate_profiles. "
+                "Use --allow-legacy-profile only for debugging."
+            )
+
+        row = db.execute(
+            text(
+                """
+                SELECT data, status
+                FROM candidate_profiles
+                WHERE user_id::text = :user_id
+                """
+            ),
             {"user_id": user_id},
-        ).scalar_one()
+        ).first()
+        if not row:
+            raise SystemExit("no legacy candidate profile found")
+        if row.status == "SUPERSEDED":
+            raise SystemExit("legacy candidate profile is SUPERSEDED")
+        return row.data
     finally:
         db.close()
 
@@ -305,9 +328,10 @@ def main():
     parser.add_argument("--from-db", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--top", type=int)
+    parser.add_argument("--allow-legacy-profile", action="store_true")
     args = parser.parse_args()
 
-    profile = load_profile(args.user_id)
+    profile = load_profile(args.user_id, allow_legacy_profile=args.allow_legacy_profile)
     db = SessionLocal()
     try:
         attested = load_attested_facts(db, args.user_id)

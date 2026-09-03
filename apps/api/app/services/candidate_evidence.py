@@ -4,6 +4,20 @@ from sqlalchemy.orm import Session
 
 from app import models
 
+SKILL_FACT_KEYS = {
+    "skill",
+    "skills",
+    "technology",
+    "technologies",
+    "tool",
+    "tools",
+    "framework",
+    "frameworks",
+}
+ROLE_FACT_KEYS = {"preferred_role", "preferred_roles", "target_role", "target_roles"}
+EDUCATION_FACT_KEYS = {"degree", "education"}
+ATTESTED_TIER = "ATTESTED"
+
 
 def load_attested_facts(db: Session, user_id: str) -> dict:
     rows = (
@@ -15,6 +29,58 @@ def load_attested_facts(db: Session, user_id: str) -> dict:
         .all()
     )
     return {row.fact_key: parse_fact_value(row.fact_value) for row in rows}
+
+
+def load_candidate_fact_profile(db: Session, user_id: str) -> dict:
+    rows = (
+        db.query(models.CandidateFact)
+        .filter(models.CandidateFact.user_id == user_id)
+        .all()
+    )
+
+    skills = []
+    preferred_roles = []
+    education = []
+    highlights = []
+
+    for row in rows:
+        if row.tier == ATTESTED_TIER:
+            continue
+        key = row.fact_key.strip().lower()
+        value = row.fact_value.strip()
+        if not value:
+            continue
+        if key in SKILL_FACT_KEYS or key.startswith("skill:"):
+            skills.append({"name": value, "evidence": []})
+        elif key in ROLE_FACT_KEYS or key.startswith("role:"):
+            preferred_roles.append(value)
+        elif key in EDUCATION_FACT_KEYS or key.startswith("education:"):
+            education.append({"degree": value, "institution": "", "year": ""})
+        else:
+            highlights.append(value)
+
+    return {
+        "skills": skills,
+        "education": education,
+        "experience": [
+            {
+                "title": "Evidence facts",
+                "company": "Candidate evidence",
+                "duration": "",
+                "highlights": highlights,
+            }
+        ]
+        if highlights
+        else [],
+        "preferred_roles": preferred_roles,
+    }
+
+
+def has_candidate_evidence(profile: dict) -> bool:
+    return any(
+        profile.get(key)
+        for key in ("skills", "education", "experience", "preferred_roles")
+    )
 
 
 def parse_fact_value(value: str):

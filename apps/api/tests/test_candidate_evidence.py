@@ -42,3 +42,30 @@ def test_compute_professional_swe_years_from_employment_rows():
     )
 
     assert years == 1.0
+
+
+def test_load_candidate_fact_profile_uses_non_attested_facts():
+    rows = [
+        SimpleNamespace(fact_key="skill", fact_value="FastAPI", tier="OBSERVED"),
+        SimpleNamespace(fact_key="target_role", fact_value="Backend Engineer", tier="OBSERVED"),
+        SimpleNamespace(fact_key="project", fact_value="Built a FastAPI backend", tier="OBSERVED"),
+        SimpleNamespace(fact_key="citizenship", fact_value="India", tier="ATTESTED"),
+    ]
+
+    class FakeQuery:
+        def filter(self, *args):
+            return self
+
+        def all(self):
+            return rows
+
+    class FakeDb:
+        def query(self, model):
+            return FakeQuery()
+
+    profile = candidate_evidence.load_candidate_fact_profile(FakeDb(), "user-id")
+
+    assert profile["skills"] == [{"name": "FastAPI", "evidence": []}]
+    assert profile["preferred_roles"] == ["Backend Engineer"]
+    assert profile["experience"][0]["highlights"] == ["Built a FastAPI backend"]
+    assert candidate_evidence.has_candidate_evidence(profile)
