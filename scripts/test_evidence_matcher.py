@@ -35,6 +35,14 @@ BROAD_SKILL_TERMS = {
     "software design",
 }
 
+ACTION_PRIORITY = {
+    "APPLY": 4,
+    "STRETCH": 3,
+    "REVIEW": 2,
+    "SKIP": 1,
+    "SKIP_HARD": 0,
+}
+
 
 @dataclass
 class Decision:
@@ -167,12 +175,6 @@ def has_attested_contradiction(facts: dict, req: dict) -> bool:
 
 def should_block_when_missing(facts: dict, req: dict) -> bool:
     req_type = req.get("type")
-    label = norm(
-        " ".join(
-            str(part or "")
-            for part in (req.get("skill"), req.get("value"), req.get("source_text"))
-        )
-    )
 
     if req_type == "years":
         return False
@@ -203,12 +205,26 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
             continue
         if req.get("type") == "years":
             continue
-        if not has_fact(facts, req):
+        if has_fact(facts, req):
+            if req.get("type") == "skill":
+                decision.matched.append(label)
+            continue
+        else:
+            if req.get("type") == "skill":
+                decision.missing.append(label)
             if should_block_when_missing(facts, req):
                 decision.blocked_by.append(label)
             else:
                 decision.unresolved.append(label)
                 decision.review_reasons.append(missing_reason(facts, req))
+
+    for pref in requirements.get("preferred", []):
+        label = requirement_label(pref)
+        terms = requirement_terms(label)
+        if bool(terms & facts["expanded_skills"]) or norm(label) in facts["text"]:
+            decision.matched.append(label)
+        else:
+            decision.missing.append(label)
 
     if decision.blocked_by:
         decision.action = "SKIP_HARD"
@@ -227,14 +243,6 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         decision.blocked_by.append(f"{years_min}+ years required")
         return decision
 
-    for pref in requirements.get("preferred", []):
-        label = requirement_label(pref)
-        terms = requirement_terms(label)
-        if bool(terms & facts["expanded_skills"]) or norm(label) in facts["text"]:
-            decision.matched.append(label)
-        else:
-            decision.missing.append(label)
-
     if isinstance(years_min, (int, float)) and years_min >= YEARS_STRETCH_MIN:
         decision.action = "STRETCH"
     elif len(decision.matched) >= len(decision.missing):
@@ -242,6 +250,16 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
     else:
         decision.action = "REVIEW"
     return decision
+
+
+def fit_sort_key(row: tuple[dict, Decision]) -> tuple[int, int, int, int]:
+    _, decision = row
+    return (
+        len(decision.matched),
+        -len(decision.missing),
+        ACTION_PRIORITY.get(decision.action, 0),
+        -len(decision.unresolved),
+    )
 
 
 def main():
@@ -259,6 +277,7 @@ def main():
         db.close()
     items = json.loads(Path(args.requirements).read_text())
 
+    rows = []
     counts = {}
     review_reason_counts = {}
     for item in items:
@@ -268,14 +287,21 @@ def main():
         counts[decision.action] = counts.get(decision.action, 0) + 1
         for reason in set(decision.review_reasons):
             review_reason_counts[reason] = review_reason_counts.get(reason, 0) + 1
-        print(f"{decision.action:9} {item['company']} - {item['title']}")
+        rows.append((item, decision))
+
+    for rank, (item, decision) in enumerate(sorted(rows, key=fit_sort_key, reverse=True), start=1):
+        matched_preview = "; ".join(decision.matched[:3]) or "-"
+        missing_preview = "; ".join(decision.missing[:3]) or "-"
+        fit = f"matched={len(decision.matched)} missing={len(decision.missing)}"
+        print(f"#{rank} {decision.action:9} {fit} {item['company']} - {item['title']}")
         print(f"  years: candidate={decision.candidate_years:g} required={decision.years_min}")
         if decision.blocked_by:
             print(f"  blocked: {'; '.join(decision.blocked_by[:3])}")
         if decision.unresolved:
             print(f"  review: {'; '.join(decision.unresolved[:3])}")
             print(f"  review reasons: {', '.join(sorted(set(decision.review_reasons)))}")
-        print(f"  preferred: matched={len(decision.matched)} missing={len(decision.missing)}")
+        print(f"  matched: {matched_preview}")
+        print(f"  missing: {missing_preview}")
 
     print("\nsummary")
     for action, count in sorted(counts.items()):
