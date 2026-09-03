@@ -63,12 +63,17 @@ RULES
 - hard = the posting states it as mandatory ("must", "required", "only").
 - preferred = "nice to have", "a plus", "preferred", "ideally", "bonus".
 - If a requirement is hedged in any way it is NOT hard.
-- Every requirement MUST include source_text: a VERBATIM substring copied
+- Every hard requirement MUST include source_text: a VERBATIM substring copied
   exactly from the visible job description text, no paraphrasing, no ellipsis,
   under 200 chars.
 - Copy source_text with the same words in the same order. Do not rewrite HTML,
   simplify wording, or combine separate phrases.
-- If you cannot copy an exact supporting substring, omit the requirement.
+- If you cannot copy an exact supporting substring for a hard requirement, omit it.
+- Preferred requirements are ranking signals, not hard gates. Extract every
+  technology, skill, domain, qualification, and experience area mentioned as
+  desirable, useful, preferred, bonus, or relevant background.
+- Preferred items do not need source_text. A typical job posting should often
+  produce 8-15 preferred items when the description contains that much signal.
 - Never invent years, degrees, technologies, or restrictions not written down.
 
 Output ONLY valid JSON, no markdown fences.
@@ -77,7 +82,7 @@ SCHEMA
 {"hard_requirements":[{"type":"years|education|skill|citizenship|clearance|authorization|location|residency",
                        "value":str,"skill":str|null,"min_years":number|null,
                        "source_text":str}],
- "preferred":[{"type":str,"value":str,"source_text":str}],
+ "preferred":[{"type":str,"value":str}],
  "years_required":{"min":number|null,"max":number|null},
  "seniority":"intern|new_grad|junior|mid|senior|staff|principal|unclear",
  "disqualifiers":[{"value":str,"source_text":str}]}"""
