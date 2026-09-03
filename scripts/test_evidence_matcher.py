@@ -15,9 +15,11 @@ from app.services.candidate_evidence import (  # noqa: E402
     compute_professional_swe_years,
     load_attested_facts,
 )
+from app.services.skill_ontology import expanded_profile_terms, requirement_terms  # noqa: E402
 
 DEFAULT_USER_ID = "b57ae27a-e0b1-4ceb-bab0-3010778465b2"
 REVIEW_TYPES = {"citizenship", "clearance", "authorization", "residency"}
+CONSEQUENTIAL_TYPES = {"citizenship", "clearance", "authorization", "residency", "location", "education"}
 YEARS_STRETCH_MIN = 3
 YEARS_SKIP_MIN = 5
 BROAD_SKILL_TERMS = {
@@ -67,6 +69,7 @@ def profile_facts(profile: dict, attested: dict | None = None, years: float | No
         for skill in profile.get("skills", [])
         if isinstance(skill, dict) and skill.get("name")
     }
+    expanded_skills = expanded_profile_terms(skills)
     text_parts = []
     for skill in profile.get("skills", []):
         if isinstance(skill, dict):
@@ -83,6 +86,7 @@ def profile_facts(profile: dict, attested: dict | None = None, years: float | No
             text_parts.extend([edu.get("degree", ""), edu.get("institution", "")])
     return {
         "skills": skills,
+        "expanded_skills": expanded_skills,
         "text": norm(" ".join(text_parts)),
         "years": years if years is not None else estimate_years(profile),
         "attested": attested if attested is not None else profile.get("attested", {}),
@@ -111,7 +115,8 @@ def has_fact(facts: dict, req: dict) -> bool:
     source = norm(req.get("source_text"))
 
     if req_type == "skill":
-        return value in facts["skills"] or source in facts["text"]
+        terms = requirement_terms(req.get("skill") or req.get("value") or "")
+        return bool(terms & facts["expanded_skills"]) or source in facts["text"]
     if req_type == "education":
         wants_bachelors = any(word in value or word in source for word in ("bachelor", "b.s", "bs"))
         return not wants_bachelors or "b.s" in facts["text"] or "bachelor" in facts["text"]
@@ -136,6 +141,30 @@ def missing_reason(facts: dict, req: dict) -> str:
     return "unresolved_requirement"
 
 
+def has_attested_contradiction(facts: dict, req: dict) -> bool:
+    req_type = req.get("type")
+    attested = facts["attested"]
+    label = norm(requirement_label(req))
+
+    if req_type == "citizenship":
+        citizenship = norm(attested.get("citizenship"))
+        us_person = attested.get("us_person")
+        if "u.s" in label or "us citizen" in label or "united states" in label:
+            return bool(citizenship and citizenship not in {"us", "usa", "united states"} and us_person is False)
+    if req_type == "clearance":
+        return norm(attested.get("security_clearance")) == "none"
+    if req_type == "authorization":
+        requires_sponsorship = attested.get("requires_sponsorship")
+        if requires_sponsorship is True and any(
+            phrase in label for phrase in ("does not offer", "unable to sponsor", "will not sponsor")
+        ):
+            return True
+    if req_type == "residency":
+        current_location = norm(attested.get("current_location") or attested.get("location"))
+        return bool(current_location and current_location not in label)
+    return False
+
+
 def should_block_when_missing(facts: dict, req: dict) -> bool:
     req_type = req.get("type")
     label = norm(
@@ -147,14 +176,12 @@ def should_block_when_missing(facts: dict, req: dict) -> bool:
 
     if req_type == "years":
         return False
-    if req_type in REVIEW_TYPES:
-        return False
+    if req_type in CONSEQUENTIAL_TYPES:
+        return has_attested_contradiction(facts, req)
     if req_type == "location" and not facts["attested"].get("location"):
         return False
     if req_type == "skill":
-        if any(term in label for term in BROAD_SKILL_TERMS):
-            return False
-        return True
+        return False
     return True
 
 
@@ -175,10 +202,6 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         if state != "VERIFIED":
             continue
         if req.get("type") == "years":
-            continue
-        if req.get("type") in REVIEW_TYPES and not has_fact(facts, req):
-            decision.unresolved.append(label)
-            decision.review_reasons.append(missing_reason(facts, req))
             continue
         if not has_fact(facts, req):
             if should_block_when_missing(facts, req):
@@ -206,7 +229,8 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
 
     for pref in requirements.get("preferred", []):
         label = requirement_label(pref)
-        if norm(label) in facts["text"]:
+        terms = requirement_terms(label)
+        if bool(terms & facts["expanded_skills"]) or norm(label) in facts["text"]:
             decision.matched.append(label)
         else:
             decision.missing.append(label)
