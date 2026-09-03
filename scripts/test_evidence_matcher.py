@@ -37,6 +37,27 @@ BROAD_SKILL_TERMS = {
     "software design",
 }
 
+COMPANY_POLICY = {
+    "andurilindustries": {
+        "requires_us_person": True,
+        "reason": "company_requires_us_person_or_export_control_access",
+    }
+}
+
+PREFERRED_ROLE_FAMILIES = {
+    "backend",
+    "fullstack",
+    "ai_ml_infra",
+    "developer_tools",
+    "platform",
+}
+
+LOW_PRIORITY_ROLE_FAMILIES = {
+    "data",
+    "qa",
+    "security",
+}
+
 ACTION_PRIORITY = {
     "APPLY": 4,
     "STRETCH": 3,
@@ -59,6 +80,9 @@ class Decision:
     review_reasons: list[str] = field(default_factory=list)
     years_min: int | None = None
     candidate_years: float = 0.0
+    role_family: str = "unknown"
+    role_family_score: int = 0
+    seniority_penalty: int = 0
 
 
 def norm(value) -> str:
@@ -213,11 +237,83 @@ def avoid_domain_hits(facts: dict, requirements: dict, job_context: dict | None 
     return [domain for domain in domains if norm(domain) in haystack]
 
 
+def company_policy_block(facts: dict, job_context: dict | None = None) -> str | None:
+    company = norm((job_context or {}).get("company", "")).replace(" ", "")
+    policy = COMPANY_POLICY.get(company)
+    if not policy:
+        return None
+    if policy.get("requires_us_person") and facts["attested"].get("us_person") is False:
+        return policy["reason"]
+    return None
+
+
+def role_family(title: str) -> str:
+    title_norm = norm(title)
+    if re.search(r"\b(qa|quality assurance|test automation)\b", title_norm):
+        return "qa"
+    if re.search(r"\b(security|application security|product security|appsec)\b", title_norm):
+        return "security"
+    if re.search(r"\b(data scientist|analytics|business intelligence)\b", title_norm):
+        return "data"
+    if re.search(r"\b(machine learning|ml engineer|ai engineer|ai infra|model platform)\b", title_norm):
+        return "ai_ml_infra"
+    if re.search(r"\b(developer tools|dev tools|developer platform)\b", title_norm):
+        return "developer_tools"
+    if re.search(r"\b(devops|sre|site reliability|infrastructure|platform)\b", title_norm):
+        return "platform"
+    if re.search(r"\b(full stack|fullstack|frontend|front end|react|next)\b", title_norm):
+        return "fullstack"
+    if re.search(r"\b(backend|back end|api|distributed systems)\b", title_norm):
+        return "backend"
+    if re.search(r"\b(software engineer|software developer|swe|sde)\b", title_norm):
+        return "software"
+    return "unknown"
+
+
+def role_family_score(family: str) -> int:
+    if family in PREFERRED_ROLE_FAMILIES:
+        return 3
+    if family == "software":
+        return 1
+    if family in LOW_PRIORITY_ROLE_FAMILIES:
+        return -3
+    return 0
+
+
+def seniority_penalty(title: str, candidate_years: float) -> int:
+    title_norm = norm(title)
+    if candidate_years >= 3:
+        return 0
+    if re.search(r"\b(staff|principal|architect|manager|director|lead)\b", title_norm):
+        return 3
+    if re.search(r"\b(sr|senior)\b", title_norm):
+        return 2
+    return 0
+
+
 def has_fact(facts: dict, req: dict) -> bool:
     req_type = req.get("type")
     value = norm(req.get("skill") or req.get("value"))
     source = norm(req.get("source_text"))
 
+    if req_type == "citizenship":
+        if has_attested_contradiction(facts, req):
+            return False
+        citizenship = norm(facts["attested"].get("citizenship"))
+        us_person = facts["attested"].get("us_person")
+        label = norm(requirement_label(req))
+        requires_us_person = any(
+            phrase in label
+            for phrase in ("u.s. person", "u.s person", "us person", "export controlled", "export-controlled")
+        )
+        requires_us_citizenship = any(
+            phrase in label for phrase in ("u.s", "us citizen", "united states")
+        )
+        if requires_us_person:
+            return us_person is True
+        if requires_us_citizenship:
+            return citizenship in {"us", "usa", "united states"}
+        return bool(citizenship and citizenship in label)
     if req_type == "skill":
         terms = requirement_terms(req.get("skill") or req.get("value") or "")
         return bool(terms & facts["expanded_skills"]) or source in facts["text"]
@@ -264,8 +360,24 @@ def has_attested_contradiction(facts: dict, req: dict) -> bool:
     if req_type == "citizenship":
         citizenship = norm(attested.get("citizenship"))
         us_person = attested.get("us_person")
-        if "u.s" in label or "us citizen" in label or "united states" in label:
-            return bool(citizenship and citizenship not in {"us", "usa", "united states"} and us_person is False)
+        requires_us_person = any(
+            phrase in label
+            for phrase in (
+                "u.s. person",
+                "u.s person",
+                "us person",
+                "export controlled",
+                "export-controlled",
+            )
+        )
+        requires_us_citizenship = any(
+            phrase in label
+            for phrase in ("u.s", "us citizen", "united states")
+        )
+        if requires_us_person and us_person is False:
+            return True
+        if requires_us_citizenship:
+            return bool(citizenship and citizenship not in {"us", "usa", "united states"})
     if req_type == "clearance":
         return norm(attested.get("security_clearance")) == "none"
     if req_type == "authorization":
@@ -307,6 +419,12 @@ def evaluate(
         years_min=requirements.get("years_required", {}).get("min"),
         candidate_years=facts["years"],
     )
+    decision.role_family = role_family((job_context or {}).get("title", ""))
+    decision.role_family_score = role_family_score(decision.role_family)
+    decision.seniority_penalty = seniority_penalty(
+        (job_context or {}).get("title", ""),
+        facts["years"],
+    )
 
     for req in requirements.get("hard_requirements", []):
         state = req.get("verification_state")
@@ -347,6 +465,11 @@ def evaluate(
     if decision.avoid_domain_hits:
         decision.unresolved.extend(decision.avoid_domain_hits)
         decision.review_reasons.append("avoid_domain_match")
+    company_block = company_policy_block(facts, job_context)
+    if company_block:
+        decision.blocked_by.append(company_block)
+    if decision.seniority_penalty:
+        decision.review_reasons.append("seniority_mismatch")
 
     if decision.blocked_by:
         decision.action = "SKIP_HARD"
@@ -377,12 +500,14 @@ def evaluate(
     return decision
 
 
-def fit_sort_key(row: tuple[dict, Decision]) -> tuple[int, int, int, int]:
+def fit_sort_key(row: tuple[dict, Decision]) -> tuple[int, int, int, int, int, int, int]:
     _, decision = row
     return (
+        ACTION_PRIORITY.get(decision.action, 0),
+        decision.role_family_score,
+        -decision.seniority_penalty,
         decision.matched_weight,
         -decision.missing_weight,
-        ACTION_PRIORITY.get(decision.action, 0),
         -len(decision.avoid_domain_hits),
         -len(decision.unresolved),
     )

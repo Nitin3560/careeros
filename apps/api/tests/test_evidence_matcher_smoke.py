@@ -56,6 +56,65 @@ def test_verified_clearance_contradiction_skips_hard():
     assert decision.blocked_by == ["Active security clearance"]
 
 
+def test_verified_us_person_requirement_skips_hard():
+    profile = {"skills": [], "experience": [], "education": [], "preferred_roles": []}
+    requirements = {
+        "hard_requirements": [
+            {
+                "type": "citizenship",
+                "value": "U.S. Person",
+                "verification_state": "VERIFIED",
+                "source_text": "Must be a U.S. Person due to required access to U.S. export controlled information or facilities",
+            }
+        ],
+        "preferred": [],
+        "years_required": {"min": None},
+    }
+
+    decision = matcher.evaluate(
+        profile,
+        requirements,
+        attested={"citizenship": "India", "us_person": False},
+        years=1,
+    )
+
+    assert decision.action == "SKIP_HARD"
+    assert decision.blocked_by == ["U.S. Person"]
+
+
+def test_company_us_person_policy_skips_hard():
+    decision = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "Python"}]},
+        attested={"us_person": False},
+        years=1,
+        job_context={"title": "Software Engineer", "company": "andurilindustries"},
+    )
+
+    assert decision.action == "SKIP_HARD"
+    assert decision.blocked_by == ["company_requires_us_person_or_export_control_access"]
+
+
+def test_role_family_and_seniority_shape_sorting():
+    junior_backend = matcher.evaluate(
+        {"skills": [{"name": "FastAPI", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "FastAPI"}]},
+        years=1,
+        job_context={"title": "Backend Software Engineer", "company": "example"},
+    )
+    senior_security = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "Python"}]},
+        years=1,
+        job_context={"title": "Senior Application Security Engineer", "company": "example"},
+    )
+
+    assert junior_backend.role_family == "backend"
+    assert senior_security.role_family == "security"
+    assert senior_security.seniority_penalty == 2
+    assert matcher.fit_sort_key(({}, junior_backend)) > matcher.fit_sort_key(({}, senior_security))
+
+
 def test_load_db_items_returns_requirement_rows(monkeypatch):
     row = type(
         "Row",
