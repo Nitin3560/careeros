@@ -6,6 +6,8 @@ import httpx
 from app.services.job_ingestion.ashby import fetch_ashby_jobs
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.lever import fetch_lever_jobs
+from app.services.job_ingestion.smartrecruiters import fetch_smartrecruiters_jobs
+from app.services.job_ingestion.workable import fetch_workable_jobs
 
 Fetcher = Callable[[str], list[dict]]
 
@@ -22,16 +24,20 @@ SOURCE_FETCHERS: dict[str, Fetcher] = {
     "greenhouse": fetch_greenhouse_jobs,
     "lever": fetch_lever_jobs,
     "ashby": fetch_ashby_jobs,
+    "smartrecruiters": fetch_smartrecruiters_jobs,
+    "workable": fetch_workable_jobs,
 }
 
 
 KNOWN_PUBLIC_SOURCES: dict[str, list[tuple[str, str]]] = {
+    "arista-networks": [("smartrecruiters", "aristanetworks")],
     "cloudflare": [("greenhouse", "cloudflare")],
     "confluent": [("ashby", "confluent")],
     "datadog": [("greenhouse", "datadog")],
     "fastly": [("greenhouse", "fastly")],
     "gitlab": [("greenhouse", "gitlab")],
     "okta": [("greenhouse", "okta")],
+    "servicenow": [("smartrecruiters", "servicenow")],
     "snowflake": [("ashby", "snowflake")],
     "twilio": [("greenhouse", "twilio")],
     "zscaler": [("greenhouse", "zscaler")],
@@ -77,12 +83,35 @@ def normalize_company_key(name: str) -> str:
 
 
 def default_candidates(company_key: str) -> list[tuple[str, str]]:
-    compact = company_key.replace("-", "")
-    return [
-        ("greenhouse", compact),
-        ("lever", compact),
-        ("ashby", compact),
-        ("greenhouse", company_key),
-        ("lever", company_key),
-        ("ashby", company_key),
+    slugs = slug_variants(company_key)
+    sources = ["greenhouse", "lever", "ashby", "smartrecruiters", "workable"]
+    return [(source, slug) for slug in slugs for source in sources]
+
+
+def slug_variants(company_key: str) -> list[str]:
+    suffixes = {
+        "co",
+        "company",
+        "corp",
+        "corporation",
+        "inc",
+        "incorporated",
+        "labs",
+        "platforms",
+        "technologies",
+        "technology",
+    }
+    parts = company_key.split("-")
+    without_suffixes = "-".join(part for part in parts if part not in suffixes)
+
+    variants = [
+        company_key.replace("-", ""),
+        company_key,
+        without_suffixes.replace("-", ""),
+        without_suffixes,
+        f"{company_key}inc",
+        f"{company_key}-inc",
     ]
+
+    seen = set()
+    return [slug for slug in variants if slug and not (slug in seen or seen.add(slug))]
