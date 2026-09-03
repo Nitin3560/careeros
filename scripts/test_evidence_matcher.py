@@ -35,6 +35,7 @@ class Decision:
     missing: list[str] = field(default_factory=list)
     blocked_by: list[str] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
+    review_reasons: list[str] = field(default_factory=list)
     years_min: int | None = None
     candidate_years: float = 0.0
 
@@ -118,6 +119,17 @@ def has_fact(facts: dict, req: dict) -> bool:
     return norm(requirement_label(req)) in facts["text"]
 
 
+def missing_reason(facts: dict, req: dict) -> str:
+    req_type = req.get("type")
+    if req_type in REVIEW_TYPES:
+        return "missing_attested_profile_fact"
+    if req_type == "location" and not facts["attested"].get("location"):
+        return "missing_attested_profile_fact"
+    if req_type == "skill":
+        return "missing_profile_fact_or_exact_match"
+    return "unresolved_requirement"
+
+
 def should_block_when_missing(facts: dict, req: dict) -> bool:
     req_type = req.get("type")
     label = norm(
@@ -151,16 +163,19 @@ def evaluate(profile: dict, requirements: dict) -> Decision:
         label = requirement_label(req)
         if state == "AMBIGUOUS":
             decision.unresolved.append(label)
+            decision.review_reasons.append("ambiguous_requirement")
         if state != "VERIFIED":
             continue
         if req.get("type") in REVIEW_TYPES and not has_fact(facts, req):
             decision.unresolved.append(label)
+            decision.review_reasons.append(missing_reason(facts, req))
             continue
         if not has_fact(facts, req):
             if should_block_when_missing(facts, req):
                 decision.blocked_by.append(label)
             else:
                 decision.unresolved.append(label)
+                decision.review_reasons.append(missing_reason(facts, req))
 
     if decision.blocked_by:
         decision.action = "SKIP_HARD"
@@ -201,22 +216,30 @@ def main():
     items = json.loads(Path(args.requirements).read_text())
 
     counts = {}
+    review_reason_counts = {}
     for item in items:
         if "requirements" not in item:
             continue
         decision = evaluate(profile, item["requirements"])
         counts[decision.action] = counts.get(decision.action, 0) + 1
+        for reason in set(decision.review_reasons):
+            review_reason_counts[reason] = review_reason_counts.get(reason, 0) + 1
         print(f"{decision.action:9} {item['company']} - {item['title']}")
         print(f"  years: candidate={decision.candidate_years:g} required={decision.years_min}")
         if decision.blocked_by:
             print(f"  blocked: {'; '.join(decision.blocked_by[:3])}")
         if decision.unresolved:
             print(f"  review: {'; '.join(decision.unresolved[:3])}")
+            print(f"  review reasons: {', '.join(sorted(set(decision.review_reasons)))}")
         print(f"  preferred: matched={len(decision.matched)} missing={len(decision.missing)}")
 
     print("\nsummary")
     for action, count in sorted(counts.items()):
         print(f"{action:9} {count}")
+    if review_reason_counts:
+        print("\nreview reasons")
+        for reason, count in sorted(review_reason_counts.items()):
+            print(f"{reason:34} {count}")
 
 
 if __name__ == "__main__":
