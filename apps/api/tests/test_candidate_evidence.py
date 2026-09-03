@@ -46,10 +46,10 @@ def test_compute_professional_swe_years_from_employment_rows():
 
 def test_load_candidate_fact_profile_uses_non_attested_facts():
     rows = [
-        SimpleNamespace(fact_key="skill", fact_value="FastAPI", tier="OBSERVED"),
-        SimpleNamespace(fact_key="target_role", fact_value="Backend Engineer", tier="OBSERVED"),
-        SimpleNamespace(fact_key="project", fact_value="Built a FastAPI backend", tier="OBSERVED"),
-        SimpleNamespace(fact_key="citizenship", fact_value="India", tier="ATTESTED"),
+        SimpleNamespace(fact_key="skill", fact_value="FastAPI", tier="OBSERVED", project_weight=5),
+        SimpleNamespace(fact_key="target_role", fact_value="Backend Engineer", tier="OBSERVED", project_weight=5),
+        SimpleNamespace(fact_key="project", fact_value="Built a FastAPI backend", tier="OBSERVED", project_weight=5),
+        SimpleNamespace(fact_key="citizenship", fact_value="India", tier="ATTESTED", project_weight=1),
     ]
 
     class FakeQuery:
@@ -65,7 +65,32 @@ def test_load_candidate_fact_profile_uses_non_attested_facts():
 
     profile = candidate_evidence.load_candidate_fact_profile(FakeDb(), "user-id")
 
-    assert profile["skills"] == [{"name": "FastAPI", "evidence": []}]
+    assert profile["skills"] == [{"name": "FastAPI", "evidence": ["FastAPI"], "weight": 5}]
     assert profile["preferred_roles"] == ["Backend Engineer"]
     assert profile["experience"][0]["highlights"] == ["Built a FastAPI backend"]
     assert candidate_evidence.has_candidate_evidence(profile)
+
+
+def test_load_candidate_fact_profile_allows_repeated_fact_keys():
+    rows = [
+        SimpleNamespace(fact_key="skill", fact_value="FastAPI", tier="OBSERVED", project_weight=5),
+        SimpleNamespace(fact_key="skill", fact_value="React", tier="OBSERVED", project_weight=4),
+    ]
+
+    class FakeQuery:
+        def filter(self, *args):
+            return self
+
+        def all(self):
+            return rows
+
+    class FakeDb:
+        def query(self, model):
+            return FakeQuery()
+
+    profile = candidate_evidence.load_candidate_fact_profile(FakeDb(), "user-id")
+
+    assert profile["skills"] == [
+        {"name": "FastAPI", "evidence": ["FastAPI"], "weight": 5},
+        {"name": "React", "evidence": ["React"], "weight": 4},
+    ]

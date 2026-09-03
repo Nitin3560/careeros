@@ -50,9 +50,6 @@ class CandidateProfile(Base):
 
 class CandidateFact(Base):
     __tablename__ = "candidate_facts"
-    __table_args__ = (
-        UniqueConstraint("user_id", "fact_key", name="uq_user_candidate_fact"),
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -64,6 +61,8 @@ class CandidateFact(Base):
     fact_value: Mapped[str] = mapped_column(String, nullable=False)
     tier: Mapped[str] = mapped_column(String, nullable=False, default="ATTESTED")
     source: Mapped[str] = mapped_column(String, nullable=False, default="user")
+    project: Mapped[str | None] = mapped_column(String, nullable=True)
+    project_weight: Mapped[int] = mapped_column(default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

@@ -51,6 +51,8 @@ class Decision:
     action: str
     matched: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
+    matched_weight: int = 0
+    missing_weight: int = 0
     blocked_by: list[str] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
     review_reasons: list[str] = field(default_factory=list)
@@ -137,11 +139,16 @@ def profile_facts(profile: dict, attested: dict | None = None, years: float | No
         if isinstance(skill, dict) and skill.get("name")
     }
     expanded_skills = expanded_profile_terms(skills)
+    skill_weights = {}
     text_parts = []
     for skill in profile.get("skills", []):
         if isinstance(skill, dict):
+            name = norm(skill.get("name", ""))
+            weight = max(1, int(skill.get("weight") or 1))
             text_parts.append(skill.get("name", ""))
             text_parts.extend(skill.get("evidence", []))
+            for term in expanded_profile_terms({name}):
+                skill_weights[term] = max(skill_weights.get(term, 0), weight)
     for role in profile.get("preferred_roles", []):
         text_parts.append(role)
     for exp in profile.get("experience", []):
@@ -154,6 +161,7 @@ def profile_facts(profile: dict, attested: dict | None = None, years: float | No
     return {
         "skills": skills,
         "expanded_skills": expanded_skills,
+        "skill_weights": skill_weights,
         "text": norm(" ".join(text_parts)),
         "years": years if years is not None else estimate_years(profile),
         "attested": attested if attested is not None else profile.get("attested", {}),
@@ -195,6 +203,16 @@ def has_fact(facts: dict, req: dict) -> bool:
     if req_type in REVIEW_TYPES:
         return bool(facts["attested"].get(req_type))
     return norm(requirement_label(req)) in facts["text"]
+
+
+def skill_match_weight(facts: dict, label: str) -> int:
+    terms = requirement_terms(label)
+    weights = [facts["skill_weights"].get(term, 0) for term in terms]
+    if weights:
+        return max(weights)
+    if norm(label) in facts["text"]:
+        return 1
+    return 0
 
 
 def missing_reason(facts: dict, req: dict) -> str:
@@ -267,10 +285,12 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         if has_fact(facts, req):
             if req.get("type") == "skill":
                 decision.matched.append(label)
+                decision.matched_weight += skill_match_weight(facts, label) or 1
             continue
         else:
             if req.get("type") == "skill":
                 decision.missing.append(label)
+                decision.missing_weight += 1
             if should_block_when_missing(facts, req):
                 decision.blocked_by.append(label)
             else:
@@ -282,8 +302,10 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         terms = requirement_terms(label)
         if bool(terms & facts["expanded_skills"]) or norm(label) in facts["text"]:
             decision.matched.append(label)
+            decision.matched_weight += skill_match_weight(facts, label) or 1
         else:
             decision.missing.append(label)
+            decision.missing_weight += 1
 
     if decision.blocked_by:
         decision.action = "SKIP_HARD"
@@ -314,8 +336,8 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
 def fit_sort_key(row: tuple[dict, Decision]) -> tuple[int, int, int, int]:
     _, decision = row
     return (
-        len(decision.matched),
-        -len(decision.missing),
+        decision.matched_weight,
+        -decision.missing_weight,
         ACTION_PRIORITY.get(decision.action, 0),
         -len(decision.unresolved),
     )
@@ -359,7 +381,10 @@ def main():
     for rank, (item, decision) in enumerate(ranked, start=1):
         matched_preview = "; ".join(decision.matched[:3]) or "-"
         missing_preview = "; ".join(decision.missing[:3]) or "-"
-        fit = f"matched={len(decision.matched)} missing={len(decision.missing)}"
+        fit = (
+            f"matched={len(decision.matched)} missing={len(decision.missing)} "
+            f"weighted={decision.matched_weight}/{decision.missing_weight}"
+        )
         print(f"#{rank} {decision.action:9} {fit} {item['company']} - {item['title']}")
         print(f"  years: candidate={decision.candidate_years:g} required={decision.years_min}")
         if decision.blocked_by:

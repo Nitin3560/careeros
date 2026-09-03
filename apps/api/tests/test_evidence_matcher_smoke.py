@@ -129,3 +129,18 @@ def test_load_profile_can_use_legacy_profile_when_allowed(monkeypatch):
     monkeypatch.setattr(matcher, "has_candidate_evidence", lambda profile: False)
 
     assert matcher.load_profile("user-id", allow_legacy_profile=True) == {"skills": []}
+
+
+def test_fit_sort_key_uses_project_weighted_matches():
+    high_weight = matcher.evaluate(
+        {"skills": [{"name": "FastAPI", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "backend"}]},
+    )
+    low_weight = matcher.evaluate(
+        {"skills": [{"name": "ROS2", "weight": 1}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "robotics"}]},
+    )
+
+    assert high_weight.matched_weight == 5
+    assert low_weight.matched_weight == 1
+    assert matcher.fit_sort_key(({}, high_weight)) > matcher.fit_sort_key(({}, low_weight))

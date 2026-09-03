@@ -50,8 +50,9 @@ def load_candidate_fact_profile(db: Session, user_id: str) -> dict:
         value = row.fact_value.strip()
         if not value:
             continue
+        weight = max(1, getattr(row, "project_weight", 1) or 1)
         if key in SKILL_FACT_KEYS or key.startswith("skill:"):
-            skills.append({"name": value, "evidence": []})
+            skills.append({"name": value, "evidence": [value], "weight": weight})
         elif key in ROLE_FACT_KEYS or key.startswith("role:"):
             preferred_roles.append(value)
         elif key in EDUCATION_FACT_KEYS or key.startswith("education:"):
