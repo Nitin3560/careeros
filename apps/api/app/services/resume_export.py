@@ -1,21 +1,11 @@
 import io
 from xml.sax.saxutils import escape
 
-from docx import Document
-from docx.shared import Pt
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import (
-    ListFlowable,
-    ListItem,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-)
-
 
 def generate_docx(content: dict) -> bytes:
+    from docx import Document
+    from docx.shared import Pt
+
     doc = Document()
 
     doc.add_heading(content.get("full_name") or "Resume", level=1)
@@ -66,6 +56,17 @@ def _pdf_text(value: object) -> str:
 
 
 def generate_pdf(content: dict) -> bytes:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import (
+        ListFlowable,
+        ListItem,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+    )
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,

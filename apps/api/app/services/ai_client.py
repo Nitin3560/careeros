@@ -4,7 +4,6 @@ import time
 from collections import deque
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 
@@ -89,11 +88,26 @@ class RateLimiter:
 
 
 _rate_limiter = RateLimiter()
+_client_cache = {}
+_client_lock = threading.Lock()
 
 
 def estimate_tokens(system_prompt: str, user_prompt: str, max_tokens: int) -> int:
     input_tokens = (len(system_prompt) + len(user_prompt)) // 4
     return input_tokens + max_tokens
+
+
+def get_client(provider_name: str, provider: dict):
+    with _client_lock:
+        if provider_name not in _client_cache:
+            from openai import OpenAI
+
+            _client_cache[provider_name] = OpenAI(
+                base_url=provider["base_url"],
+                api_key=provider["api_key"],
+                timeout=30.0,
+            )
+        return _client_cache[provider_name]
 
 
 def call_llm(
@@ -113,11 +127,7 @@ def call_llm(
         if not provider["api_key"]:
             continue
 
-        client = OpenAI(
-            base_url=provider["base_url"],
-            api_key=provider["api_key"],
-            timeout=30.0,
-        )
+        client = get_client(provider_name, provider)
 
         for attempt in range(max_retries):
             try:
