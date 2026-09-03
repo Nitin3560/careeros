@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.services.job_ingestion.ashby import fetch_ashby_jobs
+from app.services.job_ingestion.amazon import fetch_amazon_jobs
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.lever import fetch_lever_jobs
 from app.services.job_ingestion.smartrecruiters import fetch_smartrecruiters_jobs
@@ -21,6 +22,7 @@ class PublicSource:
 
 
 SOURCE_FETCHERS: dict[str, Fetcher] = {
+    "amazon": fetch_amazon_jobs,
     "greenhouse": fetch_greenhouse_jobs,
     "lever": fetch_lever_jobs,
     "ashby": fetch_ashby_jobs,
@@ -30,6 +32,7 @@ SOURCE_FETCHERS: dict[str, Fetcher] = {
 
 
 KNOWN_PUBLIC_SOURCES: dict[str, list[tuple[str, str]]] = {
+    "amazon": [("amazon", "software-development-engineer")],
     "arista-networks": [("smartrecruiters", "aristanetworks")],
     "cloudflare": [("greenhouse", "cloudflare")],
     "confluent": [("ashby", "confluent")],

@@ -1,4 +1,5 @@
 from app.services.job_ingestion import (
+    amazon,
     ashby,
     lever,
     public_sources,
@@ -79,6 +80,31 @@ class FakeWorkableResponse:
                 }
             ]
         }
+
+
+class FakeAmazonResponse:
+    def __init__(self, jobs, hits):
+        self._jobs = jobs
+        self._hits = hits
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"hits": self._hits, "jobs": self._jobs}
+
+
+def amazon_job(job_id, title="Software Development Engineer"):
+    return {
+        "id_icims": job_id,
+        "title": title,
+        "normalized_location": "Seattle, Washington, USA",
+        "description": "Build distributed services.",
+        "basic_qualifications": "Bachelor's degree or equivalent.",
+        "preferred_qualifications": "Experience with Python.",
+        "url_next_step": f"https://account.amazon.jobs/jobs/{job_id}/apply",
+        "posted_date": "May 27, 2026",
+    }
 
 
 def test_fetch_lever_jobs_normalizes_public_response(monkeypatch):
@@ -164,6 +190,38 @@ def test_fetch_workable_jobs_normalizes_public_response(monkeypatch):
     assert jobs[0]["company"] == "example"
     assert jobs[0]["title"] == "Backend Engineer"
     assert jobs[0]["description_text"] == "Build APIs"
+
+
+def test_fetch_amazon_jobs_paginates_and_normalizes_response(monkeypatch):
+    requested = []
+    pages = {
+        0: FakeAmazonResponse([amazon_job("100"), amazon_job("101")], hits=3),
+        2: FakeAmazonResponse([amazon_job("102", "SDE I")], hits=3),
+    }
+
+    def fake_get(url, params, timeout):
+        requested.append({"url": url, "params": params, "timeout": timeout})
+        return pages[params["offset"]]
+
+    monkeypatch.setattr(amazon.httpx, "get", fake_get)
+    monkeypatch.setattr(amazon, "RESULT_LIMIT", 2)
+
+    jobs = amazon.fetch_amazon_jobs("software-development-engineer")
+
+    assert [call["params"]["offset"] for call in requested] == [0, 2]
+    assert requested[0]["url"] == "https://www.amazon.jobs/en/search.json"
+    assert requested[0]["params"]["base_query"] == "software development engineer"
+    assert requested[0]["params"]["country"] == "USA"
+    assert requested[0]["timeout"] == 15.0
+    assert len(jobs) == 3
+    assert jobs[0]["external_id"] == "amazon_100"
+    assert jobs[0]["source"] == "amazon"
+    assert jobs[0]["company"] == "amazon"
+    assert jobs[0]["location"] == "Seattle, Washington, USA"
+    assert "Build distributed services." in jobs[0]["description_text"]
+    assert "Bachelor's degree or equivalent." in jobs[0]["description_text"]
+    assert jobs[0]["application_url"] == "https://account.amazon.jobs/jobs/100/apply"
+    assert jobs[0]["date_posted"].year == 2026
 
 
 def test_discover_public_source_uses_known_source(monkeypatch):

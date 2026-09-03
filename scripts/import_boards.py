@@ -12,6 +12,7 @@ from app import models  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 
 ATS_MAP = {
+    "amazon": "amazon",
     "greenhouse": "greenhouse",
     "lever": "lever",
     "ashby": "ashby",
