@@ -44,6 +44,7 @@ V1_SWE_TITLE_PATTERN = (
 )
 V2_SWE_TITLE_PATTERN = (
     r"\y(software engineer|software developer|backend|back.?end|frontend|"
+    r"software development engineer|software dev engineer|"
     r"front.?end|full.?stack|platform engineer|infrastructure engineer|"
     r"systems engineer|distributed systems|site reliability|sre|devops|"
     r"machine learning engineer|ml engineer|ai engineer|applied scientist|"

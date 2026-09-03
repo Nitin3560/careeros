@@ -32,6 +32,14 @@ def test_swe_title_filter_keeps_early_career_relevant_titles():
     assert matches(apply_title_filter.SWE_TITLE_PATTERN, "Machine Learning Engineer")
 
 
+def test_v3_swe_title_filter_keeps_amazon_sde_titles():
+    pattern = apply_title_filter.FILTERS["v3"]["swe_title"]
+
+    assert matches(pattern, "Software Development Engineer")
+    assert matches(pattern, "Software Development Engineer II, AWS Lambda")
+    assert matches(pattern, "Software Dev Engineer II, Prime Air")
+
+
 def test_current_filter_is_named_v1():
     assert apply_title_filter.FILTERS["v1"]["version"] == 1
     assert apply_title_filter.FILTERS["v1"]["role_head"] == (
