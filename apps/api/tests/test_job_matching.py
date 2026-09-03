@@ -79,6 +79,41 @@ def test_build_title_search_keywords_keeps_role_signal_terms():
     assert "engineer" not in keywords
 
 
+def test_python_matching_applies_eligibility_filter():
+    eligible_job = SimpleNamespace(
+        title="Robotics Software Engineer",
+        description_text="robotics simulation autonomy",
+        eligible=True,
+    )
+    class FakeQuery:
+        def __init__(self):
+            self.filters = []
+
+        def filter(self, *args):
+            self.filters.extend(args)
+            return self
+
+        def all(self):
+            return [eligible_job]
+
+    class FakeDb:
+        def __init__(self):
+            self.query_obj = FakeQuery()
+
+        def query(self, model):
+            return self.query_obj
+
+    db = FakeDb()
+    scored = job_matching._score_matching_jobs_in_python(
+        db,
+        {"robotics", "simulation"},
+    )
+
+    filter_sql = " ".join(str(filter_arg).lower() for filter_arg in db.query_obj.filters)
+    assert "jobs.eligible" in filter_sql
+    assert scored == [(eligible_job, 5)]
+
+
 def test_cache_validity_rejects_estimated_stale_or_wrong_prompt_version():
     valid = SimpleNamespace(
         profile_version=2,

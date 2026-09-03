@@ -128,7 +128,12 @@ def count_matching_jobs(db: Session, profile_data: dict) -> int:
     if _is_postgresql_session(db):
         search_vector = build_postgres_title_search_vector()
         search_query = build_postgres_search_query(keywords)
-        return db.query(models.Job).filter(search_vector.op("@@")(search_query)).count()
+        return (
+            db.query(models.Job)
+            .filter(models.Job.eligible.is_(True))
+            .filter(search_vector.op("@@")(search_query))
+            .count()
+        )
 
     return len(_score_matching_jobs_in_python(db, keywords))
 
@@ -156,6 +161,7 @@ def get_scored_matching_jobs(
     score_expr = func.ts_rank_cd(search_vector, search_query).label("match_score")
     query = (
         db.query(models.Job, score_expr)
+        .filter(models.Job.eligible.is_(True))
         .filter(search_vector.op("@@")(search_query))
         .order_by(desc(score_expr), models.Job.retrieved_at.desc())
         .offset(offset)
@@ -238,7 +244,12 @@ def build_postgres_search_query(keywords: set[str]):
 
 def _score_matching_jobs_in_python(db: Session, keywords: set[str]) -> list[tuple]:
     conditions = build_search_conditions(keywords)
-    candidates = db.query(models.Job).filter(or_(*conditions)).all()
+    candidates = (
+        db.query(models.Job)
+        .filter(models.Job.eligible.is_(True))
+        .filter(or_(*conditions))
+        .all()
+    )
 
     scored = []
     for job in candidates:
