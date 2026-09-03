@@ -84,27 +84,38 @@ def test_cache_validity_rejects_estimated_stale_or_wrong_prompt_version():
         profile_version=2,
         prompt_version=job_matching.MATCHING_PROMPT_VERSION,
         is_estimated=False,
+        overall_score=70,
     )
     estimated = SimpleNamespace(
         profile_version=2,
         prompt_version=job_matching.MATCHING_PROMPT_VERSION,
         is_estimated=True,
+        overall_score=70,
     )
     stale = SimpleNamespace(
         profile_version=1,
         prompt_version=job_matching.MATCHING_PROMPT_VERSION,
         is_estimated=False,
+        overall_score=70,
     )
     old_prompt = SimpleNamespace(
         profile_version=2,
         prompt_version=job_matching.MATCHING_PROMPT_VERSION - 1,
         is_estimated=False,
+        overall_score=70,
+    )
+    failed = SimpleNamespace(
+        profile_version=2,
+        prompt_version=job_matching.MATCHING_PROMPT_VERSION,
+        is_estimated=False,
+        overall_score=None,
     )
 
     assert job_matching.is_match_cache_valid(valid, 2)
     assert not job_matching.is_match_cache_valid(estimated, 2)
     assert not job_matching.is_match_cache_valid(stale, 2)
     assert not job_matching.is_match_cache_valid(old_prompt, 2)
+    assert not job_matching.is_match_cache_valid(failed, 2)
     assert not job_matching.is_match_cache_valid(None, 2)
 
 

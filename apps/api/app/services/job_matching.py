@@ -413,6 +413,7 @@ def is_match_cache_valid(record, profile_version: int) -> bool:
         and record.profile_version == profile_version
         and record.prompt_version == MATCHING_PROMPT_VERSION
         and not record.is_estimated
+        and record.overall_score is not None
     )
 
 
