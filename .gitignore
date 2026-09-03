@@ -25,6 +25,7 @@ postgres_data/
 # Local reports
 reports/
 requirements_test*.json
+*.log
 
 # Editor
 .vscode/*
