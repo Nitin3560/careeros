@@ -18,6 +18,8 @@ from app.services.candidate_evidence import (  # noqa: E402
 
 DEFAULT_USER_ID = "b57ae27a-e0b1-4ceb-bab0-3010778465b2"
 REVIEW_TYPES = {"citizenship", "clearance", "authorization", "residency"}
+YEARS_STRETCH_MIN = 3
+YEARS_SKIP_MIN = 5
 BROAD_SKILL_TERMS = {
     "ability",
     "capability",
@@ -143,6 +145,8 @@ def should_block_when_missing(facts: dict, req: dict) -> bool:
         )
     )
 
+    if req_type == "years":
+        return False
     if req_type in REVIEW_TYPES:
         return False
     if req_type == "location" and not facts["attested"].get("location"):
@@ -170,6 +174,8 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
             decision.review_reasons.append("ambiguous_requirement")
         if state != "VERIFIED":
             continue
+        if req.get("type") == "years":
+            continue
         if req.get("type") in REVIEW_TYPES and not has_fact(facts, req):
             decision.unresolved.append(label)
             decision.review_reasons.append(missing_reason(facts, req))
@@ -189,7 +195,11 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         return decision
 
     years_min = decision.years_min
-    if isinstance(years_min, (int, float)) and years_min >= 5 and facts["years"] < years_min:
+    if (
+        isinstance(years_min, (int, float))
+        and years_min >= YEARS_SKIP_MIN
+        and facts["years"] < years_min
+    ):
         decision.action = "SKIP"
         decision.blocked_by.append(f"{years_min}+ years required")
         return decision
@@ -201,7 +211,7 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         else:
             decision.missing.append(label)
 
-    if isinstance(years_min, (int, float)) and years_min >= 3:
+    if isinstance(years_min, (int, float)) and years_min >= YEARS_STRETCH_MIN:
         decision.action = "STRETCH"
     elif len(decision.matched) >= len(decision.missing):
         decision.action = "APPLY"
