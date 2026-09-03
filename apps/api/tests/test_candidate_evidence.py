@@ -50,6 +50,7 @@ def test_load_candidate_fact_profile_uses_non_attested_facts():
         SimpleNamespace(fact_key="target_role", fact_value="Backend Engineer", tier="OBSERVED", project_weight=5),
         SimpleNamespace(fact_key="project", fact_value="Built a FastAPI backend", tier="OBSERVED", project_weight=5),
         SimpleNamespace(fact_key="citizenship", fact_value="India", tier="ATTESTED", project_weight=1),
+        SimpleNamespace(fact_key="education", fact_value="B.Tech Computer Science", tier="ATTESTED", project_weight=1),
     ]
 
     class FakeQuery:
@@ -67,6 +68,7 @@ def test_load_candidate_fact_profile_uses_non_attested_facts():
 
     assert profile["skills"] == [{"name": "FastAPI", "evidence": ["FastAPI"], "weight": 5}]
     assert profile["preferred_roles"] == ["Backend Engineer"]
+    assert profile["education"] == [{"degree": "B.Tech Computer Science", "institution": "", "year": ""}]
     assert profile["experience"][0]["highlights"] == ["Built a FastAPI backend"]
     assert candidate_evidence.has_candidate_evidence(profile)
 

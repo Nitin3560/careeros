@@ -17,6 +17,21 @@ SKILL_FACT_KEYS = {
 ROLE_FACT_KEYS = {"preferred_role", "preferred_roles", "target_role", "target_roles"}
 EDUCATION_FACT_KEYS = {"degree", "education"}
 ATTESTED_TIER = "ATTESTED"
+GATE_ATTESTED_FACT_KEYS = {
+    "authorization",
+    "work_authorization",
+    "requires_sponsorship",
+    "citizenship",
+    "us_person",
+    "security_clearance",
+    "clearance_eligible",
+    "current_location",
+    "location",
+    "willing_to_relocate",
+    "remote_preference",
+    "preferred_domains",
+    "avoid_domains",
+}
 
 
 def load_attested_facts(db: Session, user_id: str) -> dict:
@@ -44,11 +59,11 @@ def load_candidate_fact_profile(db: Session, user_id: str) -> dict:
     highlights = []
 
     for row in rows:
-        if row.tier == ATTESTED_TIER:
-            continue
         key = row.fact_key.strip().lower()
         value = row.fact_value.strip()
         if not value:
+            continue
+        if row.tier == ATTESTED_TIER and key in GATE_ATTESTED_FACT_KEYS:
             continue
         weight = max(1, getattr(row, "project_weight", 1) or 1)
         if key in SKILL_FACT_KEYS or key.startswith("skill:"):

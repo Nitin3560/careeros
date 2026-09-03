@@ -167,3 +167,31 @@ def test_avoid_domain_routes_to_review():
     assert decision.action == "REVIEW"
     assert decision.avoid_domain_hits == ["robotics"]
     assert "avoid_domain_match" in decision.review_reasons
+
+
+def test_btech_or_ms_satisfies_bachelor_requirement():
+    decision = matcher.evaluate(
+        {
+            "skills": [{"name": "Python", "weight": 5}],
+            "education": [
+                {"degree": "M.S. Computer Science"},
+                {"degree": "B.Tech Computer Science"},
+            ],
+            "experience": [],
+        },
+        {
+            "hard_requirements": [
+                {
+                    "type": "education",
+                    "value": "Bachelor's degree",
+                    "verification_state": "VERIFIED",
+                    "source_text": "Bachelor's degree in Computer Science or related field",
+                }
+            ],
+            "preferred": [{"skill": "Python"}],
+            "years_required": {"min": None},
+        },
+    )
+
+    assert decision.action == "APPLY"
+    assert decision.unresolved == []

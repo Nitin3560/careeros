@@ -223,7 +223,8 @@ def has_fact(facts: dict, req: dict) -> bool:
         return bool(terms & facts["expanded_skills"]) or source in facts["text"]
     if req_type == "education":
         wants_bachelors = any(word in value or word in source for word in ("bachelor", "b.s", "bs"))
-        return not wants_bachelors or "b.s" in facts["text"] or "bachelor" in facts["text"]
+        degree_terms = ("b.s", "bs", "b tech", "b.tech", "bachelor", "m.s", "ms", "master")
+        return not wants_bachelors or any(term in facts["text"] for term in degree_terms)
     if req_type == "years":
         min_years = req.get("min_years")
         return min_years is None or facts["years"] >= float(min_years)
