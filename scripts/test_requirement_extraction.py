@@ -13,7 +13,7 @@ from sqlalchemy import text  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 API = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 
 N_JOBS = int(os.getenv("REQUIREMENT_TEST_JOBS", "10"))
@@ -79,6 +79,16 @@ def call_gemini(jd: str) -> tuple[str, dict]:
     data = response.json()
     text_output = data["candidates"][0]["content"]["parts"][0]["text"]
     return text_output, data.get("usageMetadata", {})
+
+
+def safe_error(exc: Exception) -> str:
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        reason = exc.response.reason_phrase
+        return f"HTTPStatusError: {status_code} {reason}"
+    if isinstance(exc, httpx.HTTPError):
+        return type(exc).__name__
+    return f"{type(exc).__name__}: {exc}"
 
 
 def normalize(value: str) -> str:
@@ -149,8 +159,9 @@ def main():
             raw, usage = call_gemini(jd)
             parsed = parse_json(raw)
         except Exception as exc:
-            print(f"    FAILED: {type(exc).__name__}: {exc}")
-            output.append({"job_id": str(job_id), "error": str(exc)[:300]})
+            error = safe_error(exc)
+            print(f"    FAILED: {error}")
+            output.append({"job_id": str(job_id), "error": error[:300]})
             continue
 
         prompt_tokens += usage.get("promptTokenCount", 0)
