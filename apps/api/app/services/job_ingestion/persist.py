@@ -4,11 +4,22 @@ from sqlalchemy.dialects.postgresql import insert
 from app import models
 
 
+def clean_text(value):
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    return value
+
+
+def clean_job(job: dict) -> dict:
+    return {key: clean_text(value) for key, value in job.items()}
+
+
 def save_jobs(db: Session, jobs: list[dict]) -> dict:
     """Save new jobs and skip existing external IDs."""
     unique_jobs = {}
     for job in jobs:
-        unique_jobs.setdefault(job["external_id"], job)
+        clean = clean_job(job)
+        unique_jobs.setdefault(clean["external_id"], clean)
 
     external_ids = list(unique_jobs)
     if db.bind and db.bind.dialect.name == "postgresql":
