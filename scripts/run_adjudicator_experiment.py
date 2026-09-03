@@ -9,7 +9,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import httpx
-from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
@@ -22,6 +21,7 @@ from app.database import SessionLocal  # noqa: E402
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 API = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 DEFAULT_OUT = "adjudicator_experiment.json"
+KEY_DELAY_SECONDS = 6.0
 
 STOPWORDS = {
     "a",
@@ -55,6 +55,22 @@ Verdicts:
 Schema:
 {"verdict":"MET|PARTIAL|UNMET","fact_ids":[str],"reason":str}
 """
+
+
+class KeyScheduler:
+    def __init__(self, keys: list[str]):
+        self.keys = keys
+        self.next_available = [0.0 for _ in keys]
+        self.index = 0
+
+    def take(self) -> str:
+        index = self.index
+        self.index = (self.index + 1) % len(self.keys)
+        wait = self.next_available[index] - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        self.next_available[index] = time.monotonic() + KEY_DELAY_SECONDS
+        return self.keys[index]
 
 
 def tokens(value: str) -> set[str]:
@@ -108,7 +124,24 @@ def preselect_facts(requirement: str, facts: list[dict], limit: int = 10) -> lis
     ]
 
 
-def call_gemini(api_key: str, requirement: str, facts: list[dict]) -> dict:
+def preselection_score(requirement: str, facts: list[dict]) -> tuple[int, int]:
+    selected = preselect_facts(requirement, facts, limit=10)
+    if not selected:
+        return (0, 0)
+    selected_ids = {item["id"] for item in selected}
+    req_terms = tokens(requirement)
+    best_overlap = 0
+    best_weight = 0
+    for fact in facts:
+        if fact["id"] not in selected_ids:
+            continue
+        overlap = len(req_terms & fact["terms"])
+        best_overlap = max(best_overlap, overlap)
+        best_weight = max(best_weight, fact["weight"])
+    return (best_overlap, best_weight)
+
+
+def call_gemini(scheduler: KeyScheduler, requirement: str, facts: list[dict]) -> dict:
     payload = {
         "systemInstruction": {"parts": [{"text": SYSTEM}]},
         "contents": [
@@ -132,6 +165,7 @@ def call_gemini(api_key: str, requirement: str, facts: list[dict]) -> dict:
     last_error = None
     for attempt in range(4):
         try:
+            api_key = scheduler.take()
             response = httpx.post(API, params={"key": api_key}, json=payload, timeout=60)
             if response.status_code in {429, 500, 502, 503, 504}:
                 last_error = f"http {response.status_code}"
@@ -178,12 +212,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--user-id", default=matcher.DEFAULT_USER_ID)
     parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument("--max-requirements", type=int, default=50)
     parser.add_argument("--out", default=DEFAULT_OUT)
     args = parser.parse_args()
 
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise SystemExit("GEMINI_API_KEY is not set")
+    keys = load_api_keys()
+    if not keys:
+        raise SystemExit("no Gemini API keys set")
+    scheduler = KeyScheduler(keys)
 
     db = SessionLocal()
     try:
@@ -196,8 +232,10 @@ def main():
         db.close()
 
     output = []
+    pending = []
     totals = {
         "jobs": 0,
+        "skip_hard_jobs": 0,
         "requirements_adjudicated": 0,
         "consistent": 0,
         "met": 0,
@@ -214,32 +252,55 @@ def main():
             job_context=item,
         )
         if deterministic.action == "SKIP_HARD":
+            totals["skip_hard_jobs"] += 1
             continue
 
-        unresolved = []
         for requirement in deterministic.missing:
             selected = preselect_facts(requirement, facts)
             if selected:
-                unresolved.append((requirement, selected))
+                pending.append(
+                    {
+                        "item": item,
+                        "deterministic": deterministic,
+                        "requirement": requirement,
+                        "facts": selected,
+                        "score": preselection_score(requirement, facts),
+                    }
+                )
 
-        adjudications = []
-        for requirement, selected in unresolved:
-            run1 = call_gemini(api_key, requirement, selected)
-            run2 = call_gemini(api_key, requirement, selected)
-            consistent = run1["verdict"] == run2["verdict"]
-            totals["requirements_adjudicated"] += 1
-            totals["consistent"] += int(consistent)
-            totals[run1["verdict"].lower()] += 1
-            adjudications.append(
-                {
-                    "requirement": requirement,
-                    "facts": selected,
-                    "run1": run1,
-                    "run2": run2,
-                    "consistent": consistent,
-                }
+    pending.sort(key=lambda item: item["score"], reverse=True)
+    pending = pending[: args.max_requirements]
+
+    grouped = {}
+    for item in pending:
+        job_id = item["item"]["job_id"]
+        if job_id not in grouped:
+            grouped[job_id] = {
+                "item": item["item"],
+                "deterministic": item["deterministic"],
+                "adjudications": [],
+            }
+
+        run1 = call_gemini(scheduler, item["requirement"], item["facts"])
+        run2 = call_gemini(scheduler, item["requirement"], item["facts"])
+        consistent = run1["verdict"] == run2["verdict"]
+        totals["requirements_adjudicated"] += 1
+        totals["consistent"] += int(consistent)
+        totals[run1["verdict"].lower()] += 1
+        grouped[job_id]["adjudications"].append(
+            {
+                "requirement": item["requirement"],
+                "facts": item["facts"],
+                "run1": run1,
+                "run2": run2,
+                "consistent": consistent,
+            }
             )
 
+    for data in grouped.values():
+        item = data["item"]
+        deterministic = data["deterministic"]
+        adjudications = data["adjudications"]
         updated = apply_met_adjudications(deterministic, adjudications)
         totals["jobs"] += 1
         totals["changed_actions"] += int(updated.action != deterministic.action)
@@ -260,6 +321,8 @@ def main():
     result = {
         "model": MODEL,
         "limit": args.limit,
+        "max_requirements": args.max_requirements,
+        "keys_used": len(keys),
         "totals": totals,
         "consistency_rate": (
             totals["consistent"] / totals["requirements_adjudicated"]
@@ -270,6 +333,25 @@ def main():
     }
     Path(args.out).write_text(json.dumps(result, indent=2))
     print(json.dumps({k: v for k, v in result.items() if k != "results"}, indent=2))
+
+
+def load_api_keys() -> list[str]:
+    keys = []
+    combined = os.getenv("GEMINI_API_KEYS")
+    if combined:
+        keys.extend(key.strip() for key in combined.split(",") if key.strip())
+    for index in range(1, 6):
+        key = os.getenv(f"GEMINI_KEY_{index}")
+        if key:
+            keys.append(key)
+    fallback = os.getenv("GEMINI_API_KEY")
+    if fallback:
+        keys.append(fallback)
+    deduped = []
+    for key in keys:
+        if key not in deduped:
+            deduped.append(key)
+    return deduped
 
 
 if __name__ == "__main__":
