@@ -55,6 +55,7 @@ class Decision:
     missing_weight: int = 0
     blocked_by: list[str] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
+    avoid_domain_hits: list[str] = field(default_factory=list)
     review_reasons: list[str] = field(default_factory=list)
     years_min: int | None = None
     candidate_years: float = 0.0
@@ -184,6 +185,34 @@ def requirement_label(req: dict) -> str:
     return req.get("value") or req.get("skill") or req.get("source_text") or ""
 
 
+def split_attested_terms(value) -> list[str]:
+    if not value:
+        return []
+    return [term.strip() for term in str(value).split(",") if term.strip()]
+
+
+def requirement_text(requirements: dict) -> str:
+    labels = []
+    for req in requirements.get("hard_requirements", []):
+        labels.append(requirement_label(req))
+    for req in requirements.get("preferred", []):
+        labels.append(requirement_label(req))
+    return " ".join(labels)
+
+
+def avoid_domain_hits(facts: dict, requirements: dict, job_context: dict | None = None) -> list[str]:
+    domains = split_attested_terms(facts["attested"].get("avoid_domains"))
+    if not domains:
+        return []
+    context_parts = [
+        requirement_text(requirements),
+        (job_context or {}).get("title", ""),
+        (job_context or {}).get("company", ""),
+    ]
+    haystack = norm(" ".join(context_parts))
+    return [domain for domain in domains if norm(domain) in haystack]
+
+
 def has_fact(facts: dict, req: dict) -> bool:
     req_type = req.get("type")
     value = norm(req.get("skill") or req.get("value"))
@@ -264,7 +293,13 @@ def should_block_when_missing(facts: dict, req: dict) -> bool:
     return True
 
 
-def evaluate(profile: dict, requirements: dict, attested: dict | None = None, years: float | None = None) -> Decision:
+def evaluate(
+    profile: dict,
+    requirements: dict,
+    attested: dict | None = None,
+    years: float | None = None,
+    job_context: dict | None = None,
+) -> Decision:
     facts = profile_facts(profile, attested=attested, years=years)
     decision = Decision(
         action="REVIEW",
@@ -307,6 +342,11 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
             decision.missing.append(label)
             decision.missing_weight += 1
 
+    decision.avoid_domain_hits = avoid_domain_hits(facts, requirements, job_context)
+    if decision.avoid_domain_hits:
+        decision.unresolved.extend(decision.avoid_domain_hits)
+        decision.review_reasons.append("avoid_domain_match")
+
     if decision.blocked_by:
         decision.action = "SKIP_HARD"
         return decision
@@ -324,7 +364,10 @@ def evaluate(profile: dict, requirements: dict, attested: dict | None = None, ye
         decision.blocked_by.append(f"{years_min}+ years required")
         return decision
 
-    if isinstance(years_min, (int, float)) and years_min >= YEARS_STRETCH_MIN:
+    if decision.matched_weight == 0:
+        decision.action = "REVIEW"
+        decision.review_reasons.append("no_positive_match_signal")
+    elif isinstance(years_min, (int, float)) and years_min >= YEARS_STRETCH_MIN:
         decision.action = "STRETCH"
     elif len(decision.matched) >= len(decision.missing):
         decision.action = "APPLY"
@@ -339,6 +382,7 @@ def fit_sort_key(row: tuple[dict, Decision]) -> tuple[int, int, int, int]:
         decision.matched_weight,
         -decision.missing_weight,
         ACTION_PRIORITY.get(decision.action, 0),
+        -len(decision.avoid_domain_hits),
         -len(decision.unresolved),
     )
 
@@ -368,7 +412,13 @@ def main():
     for item in items:
         if "requirements" not in item:
             continue
-        decision = evaluate(profile, item["requirements"], attested=attested, years=years)
+        decision = evaluate(
+            profile,
+            item["requirements"],
+            attested=attested,
+            years=years,
+            job_context=item,
+        )
         counts[decision.action] = counts.get(decision.action, 0) + 1
         for reason in set(decision.review_reasons):
             review_reason_counts[reason] = review_reason_counts.get(reason, 0) + 1

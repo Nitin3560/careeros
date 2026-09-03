@@ -144,3 +144,26 @@ def test_fit_sort_key_uses_project_weighted_matches():
     assert high_weight.matched_weight == 5
     assert low_weight.matched_weight == 1
     assert matcher.fit_sort_key(({}, high_weight)) > matcher.fit_sort_key(({}, low_weight))
+
+
+def test_no_positive_signal_routes_to_review():
+    decision = matcher.evaluate(
+        {"skills": [], "experience": [], "preferred_roles": []},
+        {"hard_requirements": [], "preferred": [], "years_required": {"min": 3}},
+    )
+
+    assert decision.action == "REVIEW"
+    assert decision.review_reasons == ["no_positive_match_signal"]
+
+
+def test_avoid_domain_routes_to_review():
+    decision = matcher.evaluate(
+        {"skills": [{"name": "Python", "weight": 5}], "experience": []},
+        {"hard_requirements": [], "preferred": [{"skill": "Python"}]},
+        attested={"avoid_domains": "robotics, defense"},
+        job_context={"title": "Robotics Software Engineer", "company": "example"},
+    )
+
+    assert decision.action == "REVIEW"
+    assert decision.avoid_domain_hits == ["robotics"]
+    assert "avoid_domain_match" in decision.review_reasons
