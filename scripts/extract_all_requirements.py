@@ -25,6 +25,7 @@ PROMPT_VERSION = 3
 DELAY = 6.0
 MAX_JD_CHARS = 12000
 MAX_RETRIES = 4
+RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
 
 ALLOWED_HARD_TYPES = {
     "years",
@@ -120,6 +121,15 @@ def log(message: str) -> None:
         print(message, flush=True)
 
 
+def load_gemini_keys(environ: dict[str, str] = os.environ) -> list[str]:
+    numbered_keys = []
+    for name, value in environ.items():
+        match = re.fullmatch(r"GEMINI_KEY_(\d+)", name)
+        if match and value:
+            numbered_keys.append((int(match.group(1)), value))
+    return [value for _, value in sorted(numbered_keys)]
+
+
 def normalize(value: str) -> str:
     value = unescape(value)
     value = re.sub(r"<[^>]+>", " ", value)
@@ -206,14 +216,22 @@ def call_gemini(key: str, jd: str) -> tuple[str | None, dict, str | None]:
     for attempt in range(MAX_RETRIES):
         try:
             response = httpx.post(API, params={"key": key}, json=payload, timeout=90.0)
-            if response.status_code in {429, 500, 502, 503, 504}:
+            if response.status_code in RETRYABLE_HTTP_STATUS:
                 last_error = f"http {response.status_code}"
                 time.sleep(min(60, (2**attempt) * 5) + random.uniform(0, 3))
                 continue
+            if response.status_code >= 400:
+                return None, {}, f"http {response.status_code}"
             response.raise_for_status()
             data = response.json()
             output = data["candidates"][0]["content"]["parts"][0]["text"]
             return output, data.get("usageMetadata", {}), None
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code not in RETRYABLE_HTTP_STATUS:
+                return None, {}, f"http {status_code}"
+            last_error = f"http {status_code}"
+            time.sleep(min(60, (2**attempt) * 5) + random.uniform(0, 3))
         except httpx.HTTPError as exc:
             last_error = type(exc).__name__
             time.sleep((2**attempt) * 3)
@@ -364,13 +382,9 @@ def main() -> None:
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
 
-    keys = [
-        os.environ[f"GEMINI_KEY_{index}"]
-        for index in range(1, 5)
-        if os.getenv(f"GEMINI_KEY_{index}")
-    ]
+    keys = load_gemini_keys()
     if not keys:
-        sys.exit("set GEMINI_KEY_1..4")
+        sys.exit("set GEMINI_KEY_1 or higher")
     for index in range(len(keys)):
         _key_stats[index] = {"ok": 0, "fail": 0}
 

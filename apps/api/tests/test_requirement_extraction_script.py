@@ -1,10 +1,44 @@
 import sys
 from pathlib import Path
 
+import httpx
+
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import extract_all_requirements  # noqa: E402
+
+
+def test_load_gemini_keys_sorts_numbered_environment_keys():
+    keys = extract_all_requirements.load_gemini_keys(
+        {
+            "GEMINI_KEY_10": "ten",
+            "GEMINI_KEY_2": "two",
+            "GEMINI_KEY_1": "one",
+            "GEMINI_API_KEY": "ignored",
+            "GEMINI_KEY_bad": "ignored",
+        }
+    )
+
+    assert keys == ["one", "two", "ten"]
+
+
+def test_call_gemini_does_not_retry_non_retryable_http_error(monkeypatch):
+    calls = []
+
+    def fake_post(*args, **kwargs):
+        calls.append((args, kwargs))
+        return httpx.Response(400, request=httpx.Request("POST", "https://example.com"))
+
+    monkeypatch.setattr(extract_all_requirements.httpx, "post", fake_post)
+    monkeypatch.setattr(extract_all_requirements.time, "sleep", lambda seconds: None)
+
+    raw, usage, error = extract_all_requirements.call_gemini("key", "job description")
+
+    assert raw is None
+    assert usage == {}
+    assert error == "http 400"
+    assert len(calls) == 1
 
 
 def test_verify_rejects_non_verbatim_hard_requirement():
