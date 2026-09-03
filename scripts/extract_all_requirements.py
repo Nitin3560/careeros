@@ -55,6 +55,12 @@ MANDATORY_CONTEXT = re.compile(
     r"requirements|what to bring|what you'll bring|you have)\b",
     re.I,
 )
+TYPE_IMPLIED_MANDATORY = {
+    "clearance": re.compile(r"\b(eligible to obtain|eligibility to obtain|security clearance|secret|top secret|ts/sci)\b", re.I),
+    "education": re.compile(r"\b(ba/bs|bachelor'?s|b\.s\.|bs|master'?s|m\.s\.|ms|degree)\b", re.I),
+    "years": re.compile(r"\b\d+\+?\s*(?:years?|anos)\b", re.I),
+    "location": re.compile(r"\b(onsite|on-site|presencial|hybrid|remote|located in|based in)\b", re.I),
+}
 SOFTENER = re.compile(
     r"\b(preferred|nice to have|a plus|ideally|desirable|bonus|not required|"
     r"no[t]? necessary|familiarity)\b",
@@ -150,7 +156,12 @@ def verify(req: dict, jd: str) -> tuple[str, str]:
         if softener:
             return "AMBIGUOUS", f"hedged: {softener.group(0)}"
         context = source_context(source_text, jd)
-        if not MANDATORY.search(source_text) and not MANDATORY_CONTEXT.search(context):
+        type_mandatory = TYPE_IMPLIED_MANDATORY.get(req_type)
+        if (
+            not MANDATORY.search(source_text)
+            and not MANDATORY_CONTEXT.search(context)
+            and not (type_mandatory and type_mandatory.search(source_text))
+        ):
             return "AMBIGUOUS", "no mandatory language in snippet"
 
     return "VERIFIED", ""

@@ -35,6 +35,48 @@ def test_verify_marks_hedged_consequential_requirement_ambiguous():
     assert note == "hedged: preferred"
 
 
+def test_verify_accepts_bare_degree_requirement():
+    state, note = extract_all_requirements.verify(
+        {
+            "type": "education",
+            "value": "Bachelor's degree",
+            "source_text": "Bachelor's degree in Computer Science or related field",
+        },
+        "Requirements: Bachelor's degree in Computer Science or related field.",
+    )
+
+    assert state == "VERIFIED"
+    assert note == ""
+
+
+def test_verify_accepts_clearance_eligibility_requirement():
+    state, note = extract_all_requirements.verify(
+        {
+            "type": "clearance",
+            "value": "Secret clearance",
+            "source_text": "Eligible to obtain and maintain an active U.S. Secret security clearance",
+        },
+        "Eligible to obtain and maintain an active U.S. Secret security clearance.",
+    )
+
+    assert state == "VERIFIED"
+    assert note == ""
+
+
+def test_verify_accepts_bare_years_requirement():
+    state, note = extract_all_requirements.verify(
+        {
+            "type": "years",
+            "value": "3+ years of Machine Learning experience",
+            "source_text": "3+ years of Machine Learning experience",
+        },
+        "3+ years of Machine Learning experience",
+    )
+
+    assert state == "VERIFIED"
+    assert note == ""
+
+
 def test_load_jobs_reprocesses_missing_or_stale_prompt_versions(monkeypatch):
     captured = {}
 
