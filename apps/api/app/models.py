@@ -111,6 +111,25 @@ class Job(Base):
     filter_version: Mapped[int | None] = mapped_column(nullable=True)
 
 
+class JobRequirement(Base):
+    __tablename__ = "job_requirements"
+
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    requirements: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
+    model: Mapped[str] = mapped_column(String, nullable=False)
+    prompt_version: Mapped[int] = mapped_column(nullable=False)
+    key_index: Mapped[int | None] = mapped_column(nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(nullable=True)
+    extracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AtsBoard(Base):
     __tablename__ = "ats_boards"
     __table_args__ = (UniqueConstraint("ats", "slug", name="uq_ats_board"),)
