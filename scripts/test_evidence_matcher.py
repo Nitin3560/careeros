@@ -11,6 +11,10 @@ sys.path.insert(0, str(ROOT / "apps" / "api"))
 from sqlalchemy import text  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
+from app.services.candidate_evidence import (  # noqa: E402
+    compute_professional_swe_years,
+    load_attested_facts,
+)
 
 DEFAULT_USER_ID = "b57ae27a-e0b1-4ceb-bab0-3010778465b2"
 REVIEW_TYPES = {"citizenship", "clearance", "authorization", "residency"}
@@ -55,7 +59,7 @@ def load_profile(user_id: str) -> dict:
         db.close()
 
 
-def profile_facts(profile: dict) -> dict:
+def profile_facts(profile: dict, attested: dict | None = None, years: float | None = None) -> dict:
     skills = {
         norm(skill.get("name"))
         for skill in profile.get("skills", [])
@@ -78,8 +82,8 @@ def profile_facts(profile: dict) -> dict:
     return {
         "skills": skills,
         "text": norm(" ".join(text_parts)),
-        "years": estimate_years(profile),
-        "attested": profile.get("attested", {}),
+        "years": years if years is not None else estimate_years(profile),
+        "attested": attested if attested is not None else profile.get("attested", {}),
     }
 
 
@@ -150,8 +154,8 @@ def should_block_when_missing(facts: dict, req: dict) -> bool:
     return True
 
 
-def evaluate(profile: dict, requirements: dict) -> Decision:
-    facts = profile_facts(profile)
+def evaluate(profile: dict, requirements: dict, attested: dict | None = None, years: float | None = None) -> Decision:
+    facts = profile_facts(profile, attested=attested, years=years)
     decision = Decision(
         action="REVIEW",
         years_min=requirements.get("years_required", {}).get("min"),
@@ -213,6 +217,12 @@ def main():
     args = parser.parse_args()
 
     profile = load_profile(args.user_id)
+    db = SessionLocal()
+    try:
+        attested = load_attested_facts(db, args.user_id)
+        years = compute_professional_swe_years(db, args.user_id)
+    finally:
+        db.close()
     items = json.loads(Path(args.requirements).read_text())
 
     counts = {}
@@ -220,7 +230,7 @@ def main():
     for item in items:
         if "requirements" not in item:
             continue
-        decision = evaluate(profile, item["requirements"])
+        decision = evaluate(profile, item["requirements"], attested=attested, years=years)
         counts[decision.action] = counts.get(decision.action, 0) + 1
         for reason in set(decision.review_reasons):
             review_reason_counts[reason] = review_reason_counts.get(reason, 0) + 1
