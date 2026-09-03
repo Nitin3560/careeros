@@ -2,6 +2,7 @@ from app.services.job_ingestion import (
     amazon,
     ashby,
     lever,
+    linkedin,
     public_sources,
     smartrecruiters,
     workable,
@@ -92,6 +93,24 @@ class FakeAmazonResponse:
 
     def json(self):
         return {"hits": self._hits, "jobs": self._jobs}
+
+
+class FakeLinkedInResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return [
+            {
+                "jobId": "li-1",
+                "title": "Software Engineer, AI Infrastructure",
+                "companyName": "ExampleAI",
+                "location": "United States",
+                "description": "Build model-serving systems.",
+                "link": "https://www.linkedin.com/jobs/view/li-1",
+                "postedDate": "2026-09-03",
+            }
+        ]
 
 
 def amazon_job(job_id, title="Software Development Engineer"):
@@ -224,6 +243,59 @@ def test_fetch_amazon_jobs_paginates_and_normalizes_response(monkeypatch):
     assert jobs[0]["date_posted"].year == 2026
 
 
+def test_build_linkedin_actor_input_uses_daily_swe_filters():
+    payload = linkedin.build_actor_input("backend engineer")
+
+    assert payload["query"] == "backend engineer"
+    assert payload["location"] == "United States"
+    assert payload["datePosted"] == "past24Hours"
+    assert payload["experienceLevel"] == ["entry", "associate", "mid"]
+    assert "software development engineer" in payload["titleInclude"]
+    assert "sales engineer" in payload["titleExclude"]
+    assert payload["maxItems"] == 400
+
+
+def test_fetch_linkedin_jobs_requires_apify_token(monkeypatch):
+    monkeypatch.delenv("APIFY_TOKEN", raising=False)
+
+    try:
+        linkedin.fetch_linkedin_jobs()
+    except RuntimeError as exc:
+        assert "APIFY_TOKEN" in str(exc)
+    else:
+        raise AssertionError("expected APIFY_TOKEN failure")
+
+
+def test_fetch_linkedin_jobs_normalizes_actor_response(monkeypatch):
+    requested = {}
+    monkeypatch.setenv("APIFY_TOKEN", "test-token")
+
+    def fake_post(url, params, json, timeout):
+        requested["url"] = url
+        requested["params"] = params
+        requested["json"] = json
+        requested["timeout"] = timeout
+        return FakeLinkedInResponse()
+
+    monkeypatch.setattr(linkedin.httpx, "post", fake_post)
+
+    jobs = linkedin.fetch_linkedin_jobs("backend-engineer")
+
+    assert requested["url"].endswith("/acts/valig~linkedin-jobs-scraper/run-sync-get-dataset-items")
+    assert requested["params"]["token"] == "test-token"
+    assert requested["params"]["clean"] == "true"
+    assert requested["json"]["query"] == "backend engineer"
+    assert requested["timeout"] == 180.0
+    assert jobs[0]["external_id"] == "linkedin_li-1"
+    assert jobs[0]["source"] == "linkedin"
+    assert jobs[0]["company"] == "exampleai"
+    assert jobs[0]["title"] == "Software Engineer, AI Infrastructure"
+    assert jobs[0]["location"] == "United States"
+    assert jobs[0]["description_text"] == "Build model-serving systems."
+    assert jobs[0]["application_url"] == "https://www.linkedin.com/jobs/view/li-1"
+    assert jobs[0]["date_posted"].year == 2026
+
+
 def test_discover_public_source_uses_known_source(monkeypatch):
     monkeypatch.setitem(
         public_sources.KNOWN_PUBLIC_SOURCES,
@@ -251,3 +323,7 @@ def test_default_candidates_include_added_sources_and_slug_variants():
     assert ("workable", "delltechnologies") in candidates
     assert ("greenhouse", "dell") in candidates
     assert ("workable", "dell") in candidates
+
+
+def test_source_fetchers_include_linkedin():
+    assert public_sources.SOURCE_FETCHERS["linkedin"] is linkedin.fetch_linkedin_jobs
