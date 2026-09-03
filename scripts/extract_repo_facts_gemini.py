@@ -84,7 +84,7 @@ def main():
 
     codebase = Path(args.packed_repo).read_text()
     sys.stderr.write(f"{args.project}: packed ~{len(codebase) // 4} tokens\n")
-    raw = call_gemini(api_key, args.model, PROMPT.format(codebase=codebase))
+    raw = call_gemini(api_key, args.model, PROMPT.replace("{codebase}", codebase))
     facts = parse_json(raw)
     json.dump(
         {

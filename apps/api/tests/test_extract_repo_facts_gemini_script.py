@@ -17,3 +17,10 @@ def test_parse_json_accepts_markdown_fence():
 def test_prompt_marks_packed_repo_as_data():
     assert "<PACKED_REPOSITORY>" in extractor.PROMPT
     assert "Output only valid JSON" in extractor.SYSTEM
+
+
+def test_prompt_substitution_keeps_json_schema_literal():
+    prompt = extractor.PROMPT.replace("{codebase}", "code")
+
+    assert '{"facts"' in prompt
+    assert "code" in prompt
