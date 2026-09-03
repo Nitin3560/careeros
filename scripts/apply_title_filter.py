@@ -1,0 +1,150 @@
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps" / "api"))
+
+from sqlalchemy import text  # noqa: E402
+
+from app.database import SessionLocal  # noqa: E402
+
+FILTER_VERSION = 1
+
+ROLE_HEAD_PATTERN = (
+    r"\y(sales|solutions?|support|field|service|customer|forward.?deployed|"
+    r"implementation|pre.?sales|partner|deployment|integration|"
+    r"technical account)\s+engineer\y"
+)
+WRONG_DISCIPLINE_PATTERN = (
+    r"\y(mechanical|electrical|civil|chemical|industrial|hardware|firmware|"
+    r"process|manufacturing|packaging|optical|rf|asic|analog|structural)\y"
+)
+SENIORITY_PATTERN = (
+    r"\y(staff|principal|distinguished|fellow|architect|director|vp|"
+    r"vice president|head of|manager|lead engineer|engineering lead)\y"
+)
+SWE_TITLE_PATTERN = (
+    r"\y(software engineer|software developer|backend|back.?end|frontend|"
+    r"front.?end|full.?stack|platform engineer|infrastructure engineer|"
+    r"systems engineer|distributed systems|site reliability|sre|devops|"
+    r"machine learning engineer|ml engineer|ai engineer|applied scientist|"
+    r"research engineer|data engineer|sde|swe|member of technical staff|"
+    r"web developer|application developer)\y"
+)
+
+
+def apply_filter():
+    db = SessionLocal()
+    try:
+        statements = [
+            text(
+                "UPDATE jobs SET eligible = NULL, skip_reason = NULL, "
+                "matched_pattern = NULL, filter_version = NULL"
+            ),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'role_head', filter_version = :version
+                WHERE title ~* :pattern
+                """
+            ).bindparams(version=FILTER_VERSION, pattern=ROLE_HEAD_PATTERN),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'wrong_discipline', filter_version = :version
+                WHERE eligible IS NULL AND title ~* :pattern
+                """
+            ).bindparams(version=FILTER_VERSION, pattern=WRONG_DISCIPLINE_PATTERN),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'seniority', filter_version = :version
+                WHERE eligible IS NULL AND title ~* :pattern
+                """
+            ).bindparams(version=FILTER_VERSION, pattern=SENIORITY_PATTERN),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = true, skip_reason = NULL, matched_pattern = 'swe_title',
+                    filter_version = :version
+                WHERE eligible IS NULL AND title ~* :pattern
+                """
+            ).bindparams(version=FILTER_VERSION, pattern=SWE_TITLE_PATTERN),
+            text(
+                """
+                UPDATE jobs
+                SET eligible = false, skip_reason = 'no_title_match', filter_version = :version
+                WHERE eligible IS NULL
+                """
+            ).bindparams(version=FILTER_VERSION),
+        ]
+        for statement in statements:
+            db.execute(statement)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def print_review(limit: int):
+    db = SessionLocal()
+    try:
+        print("skip_reason_counts")
+        rows = db.execute(
+            text(
+                """
+                SELECT coalesce(skip_reason, 'eligible') AS reason, count(*)
+                FROM jobs GROUP BY 1 ORDER BY 2 DESC
+                """
+            )
+        ).all()
+        for reason, count in rows:
+            print(f"{reason:20} {count}")
+
+        print("\nreview_excluded")
+        rows = db.execute(
+            text(
+                """
+                SELECT title, skip_reason, count(*)
+                FROM jobs
+                WHERE eligible = false AND skip_reason IN ('role_head','seniority')
+                GROUP BY 1,2 ORDER BY 3 DESC LIMIT :limit
+                """
+            ),
+            {"limit": limit},
+        ).all()
+        for title, reason, count in rows:
+            print(f"{count:>4}  {reason:12} {title}")
+
+        print("\nreview_eligible")
+        rows = db.execute(
+            text(
+                """
+                SELECT title, count(*)
+                FROM jobs
+                WHERE eligible = true
+                GROUP BY 1 ORDER BY 2 DESC LIMIT :limit
+                """
+            ),
+            {"limit": limit},
+        ).all()
+        for title, count in rows:
+            print(f"{count:>4}  {title}")
+    finally:
+        db.close()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--review-limit", type=int, default=40)
+    args = parser.parse_args()
+
+    apply_filter()
+    print_review(args.review_limit)
+
+
+if __name__ == "__main__":
+    main()
