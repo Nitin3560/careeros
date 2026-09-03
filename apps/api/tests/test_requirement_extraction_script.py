@@ -57,3 +57,28 @@ def test_load_jobs_reprocesses_missing_or_stale_prompt_versions(monkeypatch):
     assert "jr.job_id IS NULL OR jr.prompt_version < :prompt_version" in captured["sql"]
     assert captured["params"]["prompt_version"] == extract_all_requirements.PROMPT_VERSION
     assert captured["params"]["limit"] == 500
+
+
+def test_parse_json_rejects_top_level_list():
+    try:
+        extract_all_requirements.parse_json("[]")
+    except ValueError as exc:
+        assert str(exc) == "top-level JSON response must be an object"
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_normalize_parsed_response_keeps_only_dict_items():
+    parsed = extract_all_requirements.normalize_parsed_response(
+        {
+            "hard_requirements": [{"type": "skill"}, "bad"],
+            "preferred": "bad",
+            "disqualifiers": [{"value": "x"}, 42],
+            "years_required": None,
+        }
+    )
+
+    assert parsed["hard_requirements"] == [{"type": "skill"}]
+    assert parsed["preferred"] == []
+    assert parsed["disqualifiers"] == [{"value": "x"}]
+    assert parsed["years_required"] == {"min": None, "max": None}

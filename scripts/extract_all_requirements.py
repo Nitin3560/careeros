@@ -158,7 +158,19 @@ def verify(req: dict, jd: str) -> tuple[str, str]:
 
 def parse_json(raw: str) -> dict:
     cleaned = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.M).strip()
-    return json.loads(cleaned)
+    parsed = json.loads(cleaned)
+    if not isinstance(parsed, dict):
+        raise ValueError("top-level JSON response must be an object")
+    return parsed
+
+
+def normalize_parsed_response(parsed: dict) -> dict:
+    for bucket in ("hard_requirements", "preferred", "disqualifiers"):
+        values = parsed.get(bucket, [])
+        parsed[bucket] = [value for value in values if isinstance(value, dict)] if isinstance(values, list) else []
+    if not isinstance(parsed.get("years_required"), dict):
+        parsed["years_required"] = {"min": None, "max": None}
+    return parsed
 
 
 def call_gemini(key: str, jd: str) -> tuple[str | None, dict, str | None]:
@@ -259,8 +271,8 @@ def worker(key_index: int, key: str, queue: Queue, total: int) -> None:
                 continue
 
             try:
-                parsed = parse_json(raw)
-            except json.JSONDecodeError as exc:
+                parsed = normalize_parsed_response(parse_json(raw))
+            except (json.JSONDecodeError, ValueError) as exc:
                 store(db, job_id, None, "parse_failed", str(exc)[:200], key_index, usage)
                 with _lock:
                     _stats["failed"] += 1
