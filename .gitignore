@@ -26,6 +26,7 @@ postgres_data/
 reports/
 requirements_test*.json
 *.log
+.extract_all_requirements.lock
 
 # Editor
 .vscode/*
