@@ -1,4 +1,5 @@
 import argparse
+import fcntl
 import json
 import os
 import random
@@ -26,6 +27,7 @@ DELAY = 6.0
 MAX_JD_CHARS = 12000
 MAX_RETRIES = 4
 RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+LOCK_PATH = ROOT / ".extract_all_requirements.lock"
 
 ALLOWED_HARD_TYPES = {
     "years",
@@ -119,6 +121,17 @@ _key_stats = {}
 def log(message: str) -> None:
     with _lock:
         print(message, flush=True)
+
+
+def acquire_run_lock():
+    lock_file = LOCK_PATH.open("w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit("extract_all_requirements is already running")
+    lock_file.write(str(os.getpid()))
+    lock_file.flush()
+    return lock_file
 
 
 def load_gemini_keys(environ: dict[str, str] = os.environ) -> list[str]:
@@ -377,6 +390,7 @@ def load_jobs(limit: int | None, retry_failed: bool):
 
 
 def main() -> None:
+    run_lock = acquire_run_lock()
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int)
     parser.add_argument("--retry-failed", action="store_true")
@@ -433,6 +447,7 @@ def main() -> None:
         print(f"  key {index + 1}         ok={stats['ok']} fail={stats['fail']}")
     if _stats["failed"]:
         print(f"\n  re-run with --retry-failed to retry {_stats['failed']}")
+    run_lock.close()
 
 
 if __name__ == "__main__":

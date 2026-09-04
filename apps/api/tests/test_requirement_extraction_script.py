@@ -23,6 +23,22 @@ def test_load_gemini_keys_sorts_numbered_environment_keys():
     assert keys == ["one", "two", "ten"]
 
 
+def test_acquire_run_lock_rejects_duplicate_runner(monkeypatch, tmp_path):
+    lock_path = tmp_path / "extract.lock"
+    monkeypatch.setattr(extract_all_requirements, "LOCK_PATH", lock_path)
+
+    lock = extract_all_requirements.acquire_run_lock()
+    try:
+        try:
+            extract_all_requirements.acquire_run_lock()
+        except SystemExit as exc:
+            assert str(exc) == "extract_all_requirements is already running"
+        else:
+            raise AssertionError("expected duplicate run lock failure")
+    finally:
+        lock.close()
+
+
 def test_call_gemini_does_not_retry_non_retryable_http_error(monkeypatch):
     calls = []
 
