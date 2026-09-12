@@ -1,13 +1,37 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.types import UserDefinedType
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class Vector768(UserDefinedType):
+    cache_ok = True
+
+    def get_col_spec(self, **kw):
+        return "vector(768)"
+
+    def bind_processor(self, dialect):
+        def process(value):
+            if value is None:
+                return None
+            return "[" + ",".join(str(float(item)) for item in value) + "]"
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            if value is None or isinstance(value, list):
+                return value
+            return [float(item) for item in str(value).strip("[]").split(",") if item]
+
+        return process
 
 
 class User(Base):
@@ -63,6 +87,7 @@ class CandidateFact(Base):
     source: Mapped[str] = mapped_column(String, nullable=False, default="user")
     project: Mapped[str | None] = mapped_column(String, nullable=True)
     project_weight: Mapped[int] = mapped_column(default=1, nullable=False)
+    usability: Mapped[str] = mapped_column(String, nullable=False, default="ACTIVE")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -192,6 +217,71 @@ class JobMatch(Base):
     prompt_version: Mapped[int] = mapped_column(nullable=False, default=1)
     is_estimated: Mapped[bool] = mapped_column(default=False)
     scored_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AiRun(Base):
+    __tablename__ = "ai_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    run_type: Mapped[str] = mapped_column(String, nullable=False)
+    model: Mapped[str | None] = mapped_column(String, nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    raw_output: Mapped[str | None] = mapped_column(Text, nullable=True)
+    validated_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="started")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(nullable=True)
+    cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ApplicationPacket(Base):
+    __tablename__ = "application_packets"
+    __table_args__ = (
+        UniqueConstraint("job_id", "profile_version", name="uq_packet_job_profile_version"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    profile_version: Mapped[int] = mapped_column(nullable=False)
+    fact_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
+    bullets: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    cover_letter: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    resume_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
+    blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejected_claims: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    ai_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_runs.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class AnswerBank(Base):
+    __tablename__ = "answer_bank"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    archetype: Mapped[str | None] = mapped_column(String, nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector768(), nullable=True)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tier: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[str | None] = mapped_column(String, nullable=True)
+    times_used: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 
 class ResumeVersion(Base):
