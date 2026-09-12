@@ -4,16 +4,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from app import models  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.services.packet_builder import build_packet  # noqa: E402
-
-DECISION_SCORE_MIN = {
-    "APPLY": 70,
-    "STRETCH": 55,
-    "REVIEW": 40,
-}
+import test_evidence_matcher as matcher  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,14 +21,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def candidate_matches(db, decisions: set[str], limit: int):
-    min_score = min(DECISION_SCORE_MIN.get(decision, 101) for decision in decisions)
-    return (
-        db.query(models.JobMatch)
-        .filter(models.JobMatch.overall_score >= min_score)
-        .order_by(models.JobMatch.overall_score.desc())
-        .limit(limit)
-        .all()
-    )
+    profile = matcher.load_profile(matcher.DEFAULT_USER_ID)
+    attested = matcher.load_attested_facts(db, matcher.DEFAULT_USER_ID)
+    years = matcher.compute_professional_swe_years(db, matcher.DEFAULT_USER_ID)
+    rows = []
+    for item in matcher.load_db_items(None):
+        decision = matcher.evaluate(
+            profile,
+            item["requirements"],
+            attested=attested,
+            years=years,
+            job_context=item,
+        )
+        if decision.action in decisions:
+            rows.append((item, decision))
+
+    rows.sort(key=matcher.fit_sort_key, reverse=True)
+    return rows[:limit]
 
 
 def main() -> None:
@@ -41,19 +46,24 @@ def main() -> None:
     db = SessionLocal()
     try:
         built = 0
-        for match in candidate_matches(db, decisions, args.limit):
+        for item, decision in candidate_matches(db, decisions, args.limit):
+            job_id = item["job_id"]
             existing = (
                 db.query(models.ApplicationPacket)
                 .filter(
-                    models.ApplicationPacket.job_id == match.job_id,
+                    models.ApplicationPacket.job_id == job_id,
                     models.ApplicationPacket.profile_version == args.profile_version,
                 )
                 .first()
             )
             if existing:
-                print(f"skip existing packet {existing.id} for job {match.job_id}")
+                print(f"skip existing packet {existing.id} for job {job_id}")
                 continue
-            packet = build_packet(db, match.job_id, args.profile_version)
+            print(
+                f"building {decision.action} packet for {item['company']} - {item['title']} "
+                f"(matched={len(decision.matched)} missing={len(decision.missing)})"
+            )
+            packet = build_packet(db, job_id, args.profile_version)
             db.commit()
             built += 1
             print(f"{packet.status} packet {packet.id} for job {packet.job_id}")

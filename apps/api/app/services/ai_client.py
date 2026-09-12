@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import time
 from collections import deque
@@ -7,10 +8,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def first_numbered_gemini_key(environ: dict[str, str] = os.environ) -> str | None:
+    keys = []
+    for name, value in environ.items():
+        match = re.fullmatch(r"GEMINI_KEY_(\d+)", name)
+        if match and value:
+            keys.append((int(match.group(1)), value))
+    return next((value for _, value in sorted(keys)), None)
+
 ALL_PROVIDERS = {
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key": os.getenv("GEMINI_API_KEY"),
+        "api_key": os.getenv("GEMINI_API_KEY") or first_numbered_gemini_key(),
         "model": "gemini-3.5-flash-lite",
     },
     "groq": {

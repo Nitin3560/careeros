@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
 
 import httpx  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
+
+load_dotenv(ROOT / ".env")
 
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 API = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
