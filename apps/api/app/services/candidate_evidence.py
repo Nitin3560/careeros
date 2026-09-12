@@ -46,6 +46,15 @@ def load_attested_facts(db: Session, user_id: str) -> dict:
     return {row.fact_key: parse_fact_value(row.fact_value) for row in rows}
 
 
+def active_candidate_facts(db: Session, user_id: str | None = None) -> list[models.CandidateFact]:
+    query = db.query(models.CandidateFact).filter(
+        models.CandidateFact.usability == "ACTIVE"
+    )
+    if user_id is not None:
+        query = query.filter(models.CandidateFact.user_id == user_id)
+    return query.all()
+
+
 def load_candidate_fact_profile(db: Session, user_id: str) -> dict:
     rows = (
         db.query(models.CandidateFact)

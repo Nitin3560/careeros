@@ -1,4 +1,5 @@
 from app.services.skill_ontology import expanded_profile_terms, requirement_terms
+from app.services.skill_ontology import satisfies_requirement
 
 
 def test_requirement_terms_splits_and_canonicalizes_aliases():
@@ -15,3 +16,7 @@ def test_specializations_satisfy_parent_not_reverse():
     assert "backend" in fastapi_profile
     assert "python" in fastapi_profile
     assert "fastapi" not in python_profile
+
+
+def test_postgresql_does_not_satisfy_mongodb_requirement():
+    assert not satisfies_requirement("postgresql", "mongodb")
