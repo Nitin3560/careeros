@@ -27,6 +27,9 @@ DELAY = 6.0
 MAX_JD_CHARS = 12000
 MAX_RETRIES = 4
 RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+KEY_FATAL_HTTP_STATUS = {401, 403}
+KEY_EXHAUSTION_ERRORS = {"http 429"}
+KEY_EXHAUSTION_STREAK = 3
 LOCK_PATH = ROOT / ".extract_all_requirements.lock"
 
 ALLOWED_HARD_TYPES = {
@@ -251,6 +254,15 @@ def call_gemini(key: str, jd: str) -> tuple[str | None, dict, str | None]:
     return None, {}, last_error or "exhausted retries"
 
 
+def should_retire_key(error: str | None, consecutive_failures: int) -> bool:
+    if not error:
+        return False
+    match = re.fullmatch(r"http (\d+)", error)
+    if match and int(match.group(1)) in KEY_FATAL_HTTP_STATUS:
+        return True
+    return error in KEY_EXHAUSTION_ERRORS and consecutive_failures >= KEY_EXHAUSTION_STREAK
+
+
 def store(db, job_id, parsed, status: str, error: str | None, key_index: int, usage: dict) -> None:
     db.execute(
         text(
@@ -292,6 +304,7 @@ def store(db, job_id, parsed, status: str, error: str | None, key_index: int, us
 
 def worker(key_index: int, key: str, queue: Queue, total: int) -> None:
     db = SessionLocal()
+    key_failure_streak = 0
     try:
         while True:
             item = queue.get()
@@ -302,6 +315,17 @@ def worker(key_index: int, key: str, queue: Queue, total: int) -> None:
             job_id, title, company, jd = item
             raw, usage, error = call_gemini(key, jd)
             if raw is None:
+                key_failure_streak += 1
+                if should_retire_key(error, key_failure_streak):
+                    with _lock:
+                        done = _stats["ok"] + _stats["failed"]
+                    log(
+                        f"  [{done}/{total}] KEY {key_index + 1} RETIRED after "
+                        f"{key_failure_streak} consecutive failures: {error}; "
+                        f"leaving {company[:24]:<24} for a later retry"
+                    )
+                    queue.task_done()
+                    return
                 store(db, job_id, None, "extraction_failed", error, key_index, {})
                 with _lock:
                     _stats["failed"] += 1
@@ -315,6 +339,7 @@ def worker(key_index: int, key: str, queue: Queue, total: int) -> None:
             try:
                 parsed = normalize_parsed_response(parse_json(raw))
             except (json.JSONDecodeError, ValueError) as exc:
+                key_failure_streak = 0
                 store(db, job_id, None, "parse_failed", str(exc)[:200], key_index, usage)
                 with _lock:
                     _stats["failed"] += 1
@@ -333,6 +358,7 @@ def worker(key_index: int, key: str, queue: Queue, total: int) -> None:
 
             hard = parsed.get("hard_requirements", [])
             preferred_count = len(parsed.get("preferred", []))
+            key_failure_streak = 0
             with _lock:
                 _stats["ok"] += 1
                 _stats["hard"] += len(hard)

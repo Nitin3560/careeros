@@ -57,6 +57,15 @@ def test_call_gemini_does_not_retry_non_retryable_http_error(monkeypatch):
     assert len(calls) == 1
 
 
+def test_should_retire_key_immediately_on_forbidden():
+    assert extract_all_requirements.should_retire_key("http 403", 1)
+
+
+def test_should_retire_key_after_repeated_exhausted_rate_limits():
+    assert not extract_all_requirements.should_retire_key("http 429", 2)
+    assert extract_all_requirements.should_retire_key("http 429", 3)
+
+
 def test_verify_rejects_non_verbatim_hard_requirement():
     state, note = extract_all_requirements.verify(
         {
