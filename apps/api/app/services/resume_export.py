@@ -151,7 +151,10 @@ def _jd_keywords(requirements: dict | None, job=None) -> list[str]:
         "Next.js",
         "FastAPI",
         "PostgreSQL",
+        "MySQL",
+        "MongoDB",
         "Redis",
+        "Valkey",
         "Kafka",
         "AWS",
         "GCP",
@@ -172,6 +175,8 @@ def _jd_keywords(requirements: dict | None, job=None) -> list[str]:
         "Vector Search",
         "Agentic Workflows",
         "Testing",
+        "Unix",
+        "React Native",
     ]
     found = []
     lowered = text.lower()
@@ -185,16 +190,36 @@ def _skill_lines(requirements: dict | None, job=None) -> list[tuple[str, list[st
     lines = {label: list(values) for label, values in BASE_SKILL_LINES.items()}
     for keyword in _jd_keywords(requirements, job):
         target = "Delivery"
+        if keyword == "JavaScript" and "TypeScript/JavaScript" in lines["Languages"]:
+            continue
+        if keyword == "TypeScript" and "TypeScript/JavaScript" in lines["Languages"]:
+            continue
         if keyword in {"Python", "TypeScript", "JavaScript", "Java", "Go", "SQL", "C++"}:
             target = "Languages"
-        elif keyword in {"React", "Next.js"}:
+        elif keyword in {"React", "Next.js", "React Native"}:
             target = "Frontend"
         elif keyword in {"FastAPI", "REST APIs", "Microservices"}:
             target = "Backend \\& APIs"
         elif keyword in {"RAG", "LLM", "Vector Search", "Agentic Workflows"}:
             target = "AI Agents"
-        elif keyword in {"PostgreSQL", "Redis", "Kafka", "AWS", "GCP", "Azure", "Docker", "Kubernetes", "Terraform", "CI/CD"}:
+        elif keyword in {
+            "PostgreSQL",
+            "MySQL",
+            "MongoDB",
+            "Redis",
+            "Valkey",
+            "Kafka",
+            "AWS",
+            "GCP",
+            "Azure",
+            "Docker",
+            "Kubernetes",
+            "Terraform",
+            "CI/CD",
+        }:
             target = "Data \\& Cloud"
+        elif keyword == "Unix":
+            target = "Delivery"
         if keyword not in lines[target]:
             lines[target].insert(0, keyword)
     return list(lines.items())

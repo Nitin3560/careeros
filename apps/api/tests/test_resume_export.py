@@ -24,6 +24,33 @@ def test_generate_tailored_latex_keeps_master_sections_and_six_skill_lines():
     assert "FastAPI" in latex
 
 
+def test_skill_lines_include_structured_jd_technologies_without_duplicate_typescript():
+    job = SimpleNamespace(title="Software Engineer, New Grad", company="IXL", description_text="")
+
+    latex = resume_export.generate_tailored_latex(
+        job,
+        {
+            "preferred": [
+                {"type": "technology", "value": "TypeScript"},
+                {"type": "technology", "value": "JavaScript"},
+                {"type": "technology", "value": "React Native"},
+                {"type": "technology", "value": "MySQL"},
+                {"type": "technology", "value": "MongoDB"},
+                {"type": "technology", "value": "Valkey"},
+                {"type": "technology", "value": "Unix"},
+            ]
+        },
+        [],
+    )
+
+    assert "TypeScript/JavaScript, JavaScript" not in latex
+    assert "React Native" in latex
+    assert "MySQL" in latex
+    assert "MongoDB" in latex
+    assert "Valkey" in latex
+    assert "Unix" in latex
+
+
 def test_project_order_uses_job_terms():
     job = SimpleNamespace(
         title="Robotics Software Engineer",
