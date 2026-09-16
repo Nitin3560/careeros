@@ -54,3 +54,18 @@ def test_fetch_board_marks_missing_board_dead(monkeypatch):
     assert status == "dead"
     assert jobs == []
     assert error == "http 404"
+
+
+def test_fetch_board_marks_rate_limit_separately(monkeypatch):
+    response = httpx.Response(429, request=httpx.Request("GET", "https://example.com"))
+
+    def fake_fetch(slug):
+        raise httpx.HTTPStatusError("rate limited", request=response.request, response=response)
+
+    monkeypatch.setitem(backfill_jobs.SOURCE_FETCHERS, "limited", fake_fetch)
+
+    status, jobs, error = backfill_jobs.fetch_board("limited", "example")
+
+    assert status == "rate_limited"
+    assert jobs == []
+    assert error == "http 429"

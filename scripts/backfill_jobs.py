@@ -21,7 +21,15 @@ DELAY = 0.15
 MAX_FAILURES = 3
 
 _lock = threading.Lock()
-_counters = {"live": 0, "empty": 0, "dead": 0, "error": 0, "jobs": 0}
+_counters = {
+    "live": 0,
+    "empty": 0,
+    "dead": 0,
+    "rate_limited": 0,
+    "unavailable": 0,
+    "error": 0,
+    "jobs": 0,
+}
 
 
 def log(message: str):
@@ -41,6 +49,8 @@ def fetch_board(ats: str, slug: str):
         code = exc.response.status_code
         if code in {404, 410}:
             return "dead", [], f"http {code}"
+        if code == 429:
+            return "rate_limited", [], "http 429"
         return "error", [], f"http {code}"
     except httpx.HTTPError as exc:
         return "error", [], type(exc).__name__
@@ -66,11 +76,12 @@ def process(board_id, ats: str, slug: str):
         board.job_count = len(jobs)
         board.last_ingested_at = datetime.now(timezone.utc)
         board.last_error = error
+        is_transient_failure = status in {"error", "rate_limited"}
         board.consecutive_failures = (
-            board.consecutive_failures + 1 if status == "error" else 0
+            board.consecutive_failures + 1 if is_transient_failure else 0
         )
-        if board.consecutive_failures >= MAX_FAILURES:
-            board.status = "dead"
+        if is_transient_failure and board.consecutive_failures >= MAX_FAILURES:
+            board.status = "unavailable"
         db.commit()
 
         with _lock:

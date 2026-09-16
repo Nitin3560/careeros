@@ -14,6 +14,10 @@ from app import models, schemas
 from app.database import engine, get_db
 from app.services.auth import hash_password, verify_password
 from app.services.background_jobs import get_or_create_background_job, set_queue_job_id
+from app.services.company_intelligence import (
+    opportunity_quality_score,
+    refresh_company_intelligence_from_jobs,
+)
 from app.services.job_ingestion.greenhouse import fetch_greenhouse_jobs
 from app.services.job_ingestion.persist import save_jobs
 from app.services.job_matching import (
@@ -272,6 +276,69 @@ def list_jobs(
                 "date_posted": j.date_posted,
             }
             for j in jobs
+        ],
+    }
+
+
+@app.post("/company-intelligence/refresh")
+def refresh_company_intelligence(db: Session = Depends(get_db)):
+    return refresh_company_intelligence_from_jobs(db)
+
+
+@app.get("/company-intelligence")
+def list_company_intelligence(
+    limit: int = 50,
+    offset: int = 0,
+    sponsorship_status: Optional[str] = None,
+    warn_severity: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.CompanyIntelligence)
+    if sponsorship_status:
+        query = query.filter(
+            models.CompanyIntelligence.explicit_sponsorship_status
+            == sponsorship_status
+        )
+    if warn_severity:
+        query = query.filter(models.CompanyIntelligence.warn_severity == warn_severity)
+
+    total = query.count()
+    companies = (
+        query.order_by(
+            models.CompanyIntelligence.matching_job_count.desc(),
+            models.CompanyIntelligence.open_job_count.desc(),
+            models.CompanyIntelligence.company.asc(),
+        )
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "total": total,
+        "count": len(companies),
+        "companies": [
+            {
+                "company": company.company,
+                "canonical_domain": company.canonical_domain,
+                "ats": company.ats,
+                "ats_slug": company.ats_slug,
+                "open_job_count": company.open_job_count,
+                "new_grad_job_count": company.new_grad_job_count,
+                "matching_job_count": company.matching_job_count,
+                "h1b_lca_1y": company.h1b_lca_1y,
+                "h1b_software_lca_1y": company.h1b_software_lca_1y,
+                "perm_3y": company.perm_3y,
+                "explicit_sponsorship_status": (
+                    company.explicit_sponsorship_status
+                ),
+                "warn_severity": company.warn_severity,
+                "target_locations": company.target_locations,
+                "recruiter_profiles": company.recruiter_profiles,
+                "opportunity_quality_score": opportunity_quality_score(company),
+                "last_verified_at": company.last_verified_at,
+            }
+            for company in companies
         ],
     }
 

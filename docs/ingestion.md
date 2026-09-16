@@ -31,12 +31,26 @@ PostgreSQL
 The main supported source types are:
 
 ```text
+Amazon
 Greenhouse
 Lever
 Ashby
+SmartRecruiters
+Workable
+LinkedIn
+Freehire
 ```
 
 Each provider has its own adapter so provider-specific formats do not leak into the rest of the application.
+
+CareerOS has two kinds of ingestion sources:
+
+```text
+Company board source: company slug -> jobs
+Search source: query/profile -> jobs
+```
+
+Company board sources are best for known target companies. Search sources are best for candidate-shaped discovery, such as "AI platform engineer", "new grad software engineer", or "remote backend engineer".
 
 ## Source Resolution
 
@@ -73,17 +87,26 @@ description
 source
 source_job_id
 apply_url
+canonical_url
+identity_key
+first_seen_at
+last_seen_at
+last_verified_at
+ingestion_status
+seen_count
 ```
 
 The matching engine only works with normalized jobs.
 
 It does not need to know whether a posting originally came from Greenhouse, Lever, or Ashby.
 
+Freshness fields are part of normalization because a job board is a changing inventory, not a static import. `first_seen_at` tells us when CareerOS discovered a job. `last_seen_at` and `last_verified_at` tell us whether it is still appearing in source data. `seen_count` helps separate stable listings from one-off scrape artifacts.
+
 ## Duplicate Handling
 
 Ingestion runs repeatedly, so the same job may appear many times.
 
-CareerOS checks existing source identifiers before inserting new records.
+CareerOS checks existing source identifiers before inserting new records, then refreshes existing records when they appear again.
 
 ```text
 Incoming Job
@@ -99,6 +122,15 @@ Update   Insert
 This makes repeated ingestion safer and prevents the database from filling with duplicate postings.
 
 Duplicate checks can also be batched to reduce unnecessary database round trips.
+
+CareerOS stores two identity forms:
+
+```text
+external_id: source-specific hard identity
+identity_key: cross-source soft identity
+```
+
+`external_id` protects the database from repeated source records. `identity_key` gives ranking and future cleanup logic a way to spot the same job when it appears on multiple surfaces, usually by canonical application URL and then by normalized company/title/location.
 
 ## Background Execution
 
@@ -138,6 +170,17 @@ temporarily fail
 A failed source should affect that ingestion run, not the entire CareerOS application.
 
 Previously stored jobs remain available for search and matching.
+
+Health statuses should preserve meaning:
+
+```text
+dead: source returned 404/410 and the board is probably gone
+rate_limited: source asked us to slow down
+unavailable: repeated transient failures crossed the retry threshold
+error: one transient failure happened
+```
+
+This keeps temporary outages from being treated as proof that a company or board disappeared.
 
 ## Why This Boundary Matters
 

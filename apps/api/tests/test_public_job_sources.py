@@ -1,6 +1,7 @@
 from app.services.job_ingestion import (
     amazon,
     ashby,
+    freehire,
     lever,
     linkedin,
     public_sources,
@@ -111,6 +112,27 @@ class FakeLinkedInResponse:
                 "postedDate": "2026-09-03",
             }
         ]
+
+
+class FakeFreehireResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {
+            "meta": {"count": 1, "page": 1, "total": 1},
+            "results": [
+                {
+                    "public_slug": "job-123",
+                    "title": "AI Platform Engineer",
+                    "company": {"name": "ExampleAI"},
+                    "location": "Remote",
+                    "description": "Build AI tooling.",
+                    "url": "https://freehire.me/jobs/job-123",
+                    "posted_at": "2026-09-14T10:00:00Z",
+                }
+            ],
+        }
 
 
 def amazon_job(job_id, title="Software Development Engineer"):
@@ -296,6 +318,31 @@ def test_fetch_linkedin_jobs_normalizes_actor_response(monkeypatch):
     assert jobs[0]["date_posted"].year == 2026
 
 
+def test_fetch_freehire_jobs_normalizes_agent_response(monkeypatch):
+    requested = {}
+    monkeypatch.setenv("FREEHIRE_API_URL", "https://freehire.test/")
+
+    def fake_get(url, params, timeout):
+        requested["url"] = url
+        requested["params"] = params
+        requested["timeout"] = timeout
+        return FakeFreehireResponse()
+
+    monkeypatch.setattr(freehire.httpx, "get", fake_get)
+
+    jobs = freehire.fetch_freehire_jobs("ai-platform")
+
+    assert requested["url"] == "https://freehire.test/api/v1/agent/jobs/search"
+    assert requested["params"]["q"] == "ai platform"
+    assert requested["params"]["posted_within_days"] == 14
+    assert requested["timeout"] == 15.0
+    assert jobs[0]["external_id"] == "freehire_job-123"
+    assert jobs[0]["source"] == "freehire"
+    assert jobs[0]["company"] == "ExampleAI"
+    assert jobs[0]["title"] == "AI Platform Engineer"
+    assert jobs[0]["date_posted"].year == 2026
+
+
 def test_discover_public_source_uses_known_source(monkeypatch):
     monkeypatch.setitem(
         public_sources.KNOWN_PUBLIC_SOURCES,
@@ -327,3 +374,7 @@ def test_default_candidates_include_added_sources_and_slug_variants():
 
 def test_source_fetchers_include_linkedin():
     assert public_sources.SOURCE_FETCHERS["linkedin"] is linkedin.fetch_linkedin_jobs
+
+
+def test_source_fetchers_include_freehire():
+    assert public_sources.SOURCE_FETCHERS["freehire"] is freehire.fetch_freehire_jobs

@@ -128,8 +128,16 @@ class Job(Base):
     location: Mapped[str] = mapped_column(String, nullable=True)
     description_text: Mapped[str] = mapped_column(String, nullable=True)
     application_url: Mapped[str] = mapped_column(String, nullable=True)
+    canonical_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    identity_key: Mapped[str | None] = mapped_column(String, nullable=True)
     date_posted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ingestion_status: Mapped[str] = mapped_column(String, nullable=False, default="new")
+    seen_count: Mapped[int] = mapped_column(default=1, nullable=False)
     eligible: Mapped[bool | None] = mapped_column(nullable=True)
     skip_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     matched_pattern: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -192,6 +200,40 @@ class CompanyTarget(Base):
     active: Mapped[bool] = mapped_column(default=True)
     last_ingested_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CompanyIntelligence(Base):
+    __tablename__ = "company_intelligence"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    company: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    canonical_domain: Mapped[str | None] = mapped_column(String, nullable=True)
+    ats: Mapped[str | None] = mapped_column(String, nullable=True)
+    ats_slug: Mapped[str | None] = mapped_column(String, nullable=True)
+    careers_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    open_job_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    new_grad_job_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    matching_job_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    h1b_lca_1y: Mapped[int] = mapped_column(default=0, nullable=False)
+    h1b_software_lca_1y: Mapped[int] = mapped_column(default=0, nullable=False)
+    perm_3y: Mapped[int] = mapped_column(default=0, nullable=False)
+    explicit_sponsorship_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="unknown"
+    )
+    latest_warn_notice: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    warn_severity: Mapped[str] = mapped_column(String, nullable=False, default="green")
+    salary_min: Mapped[int | None] = mapped_column(nullable=True)
+    salary_max: Mapped[int | None] = mapped_column(nullable=True)
+    target_locations: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    recruiter_profiles: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    intelligence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class JobMatch(Base):
