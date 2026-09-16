@@ -7,7 +7,7 @@ from app import models
 from app.services.ai_runs import finish_ai_run, start_ai_run
 from app.services.answer_bank import find_answer
 from app.services.fact_selection import select_facts_for_job
-from app.services.resume_export import generate_docx
+from app.services.resume_export import write_tailored_resume
 from app.services.tailoring import generate_and_validate, generate_cover_letter, sweep
 
 MIN_ACCEPTED_BULLETS = 3
@@ -50,36 +50,9 @@ def resolve_answers(db: Session, job, requirements: dict) -> tuple[dict, list[st
     return answers, missing
 
 
-def render_resume(job, bullets: list[dict], facts) -> str:
-    RESUME_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    identity = {fact.fact_key: fact.fact_value for fact in facts if fact.fact_key in IDENTITY_FACT_KEYS}
-    skills = [
-        {"name": fact.fact_value}
-        for fact in facts
-        if fact.fact_key in {"skill", "skills", "technology", "framework", "tool"}
-    ][:16]
-    education = [
-        {"degree": fact.fact_value, "institution": "", "year": ""}
-        for fact in facts
-        if fact.fact_key.startswith("education") or fact.fact_key == "degree"
-    ]
-    content = {
-        "full_name": identity.get("full_name") or "Candidate",
-        "summary": f"Tailored for {getattr(job, 'title', 'role')} at {getattr(job, 'company', 'company')}.",
-        "skills": skills,
-        "experience": [
-            {
-                "title": "Selected experience",
-                "company": "Evidence-backed profile",
-                "duration": "",
-                "highlights": [bullet["text"] for bullet in bullets],
-            }
-        ],
-        "education": education,
-    }
-    path = RESUME_OUTPUT_DIR / f"{job.id}.docx"
-    path.write_bytes(generate_docx(content))
-    return str(path)
+def render_resume(job, requirements: dict, bullets: list[dict], facts) -> str:
+    output = write_tailored_resume(RESUME_OUTPUT_DIR / str(job.id), job, requirements, bullets)
+    return output["pdf_path"]
 
 
 def preflight(
@@ -143,7 +116,7 @@ def build_packet(db: Session, job_id, profile_version) -> models.ApplicationPack
         bullets, raw_output, rejected = generate_and_validate(job, requirements, facts)
         cover_letter = generate_cover_letter(job, facts)
         answers, missing_answers = resolve_answers(db, job, requirements)
-        resume_path = render_resume(job, bullets, facts)
+        resume_path = render_resume(job, requirements, bullets, facts)
         missing = preflight(bullets, cover_letter, answers, resume_path, facts, missing_answers)
         if rejected and len(rejected) > len(bullets):
             status = "rejected"
