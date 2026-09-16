@@ -182,6 +182,18 @@ error: one transient failure happened
 
 This keeps temporary outages from being treated as proof that a company or board disappeared.
 
+## Polling Tiers
+
+ATS boards are prioritized so direct sources can be polled at different speeds:
+
+```text
+priority 1  Tier A companies, hourly
+priority 2  good historical fit, every 6 hours
+priority 3  long tail, daily
+```
+
+`scripts/assign_board_priorities.py` assigns those tiers from recent eligible job volume. `scripts/backfill_jobs.py --priority 1 --stale-days 0` can then refresh the Tier A pool without touching every board.
+
 ## Why This Boundary Matters
 
 The ingestion layer has one responsibility:

@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import backfill_jobs  # noqa: E402
+import assign_board_priorities  # noqa: E402
 import import_boards  # noqa: E402
 
 
@@ -69,3 +70,32 @@ def test_fetch_board_marks_rate_limit_separately(monkeypatch):
     assert status == "rate_limited"
     assert jobs == []
     assert error == "http 429"
+
+
+def test_assign_priority_uses_recent_eligible_jobs():
+    class FakeDb:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, sql, params):
+            self.calls.append((str(sql), params))
+
+            class Result:
+                def fetchall(self):
+                    return [("board-1",), ("board-2",)]
+
+            return Result()
+
+    db = FakeDb()
+
+    updated = assign_board_priorities.assign_priority(
+        db,
+        priority=1,
+        limit=100,
+        days=30,
+    )
+
+    assert updated == 2
+    assert "j.eligible IS true" in db.calls[0][0]
+    assert "b.ats = r.source" in db.calls[0][0]
+    assert db.calls[0][1]["priority"] == 1

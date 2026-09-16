@@ -180,6 +180,7 @@ class AtsBoard(Base):
     )
     last_error: Mapped[str | None] = mapped_column(String, nullable=True)
     consecutive_failures: Mapped[int] = mapped_column(default=0, nullable=False)
+    priority: Mapped[int] = mapped_column(default=3, nullable=False)
     source_list: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow

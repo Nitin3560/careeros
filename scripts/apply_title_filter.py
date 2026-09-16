@@ -94,105 +94,146 @@ SENIORITY_PATTERN = V1_SENIORITY_PATTERN
 SWE_TITLE_PATTERN = V1_SWE_TITLE_PATTERN
 
 
-def apply_filter(filter_name: str = "v1"):
+def apply_filter(
+    filter_name: str = "v1",
+    new_only: bool = False,
+    since_minutes: int = 120,
+):
     selected = FILTERS[filter_name]
+    new_scope = (
+        "AND (:new_only = false OR first_seen_at > now() - "
+        "(:since_minutes * interval '1 minute'))"
+    )
     db = SessionLocal()
     try:
-        statements = [
+        statements = []
+        if not new_only:
+            statements.append(
+                text(
+                    "UPDATE jobs SET eligible = NULL, skip_reason = NULL, "
+                    "matched_pattern = NULL, filter_version = NULL"
+                )
+            )
+        statements.extend(
+            [
             text(
-                "UPDATE jobs SET eligible = NULL, skip_reason = NULL, "
-                "matched_pattern = NULL, filter_version = NULL"
-            ),
-            text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'role_head', filter_version = :version
-                WHERE title ~* :pattern
+                WHERE eligible IS NULL
+                  AND title ~* :pattern
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["role_head"],
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'wrong_discipline', filter_version = :version
                 WHERE eligible IS NULL AND title ~* :pattern
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["wrong_discipline"],
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'seniority', filter_version = :version
                 WHERE eligible IS NULL
                   AND title ~* :pattern
                   AND (:exemption IS NULL OR title !~* :exemption)
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["seniority"],
                 exemption=selected.get("seniority_exemption"),
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'clearance_title', filter_version = :version
                 WHERE eligible IS NULL
                   AND :pattern IS NOT NULL
                   AND title ~* :pattern
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected.get("clearance_title"),
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = true, skip_reason = NULL, matched_pattern = 'swe_title',
                     filter_version = :version
                 WHERE eligible IS NULL AND title ~* :pattern
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected["swe_title"],
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'stale_posting', filter_version = :version
                 WHERE eligible = true
                   AND :location_pattern IS NOT NULL
                   AND date_posted IS NOT NULL
                   AND date_posted <= now() - interval '30 days'
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 location_pattern=selected.get("location"),
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'non_us_location', filter_version = :version
                 WHERE eligible = true
                   AND :pattern IS NOT NULL
                   AND location IS NOT NULL
                   AND location !~* :pattern
+                  {new_scope}
                 """
             ).bindparams(
                 version=selected["version"],
                 pattern=selected.get("location"),
+                new_only=new_only,
+                since_minutes=since_minutes,
             ),
             text(
-                """
+                f"""
                 UPDATE jobs
                 SET eligible = false, skip_reason = 'no_title_match', filter_version = :version
                 WHERE eligible IS NULL
+                  {new_scope}
                 """
-            ).bindparams(version=selected["version"]),
-        ]
+            ).bindparams(
+                version=selected["version"],
+                new_only=new_only,
+                since_minutes=since_minutes,
+            ),
+            ]
+        )
         for statement in statements:
             db.execute(statement)
         db.commit()
@@ -255,9 +296,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", choices=sorted(FILTERS), default="v3")
     parser.add_argument("--review-limit", type=int, default=40)
+    parser.add_argument("--new-only", action="store_true")
+    parser.add_argument("--since-minutes", type=int, default=120)
     args = parser.parse_args()
 
-    apply_filter(args.version)
+    apply_filter(
+        args.version,
+        new_only=args.new_only,
+        since_minutes=args.since_minutes,
+    )
     print_review(args.review_limit)
 
 

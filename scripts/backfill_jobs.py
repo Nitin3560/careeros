@@ -99,6 +99,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int)
     parser.add_argument("--ats")
+    parser.add_argument("--priority", type=int, choices=[1, 2, 3])
     parser.add_argument("--stale-days", type=int)
     parser.add_argument("--include-dead", action="store_true")
     args = parser.parse_args()
@@ -119,6 +120,12 @@ def main():
             query = query.filter(models.AtsBoard.status != "dead")
         if args.ats:
             query = query.filter(models.AtsBoard.ats == args.ats)
+        if args.priority:
+            query = query.filter(models.AtsBoard.priority == args.priority)
+        query = query.order_by(
+            models.AtsBoard.priority.asc(),
+            models.AtsBoard.last_ingested_at.asc().nullsfirst(),
+        )
         if args.limit:
             query = query.limit(args.limit)
 
