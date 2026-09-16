@@ -43,13 +43,14 @@ def test_skill_lines_preserve_fixed_template_density():
         [],
     )
 
-    assert "\\textbf{Languages}{: TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)}" in latex
+    assert "Languages: TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)" in latex
+    assert "\\textbf{Languages}" not in latex
     assert "TypeScript/JavaScript, JavaScript" not in latex
-    assert "\\textbf{AI Agents}" in latex
-    assert "\\textbf{Frontend}" in latex
-    assert "\\textbf{Backend \\& APIs}" in latex
-    assert "\\textbf{Cloud \\& Data}" in latex
-    assert "\\textbf{Delivery \\& Practices}" in latex
+    assert "AI Agents:" in latex
+    assert "Frontend:" in latex
+    assert "Backend \\& APIs:" in latex
+    assert "Cloud \\& Data:" in latex
+    assert "Delivery \\& Practices:" in latex
 
 
 def test_project_order_matches_reference_style():
