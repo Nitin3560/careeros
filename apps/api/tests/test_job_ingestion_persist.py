@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.job_ingestion.persist import (
     build_identity_key,
+    build_queue_key,
     canonicalize_url,
     clean_job,
     save_jobs,
@@ -32,6 +33,12 @@ def test_canonicalize_url_removes_tracking_params():
     assert canonicalize_url(url) == "https://example.com/jobs/123?foo=bar"
 
 
+def test_canonicalize_url_keeps_ats_job_id_params():
+    url = "https://careers.example.com/jobs?gh_jid=123&utm_source=linkedin"
+
+    assert canonicalize_url(url) == "https://careers.example.com/jobs?gh_jid=123"
+
+
 def test_build_identity_key_prefers_canonical_url():
     job = {
         "company": "Example AI",
@@ -41,6 +48,20 @@ def test_build_identity_key_prefers_canonical_url():
     }
 
     assert build_identity_key(job) == "url:https://jobs.example.com/123"
+
+
+def test_build_queue_key_collapses_city_specific_role_titles():
+    first = {
+        "company": "Speechify",
+        "title": "Senior Software Engineer, Core Experiences - Chicago, IL, USA",
+    }
+    second = {
+        "company": "Speechify",
+        "title": "Senior Software Engineer, Core Experiences - Dallas, TX, USA",
+    }
+
+    assert build_queue_key(first) == build_queue_key(second)
+    assert build_queue_key(first) == "queue:speechify|senior software engineer core experiences"
 
 
 def test_save_jobs_refreshes_existing_job_lifecycle():
@@ -85,4 +106,5 @@ def test_save_jobs_refreshes_existing_job_lifecycle():
     assert job.description_text == "New description"
     assert job.canonical_url == "https://jobs.example.com/1"
     assert job.identity_key == "url:https://jobs.example.com/1"
+    assert job.queue_key == "queue:example|new title"
     assert job.seen_count == 2

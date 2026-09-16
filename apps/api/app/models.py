@@ -130,6 +130,7 @@ class Job(Base):
     application_url: Mapped[str] = mapped_column(String, nullable=True)
     canonical_url: Mapped[str | None] = mapped_column(String, nullable=True)
     identity_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    queue_key: Mapped[str | None] = mapped_column(String, nullable=True)
     date_posted: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

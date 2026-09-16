@@ -54,7 +54,16 @@ V2_SWE_TITLE_PATTERN = (
     r"mobile engineer|qa automation engineer|security engineer|"
     r"release engineer)\y"
 )
-V3_LOCATION_PATTERN = r"(United States|USA|, [A-Z]{2}\y|Remote)"
+US_STATE_PATTERN = (
+    r"AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|"
+    r"MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|"
+    r"SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC"
+)
+V3_LOCATION_PATTERN = (
+    r"\y(United States|USA|Remote — US|Remote \(US\)|Remote US|Remote - US|"
+    r"Remote, US|US Remote|Remote from the US)\y"
+    rf"|, ({US_STATE_PATTERN}),?\s*(United States|USA|US)\y"
+)
 V3_CLEARANCE_TITLE_PATTERN = (
     r"\y(ts/sci|top secret|security clearance|polygraph|public trust|"
     r"active clearance)\y"

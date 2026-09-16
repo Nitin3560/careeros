@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.orm import Session
@@ -18,7 +19,6 @@ def clean_job(job: dict) -> dict:
 
 
 TRACKING_QUERY_PARAMS = {
-    "gh_jid",
     "gh_src",
     "iis",
     "iisn",
@@ -32,6 +32,15 @@ TRACKING_QUERY_PARAMS = {
     "utm_source",
     "utm_term",
 }
+ATS_JOB_ID_PARAMS = {"gh_jid", "job_id", "jobid", "jid"}
+US_LOCATION_SUFFIX_PATTERN = re.compile(
+    r"\s+-\s+"
+    r"([A-Za-z .'-]+,\s*)?"
+    r"(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|"
+    r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|"
+    r"TX|UT|VT|VA|WA|WV|WI|WY|DC),?\s*(USA|US)?\s*$",
+    re.I,
+)
 
 
 def canonicalize_url(value: str | None) -> str | None:
@@ -42,14 +51,18 @@ def canonicalize_url(value: str | None) -> str | None:
     if not parsed.scheme or not parsed.netloc:
         return value.strip().rstrip("/") or None
 
-    query = urlencode(
-        [
-            (key, val)
-            for key, val in parse_qsl(parsed.query, keep_blank_values=True)
-            if key.lower() not in TRACKING_QUERY_PARAMS
-        ],
-        doseq=True,
-    )
+    query_items = parse_qsl(parsed.query, keep_blank_values=True)
+    ats_ids = [
+        (key, val)
+        for key, val in query_items
+        if key.lower() in ATS_JOB_ID_PARAMS and val
+    ]
+    kept_query_items = ats_ids or [
+        (key, val)
+        for key, val in query_items
+        if key.lower() not in TRACKING_QUERY_PARAMS
+    ]
+    query = urlencode(kept_query_items, doseq=True)
     netloc = parsed.netloc.lower()
     path = parsed.path.rstrip("/")
     return urlunsplit((parsed.scheme.lower(), netloc, path, query, ""))
@@ -60,6 +73,12 @@ def normalize_identity_part(value: str | None) -> str:
         return ""
     chars = [char.lower() if char.isalnum() else " " for char in value]
     return " ".join("".join(chars).split())
+
+
+def normalize_role_title(value: str | None) -> str:
+    if not value:
+        return ""
+    return normalize_identity_part(US_LOCATION_SUFFIX_PATTERN.sub("", value))
 
 
 def build_identity_key(job: dict) -> str | None:
@@ -75,6 +94,14 @@ def build_identity_key(job: dict) -> str | None:
     return f"role:{company}|{title}|{location}"
 
 
+def build_queue_key(job: dict) -> str | None:
+    company = normalize_identity_part(job.get("company"))
+    title = normalize_role_title(job.get("title"))
+    if not company or not title:
+        return job.get("identity_key")
+    return f"queue:{company}|{title}"
+
+
 def prepare_job(job: dict, seen_at: datetime) -> dict:
     clean = clean_job(job)
     clean.setdefault("retrieved_at", seen_at)
@@ -87,6 +114,7 @@ def prepare_job(job: dict, seen_at: datetime) -> dict:
         clean.get("application_url")
     )
     clean["identity_key"] = clean.get("identity_key") or build_identity_key(clean)
+    clean["queue_key"] = build_queue_key(clean)
     if clean["ingestion_status"] != "expired":
         clean.setdefault("expired_at", None)
     return clean

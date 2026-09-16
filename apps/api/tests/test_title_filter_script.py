@@ -40,6 +40,17 @@ def test_v3_swe_title_filter_keeps_amazon_sde_titles():
     assert matches(pattern, "Software Dev Engineer II, Prime Air")
 
 
+def test_v3_location_filter_requires_us_signal():
+    pattern = apply_title_filter.FILTERS["v3"]["location"]
+
+    assert matches(pattern, "San Mateo, CA, United States")
+    assert matches(pattern, "Remote - US")
+    assert matches(pattern, "US Remote")
+    assert not matches(pattern, "London, UK")
+    assert not matches(pattern, "Bengaluru, IN")
+    assert not matches(pattern, "Barcelona, ES")
+
+
 def test_current_filter_is_named_v1():
     assert apply_title_filter.FILTERS["v1"]["version"] == 1
     assert apply_title_filter.FILTERS["v1"]["role_head"] == (
