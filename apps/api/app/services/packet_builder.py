@@ -115,6 +115,14 @@ def build_packet(db: Session, job_id, profile_version) -> models.ApplicationPack
     job = db.query(models.Job).filter(models.Job.id == job_uuid).first()
     if not job:
         raise ValueError(f"job not found: {job_id}")
+    packet = (
+        db.query(models.ApplicationPacket)
+        .filter(
+            models.ApplicationPacket.job_id == job_uuid,
+            models.ApplicationPacket.profile_version == profile_version,
+        )
+        .first()
+    )
 
     requirements = _requirements_for_job(db, job_uuid)
     facts = select_facts_for_job(db, job_uuid)
@@ -155,19 +163,20 @@ def build_packet(db: Session, job_id, profile_version) -> models.ApplicationPack
         blocked_reason = str(exc)
         finish_ai_run(db, ai_run, status="failed", failure_reason=blocked_reason)
 
-    packet = models.ApplicationPacket(
-        job_id=job_uuid,
-        profile_version=profile_version,
-        fact_ids=[fact.id for fact in facts],
-        bullets=bullets,
-        cover_letter=cover_letter,
-        answers=answers,
-        resume_path=resume_path,
-        status=status,
-        blocked_reason=blocked_reason,
-        rejected_claims=rejected,
-        ai_run_id=ai_run.id,
-    )
-    db.add(packet)
+    if packet is None:
+        packet = models.ApplicationPacket(
+            job_id=job_uuid,
+            profile_version=profile_version,
+        )
+        db.add(packet)
+    packet.fact_ids = [fact.id for fact in facts]
+    packet.bullets = bullets
+    packet.cover_letter = cover_letter
+    packet.answers = answers
+    packet.resume_path = resume_path
+    packet.status = status
+    packet.blocked_reason = blocked_reason
+    packet.rejected_claims = rejected
+    packet.ai_run_id = ai_run.id
     db.flush()
     return packet

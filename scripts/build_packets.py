@@ -53,6 +53,7 @@ def main() -> None:
                 .filter(
                     models.ApplicationPacket.job_id == job_id,
                     models.ApplicationPacket.profile_version == args.profile_version,
+                    models.ApplicationPacket.status.in_(("ready", "draft")),
                 )
                 .first()
             )

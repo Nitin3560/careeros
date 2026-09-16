@@ -9,13 +9,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def first_numbered_gemini_key(environ: dict[str, str] = os.environ) -> str | None:
+def numbered_gemini_keys(environ: dict[str, str] = os.environ) -> list[str]:
     keys = []
     for name, value in environ.items():
         match = re.fullmatch(r"GEMINI_KEY_(\d+)", name)
         if match and value:
             keys.append((int(match.group(1)), value))
-    return next((value for _, value in sorted(keys)), None)
+    return [value for _, value in sorted(keys)]
+
+
+def first_numbered_gemini_key(environ: dict[str, str] = os.environ) -> str | None:
+    keys = numbered_gemini_keys(environ)
+    return keys[0] if keys else None
 
 ALL_PROVIDERS = {
     "gemini": {
@@ -26,9 +31,16 @@ ALL_PROVIDERS = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "api_key": os.getenv("GROQ_API_KEY"),
-        "model": "llama-3.3-70b-versatile",
+        "model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
     },
 }
+
+for index, key in enumerate(numbered_gemini_keys(), start=1):
+    ALL_PROVIDERS[f"gemini_key_{index}"] = {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key": key,
+        "model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+    }
 
 PROVIDER_TPM_BUDGET = {
     "gemini": 200_000,
@@ -38,6 +50,25 @@ PROVIDER_RPM_BUDGET = {
     "gemini": 12,
     "groq": 25,
 }
+
+
+def expand_provider_order(provider_order: list[str]) -> list[str]:
+    expanded = []
+    for provider_name in provider_order:
+        if provider_name == "gemini_pool":
+            expanded.extend(
+                name
+                for name in sorted(ALL_PROVIDERS)
+                if name.startswith("gemini_key_")
+            )
+        else:
+            expanded.append(provider_name)
+    seen = set()
+    return [
+        provider_name
+        for provider_name in expanded
+        if not (provider_name in seen or seen.add(provider_name))
+    ]
 
 
 class RateLimiter:
@@ -130,7 +161,7 @@ def call_llm(
     last_error = None
     estimated_tokens = estimate_tokens(system_prompt, user_prompt, max_tokens)
 
-    for provider_name in provider_order:
+    for provider_name in expand_provider_order(provider_order):
         provider = ALL_PROVIDERS.get(provider_name)
         if not provider:
             continue
@@ -163,4 +194,6 @@ def call_llm(
 
         print(f"[ai_client] {provider_name} exhausted, trying next provider.")
 
-    raise last_error
+    if last_error:
+        raise last_error
+    raise RuntimeError("no configured LLM provider had an API key")

@@ -3,11 +3,12 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from app.services.ai_client import call_llm
+from app.services.ai_client import call_llm, expand_provider_order
 
 TAILORING_PROMPT_VERSION = "tailoring-v1"
-GENERATION_PROVIDERS = ["groq", "gemini"]
-CHEAP_PROVIDERS = ["gemini", "groq"]
+GENERATION_PROVIDERS = ["gemini_pool", "gemini", "groq"]
+CHEAP_PROVIDERS = ["groq", "gemini_pool", "gemini"]
+MAX_VALIDATED_BULLETS = 3
 
 RISK_PATTERNS = {
     "metric": r"\d+(\.\d+)?\s*(%|percent|x\b|ms\b|s\b|k\b|M\b|QPS|RPS)",
@@ -75,6 +76,27 @@ def _extract_json(raw_output: str):
         raise
 
 
+def _call_json(system_prompt: str, user_prompt: str, provider_order: list[str], max_tokens: int = 800):
+    last_error = None
+    for provider_name in expand_provider_order(provider_order):
+        try:
+            raw_output = call_llm(
+                system_prompt,
+                user_prompt,
+                provider_order=[provider_name],
+                max_tokens=max_tokens,
+                max_retries=1,
+            )
+            return _extract_json(raw_output), raw_output
+        except Exception as exc:
+            last_error = exc
+            print(
+                f"[tailoring] {provider_name} returned unusable JSON: {type(exc).__name__}: {exc}",
+                flush=True,
+            )
+    raise last_error
+
+
 def derive_metric_facts(facts) -> list:
     derived = []
     pattern = re.compile(r"(\d+(?:\.\d+)?)\s*ms\s*(?:->|to)\s*(\d+(?:\.\d+)?)\s*ms", re.I)
@@ -123,8 +145,12 @@ STRUCTURED REQUIREMENTS:
 <JOB_DESCRIPTION>
 {(getattr(job, "description_text", "") or "")[:4000]}
 </JOB_DESCRIPTION>"""
-    raw_output = call_llm(system_prompt, user_prompt, provider_order=GENERATION_PROVIDERS, max_tokens=1200)
-    parsed = _extract_json(raw_output)
+    parsed, raw_output = _call_json(
+        system_prompt,
+        user_prompt,
+        provider_order=GENERATION_PROVIDERS,
+        max_tokens=1200,
+    )
     bullets = parsed.get("bullets", parsed if isinstance(parsed, list) else [])
     if not isinstance(bullets, list):
         raise ValueError("bullet generation returned no bullets list")
@@ -152,23 +178,19 @@ def sweep(bullet_text: str, allowed_facts) -> list[Violation]:
 
 
 def _decompose_with_prompt(bullet_text: str, prompt: str) -> list[str]:
-    raw_output = call_llm(
+    parsed, _raw_output = _call_json(
         "Return only valid JSON: {\"claims\":[\"...\"]}",
         f"{prompt}\n\nSentence: {bullet_text}",
         provider_order=CHEAP_PROVIDERS,
         max_tokens=500,
     )
-    parsed = _extract_json(raw_output)
     claims = parsed.get("claims", [])
     return [str(claim).strip() for claim in claims if str(claim).strip()]
 
 
 def decompose_claims(bullet_text: str) -> list[str]:
     """Two calls with DIFFERENT prompts. Return the union of both results."""
-    prompts = [
-        "List every factual assertion in this sentence.",
-        "What would a skeptical interviewer ask this person to prove?",
-    ]
+    prompts = ["List every factual assertion in this sentence."]
     claims = []
     seen = set()
     for prompt in prompts:
@@ -183,13 +205,12 @@ def decompose_claims(bullet_text: str) -> list[str]:
 def check_entailment(claim: str, allowed_facts) -> tuple[str, list[uuid.UUID]]:
     """SUPPORTED | UNSUPPORTED, plus the fact IDs that support it."""
     fact_block = _fact_block(allowed_facts)
-    raw_output = call_llm(
+    parsed, _raw_output = _call_json(
         "You check whether one claim is entailed by supplied facts. Return only JSON: {\"status\":\"SUPPORTED|UNSUPPORTED\",\"fact_ids\":[\"uuid\"]}",
         f"SUPPLIED FACTS:\n{fact_block}\n\nCLAIM:\n{claim}",
         provider_order=CHEAP_PROVIDERS,
         max_tokens=500,
     )
-    parsed = _extract_json(raw_output)
     status = "SUPPORTED" if parsed.get("status") == "SUPPORTED" else "UNSUPPORTED"
     fact_ids = []
     allowed_ids = {str(_fact_id(fact)): _fact_id(fact) for fact in allowed_facts}
@@ -204,10 +225,24 @@ def check_entailment(claim: str, allowed_facts) -> tuple[str, list[uuid.UUID]]:
 def validate_bullet(bullet, allowed_facts) -> BulletResult:
     text = bullet.get("text", "") if isinstance(bullet, dict) else str(bullet)
     violations = sweep(text, allowed_facts)
-    claims = decompose_claims(text)
+    try:
+        claims = decompose_claims(text)
+    except Exception as exc:
+        return BulletResult(
+            "REJECTED",
+            violations,
+            [ClaimResult(f"validator_error: {type(exc).__name__}: {exc}", "UNSUPPORTED", [])],
+        )
     results = []
     for claim in claims:
-        status, fact_ids = check_entailment(claim, allowed_facts)
+        try:
+            status, fact_ids = check_entailment(claim, allowed_facts)
+        except Exception as exc:
+            status, fact_ids = (
+                "UNSUPPORTED",
+                [],
+            )
+            claim = f"{claim} [validator_error: {type(exc).__name__}: {exc}]"
         results.append(ClaimResult(claim=claim, status=status, fact_ids=fact_ids))
 
     if violations or any(result.status == "UNSUPPORTED" for result in results):
@@ -244,10 +279,17 @@ def accepted_bullet_payload(bullet: dict, result: BulletResult, allowed_facts) -
 
 
 def generate_and_validate(job, requirements, facts) -> tuple[list[dict], str, list[dict]]:
+    print(
+        f"[tailoring] generating bullets for {getattr(job, 'company', '')} - "
+        f"{getattr(job, 'title', '')}",
+        flush=True,
+    )
     bullets, raw_output = generate_bullets(job, requirements, facts)
     accepted = []
     rejected = []
-    for bullet in bullets:
+    print(f"[tailoring] generated {len(bullets)} bullets; validating", flush=True)
+    for index, bullet in enumerate(bullets[:MAX_VALIDATED_BULLETS], start=1):
+        print(f"[tailoring] validating bullet {index}", flush=True)
         result = validate_bullet(bullet, facts)
         if result.status == "ACCEPTED":
             accepted.append(accepted_bullet_payload(bullet, result, facts))
@@ -266,10 +308,15 @@ def generate_and_validate(job, requirements, facts) -> tuple[list[dict], str, li
                     ],
                 }
             )
+    print(
+        f"[tailoring] accepted={len(accepted)} rejected={len(rejected)}",
+        flush=True,
+    )
     return accepted, raw_output, rejected
 
 
 def generate_cover_letter(job, facts) -> str:
+    print("[tailoring] generating cover letter", flush=True)
     raw_output = call_llm(
         "Write a concise cover letter using only supplied facts. Do not add facts, numbers, or ownership claims not present in facts.",
         f"SUPPLIED FACTS:\n{_fact_block(facts)}\n\nJOB TITLE: {getattr(job, 'title', '')}\nCOMPANY: {getattr(job, 'company', '')}",
