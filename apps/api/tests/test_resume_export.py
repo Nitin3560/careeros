@@ -53,6 +53,23 @@ def test_skill_lines_preserve_fixed_template_density():
     assert "Delivery \\& Practices:" in latex
 
 
+def test_bold_scope_matches_requested_resume_fields():
+    job = SimpleNamespace(title="Software Engineer, New Grad", company="IXL", description_text="")
+
+    latex = resume_export.generate_tailored_latex(job, {}, [], project_limit=3)
+
+    assert "\\textbf{\\Large Nitin Singh Rathore}" in latex
+    assert "\\textbf{#1} $|$ #2" in latex
+    assert "\\textbf{IEEE CSCN 2026}" in latex
+    assert "M.S. Thesis{: \\textbf{Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks}}" in latex
+    assert "\\textbf{University of Texas at Arlington}" in latex
+    assert "\\textbf{Acropolis Institute of Technology \\& Research}" in latex
+
+    assert "\\textbf{Languages}" not in latex
+    assert "\\textbf{Software Engineer}" not in latex
+    assert "\\textbf{WERBOOZ Pvt. Ltd}" not in latex
+
+
 def test_project_order_matches_reference_style():
     job = SimpleNamespace(
         title="Robotics Software Engineer",

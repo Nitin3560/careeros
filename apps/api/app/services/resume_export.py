@@ -286,7 +286,8 @@ def generate_tailored_latex(
 \ifPDFTeX
 \input{{glyphtounicode}}
 \fi
-\usepackage{{mathptmx}} % Times-style standard font: narrower, keeps each bullet on one line
+\usepackage{{newtxtext}} % Times-style font with visible bold under Tectonic/XeTeX
+\usepackage{{newtxmath}}
 
 \pagestyle{{fancy}}
 \fancyhf{{}}
