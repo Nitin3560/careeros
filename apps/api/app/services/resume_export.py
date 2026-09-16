@@ -51,7 +51,7 @@ BASE_SKILL_LINES = {
 PROJECTS = {
     "yomeets": {
         "name": "YoMeets",
-        "subtitle": "AI Meeting \\& Execution Assistant \\href{https://github.com/Nitin3560/YoMeets}{\\underline{\\footnotesize github}}",
+        "subtitle": "AI Meeting \\& Execution Assistant \\href{https://github.com/Nitin3560/YoMeets}{\\underline{\\small github}}",
         "tech": "TypeScript, Node.js, PostgreSQL/pgvector, Deepgram, LLM APIs, GitHub/Google APIs",
         "dates": "Jun 2026 -- July 2026",
         "bullets": [
@@ -61,7 +61,7 @@ PROJECTS = {
     },
     "careeros": {
         "name": "CareerOS",
-        "subtitle": "Full-Stack Job Search \\& Matching Platform \\href{https://github.com/Nitin3560/careeros}{\\underline{\\footnotesize github}}",
+        "subtitle": "Large-Scale Data Processing \\& Search Platform \\href{https://github.com/Nitin3560/careeros}{\\underline{\\small github}}",
         "tech": "React/Next.js, TypeScript, Python, FastAPI, PostgreSQL, Redis/RQ, Docker",
         "dates": "July 2026 -- Present",
         "bullets": [
@@ -71,8 +71,8 @@ PROJECTS = {
     },
     "cloudqueue": {
         "name": "CloudQueue",
-        "subtitle": "Distributed Task Queue for Web Scraping Jobs",
-        "tech": "Python, Redis, Kubernetes, Docker, AWS, Terraform",
+        "subtitle": "Highly Available Distributed Task Queue",
+        "tech": "Python, Redis, Kubernetes, Docker, AWS, Terraform, Linux",
         "dates": "Mar 2026 -- Jun 2026",
         "bullets": [
             "Built a REST API-driven task queue in Python where a Kubernetes worker pool runs jobs asynchronously at $\\sim$1.4K/sec.",
@@ -81,7 +81,7 @@ PROJECTS = {
     },
     "twinguard": {
         "name": "TwinGuard",
-        "subtitle": "Trust-Aware UAV Autonomy Framework \\href{https://github.com/Nitin3560/TwinGuard}{\\underline{\\footnotesize github}}",
+        "subtitle": "Trust-Aware Real-Time UAV Autonomy Framework \\href{https://github.com/Nitin3560/TwinGuard}{\\underline{\\small github}}",
         "tech": "C++17, ROS 2, PX4 SITL, Gazebo, BehaviorTree.CPP, Nav2, Docker, GoogleTest",
         "dates": "Jun 2026 -- July 2026",
         "bullets": [
@@ -251,12 +251,12 @@ def _merge_tailored_bullets(project: dict, tailored_bullets: list[dict]) -> list
 def _render_skills(requirements: dict | None, job=None) -> str:
     rendered = []
     for index, (label, values) in enumerate(_skill_lines(requirements, job)):
-        suffix = r" \\[2pt]" if index < 5 else ""
+        suffix = r" \\[3pt]" if index < 5 else ""
         compact_values = []
         for value in values:
             if value not in compact_values:
                 compact_values.append(value)
-        rendered.append(f"     \\textbf{{{label}}}{{: {', '.join(compact_values[:10])}}}{suffix}")
+        rendered.append(f"     \\textbf{{{label}:}} {', '.join(compact_values[:11])}{suffix}")
     return "\n".join(rendered)
 
 
@@ -271,8 +271,8 @@ def _render_projects(
         project = PROJECTS[key]
         bullets = _merge_tailored_bullets(project, tailored_bullets or [])
         chunk = rf"""\resumeProjectHeading
-  {{{project["name"]}}}{{{project["subtitle"]}}}
-  {{{project["tech"]}}}{{{project["dates"]}}}
+  {{{project["name"]}}}{{{project["subtitle"]}}}{{{project["dates"]}}}
+  {{{project["tech"]}}}
 \resumeItemListStart
   \resumeItem{{{bullets[0]}}}
   \resumeItem{{{bullets[1]}}}
@@ -294,7 +294,7 @@ def generate_tailored_latex(
 % License : MIT
 %------------------------
 
-\documentclass[letterpaper,11pt]{{article}}
+\documentclass[letterpaper,10pt]{{article}}
 
 \usepackage{{latexsym}}
 \usepackage[empty]{{fullpage}}
@@ -311,7 +311,8 @@ def generate_tailored_latex(
 \ifPDFTeX
 \input{{glyphtounicode}}
 \fi
-\usepackage{{mathptmx}}
+\usepackage{{newtxtext}}
+\usepackage{{newtxmath}}
 
 \pagestyle{{fancy}}
 \fancyhf{{}}
@@ -319,11 +320,11 @@ def generate_tailored_latex(
 \renewcommand{{\headrulewidth}}{{0pt}}
 \renewcommand{{\footrulewidth}}{{0pt}}
 
-\addtolength{{\oddsidemargin}}{{-0.5in}}
-\addtolength{{\evensidemargin}}{{-0.5in}}
-\addtolength{{\textwidth}}{{1in}}
-\addtolength{{\topmargin}}{{-.73in}}
-\addtolength{{\textheight}}{{1.50in}}
+\addtolength{{\oddsidemargin}}{{-0.57in}}
+\addtolength{{\evensidemargin}}{{-0.57in}}
+\addtolength{{\textwidth}}{{1.14in}}
+\addtolength{{\topmargin}}{{-.82in}}
+\addtolength{{\textheight}}{{1.88in}}
 
 \urlstyle{{same}}
 
@@ -331,9 +332,9 @@ def generate_tailored_latex(
 \raggedright
 \setlength{{\tabcolsep}}{{0in}}
 
-\titleformat{{\section}}{{\bfseries\raggedright\large}}{{}}{{0em}}{{}}[\color{{black}}\titlerule]
-\titlespacing*{{\section}}{{0pt}}{{6pt}}{{4pt}}
-\setlist[itemize]{{parsep=0pt,partopsep=0pt,itemsep=1pt,topsep=1pt}}
+\titleformat{{\section}}{{\bfseries\raggedright\Large}}{{}}{{0em}}{{}}[\color{{black}}\titlerule]
+\titlespacing*{{\section}}{{0pt}}{{11pt}}{{5pt}}
+\setlist[itemize]{{parsep=0pt,partopsep=0pt,itemsep=3pt,topsep=2pt}}
 
 \ifPDFTeX
 \pdfgentounicode=1
@@ -346,30 +347,32 @@ def generate_tailored_latex(
 }}
 
 \newcommand{{\resumeSubheading}}[4]{{
-  \vspace{{-2pt}}\item
+  \vspace{{1pt}}\item
     \begin{{tabular*}}{{0.97\textwidth}}[t]{{l@{{\extracolsep{{\fill}}}}r}}
-      \textbf{{#1}} & {{\normalfont\small #2}} \\
-      \textit{{\small#3}} & \textit{{\small #4}} \\
-    \end{{tabular*}}\vspace{{-2pt}}
+      \textbf{{\large #1}} & {{\normalfont\small #2}} \\
+      \textit{{\small #3}} & \textit{{\small #4}} \\
+    \end{{tabular*}}\vspace{{-1pt}}
 }}
 
 \newcommand{{\resumeProjectHeading}}[4]{{
   \item
-  {{\normalsize\textbf{{#1}} $|$ #2}}\hfill{{\normalfont\small #4}}\\
-  {{\small\textit{{#3}}}}\par
+  \begin{{tabular*}}{{0.97\textwidth}}{{l@{{\extracolsep{{\fill}}}}r}}
+    {{\large\textbf{{#1}} $|$ #2}} & {{\normalfont\small #3}} \\
+  \end{{tabular*}}\vspace{{-2pt}}\\
+  {{\small\textit{{#4}}}}\par\vspace{{-1pt}}
 }}
 
 \renewcommand\labelitemii{{$\vcenter{{\hbox{{\tiny$\bullet$}}}}$}}
 
-\newcommand{{\resumeSubHeadingListStart}}{{\begin{{itemize}}[leftmargin=0.15in, label={{}},itemsep=3pt,topsep=1pt]}}
+\newcommand{{\resumeSubHeadingListStart}}{{\begin{{itemize}}[leftmargin=0.15in, label={{}},itemsep=7pt,topsep=2pt]}}
 \newcommand{{\resumeSubHeadingListEnd}}{{\end{{itemize}}}}
-\newcommand{{\resumeItemListStart}}{{\begin{{itemize}}[leftmargin=0.2in]}}
+\newcommand{{\resumeItemListStart}}{{\begin{{itemize}}[leftmargin=0.24in,itemsep=3pt,topsep=1pt]}}
 \newcommand{{\resumeItemListEnd}}{{\end{{itemize}}}}
 
 \begin{{document}}
 
 \begin{{center}}
-    \textbf{{\Large Nitin Singh Rathore}} \\ \vspace{{1pt}}
+    \textbf{{\LARGE Nitin Singh Rathore}} \\ \vspace{{1pt}}
     \small +1 817 819 8146 $|$ \href{{mailto:nxr3560@mavs.uta.edu}}{{\underline{{nxr3560@mavs.uta.edu}}}} $|$
     \href{{https://www.linkedin.com/in/nitin-singh-rathore}}{{\underline{{linkedin.com/in/nitin-singh-rathore}}}} $|$
     \href{{https://github.com/Nitin3560}}{{\underline{{github.com/Nitin3560}}}} $|$
@@ -377,8 +380,8 @@ def generate_tailored_latex(
 \end{{center}}
 
 \section{{Technical Skills}}
- \begin{{itemize}}[leftmargin=0.15in, label={{}}]
-    \small{{\item{{
+ \begin{{itemize}}[leftmargin=0.18in, label={{}},itemsep=0pt,topsep=0pt]
+    \small{{\item[]{{
 {_render_skills(requirements, job)}
     }}}}
  \end{{itemize}}
@@ -414,7 +417,7 @@ def generate_tailored_latex(
   \resumeSubHeadingListEnd
 
 \section{{Projects}}
-    \begin{{itemize}}[leftmargin=0.15in,label={{}},itemsep=3pt,topsep=1pt]
+    \begin{{itemize}}[leftmargin=0.15in,label={{}},itemsep=8pt,topsep=2pt]
 {_render_projects(requirements, job, bullets, project_limit=project_limit)}
     \resumeSubHeadingListEnd
 
