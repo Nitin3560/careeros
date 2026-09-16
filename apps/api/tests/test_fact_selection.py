@@ -81,11 +81,13 @@ def test_careeros_fact_outranks_equal_twinguard_fact(monkeypatch):
 def test_identity_and_resume_metrics_are_always_selected(monkeypatch):
     filler = [fact(f"other-{index}", "misc", 10) for index in range(5)]
     identity = keyed_fact("email", "nxr3560@mavs.uta.edu")
+    sponsorship = keyed_fact("requires_sponsorship", "true")
+    us_person = keyed_fact("us_person", "false")
     metric = keyed_fact("resume_metric_careeros_latency", "Cut latency from 690 ms to 3.5 ms.")
     monkeypatch.setattr(
         fact_selection,
         "active_candidate_facts",
-        lambda db: filler + [identity, metric],
+        lambda db: filler + [identity, sponsorship, us_person, metric],
     )
 
     selected = fact_selection.select_facts_for_job(
@@ -95,4 +97,6 @@ def test_identity_and_resume_metrics_are_always_selected(monkeypatch):
     )
 
     assert identity in selected
+    assert sponsorship in selected
+    assert us_person in selected
     assert metric in selected

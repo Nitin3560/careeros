@@ -8,6 +8,8 @@ from app.services.skill_ontology import relation, requirement_terms
 
 ALWAYS_INCLUDE_KEYS = {
     "degree",
+    "citizenship",
+    "current_location",
     "education",
     "education:degree",
     "email",
@@ -19,6 +21,10 @@ ALWAYS_INCLUDE_KEYS = {
     "phone",
     "portfolio",
     "professional_swe_years",
+    "requires_sponsorship",
+    "us_person",
+    "willing_to_relocate",
+    "work_authorization",
     "work_experience",
 }
 
