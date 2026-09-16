@@ -24,7 +24,7 @@ def test_generate_tailored_latex_keeps_master_sections_and_six_skill_lines():
     assert "FastAPI" in latex
 
 
-def test_skill_lines_include_structured_jd_technologies_without_duplicate_typescript():
+def test_skill_lines_preserve_fixed_template_density():
     job = SimpleNamespace(title="Software Engineer, New Grad", company="IXL", description_text="")
 
     latex = resume_export.generate_tailored_latex(
@@ -43,12 +43,13 @@ def test_skill_lines_include_structured_jd_technologies_without_duplicate_typesc
         [],
     )
 
+    assert "\\textbf{Languages}{: Python, C++ (C++17), C, Java, Go, R, SQL}" in latex
     assert "TypeScript/JavaScript, JavaScript" not in latex
-    assert "React Native" in latex
-    assert "MySQL" in latex
-    assert "MongoDB" in latex
-    assert "Valkey" in latex
-    assert "Unix" in latex
+    assert "\\textbf{Systems \\& Performance}" in latex
+    assert "\\textbf{Backend \\& Data}" in latex
+    assert "\\textbf{Build \\& Deployment}" in latex
+    assert "\\textbf{Distributed Systems}" in latex
+    assert "\\textbf{Practices}" in latex
 
 
 def test_project_order_uses_job_terms():

@@ -9,49 +9,64 @@ from xml.sax.saxutils import escape
 RESUME_FILENAME = "Nitin_Singh_Rathore_Resume"
 
 BASE_SKILL_LINES = {
-    "Languages": ["Python", "TypeScript/JavaScript", "Java", "Go", "SQL", "C++ (C++17)"],
-    "Frontend": ["React", "TypeScript", "Next.js", "HTML5", "CSS3", "Responsive Web UI"],
-    "Backend \\& APIs": [
-        "FastAPI",
-        "REST APIs",
+    "Languages": ["Python", "C++ (C++17)", "C", "Java", "Go", "R", "SQL"],
+    "Systems \\& Performance": [
+        "Linux/Unix",
+        "Concurrency",
+        "Performance Optimization",
+        "Memory Management",
+        "Profiling",
+        "Correctness",
+    ],
+    "Backend \\& Data": [
+        "Highly Available Services",
+        "Large-Scale Data Processing",
+        "Data Pipelines",
+        "PostgreSQL",
+        "Redis",
+        "Kafka",
+    ],
+    "Build \\& Deployment": [
+        "Kubernetes",
+        "Bazel",
+        "Docker",
+        "Terraform",
+        "CI/CD",
+        "GitHub Actions",
+        "Git",
+    ],
+    "Distributed Systems": [
         "Microservices",
         "Event-Driven Services",
-        "Notifications",
-        "Third-Party Integrations",
+        "Idempotency",
+        "Crash Recovery",
+        "High Throughput",
+        "Low Latency",
     ],
-    "AI Agents": [
-        "Agentic Workflows",
-        "LLM Tool-Calling",
-        "RAG",
-        "Agent Evaluation",
+    "Practices": [
+        "Design Review",
+        "Code Review",
+        "Unit/Integration Testing",
+        "Debugging",
         "Cursor",
         "Copilot",
         "Claude Code",
     ],
-    "Data \\& Cloud": [
-        "PostgreSQL",
-        "Redis",
-        "Kafka",
-        "AWS",
-        "GCP",
-        "Docker",
-        "Kubernetes",
-        "Terraform",
-        "CI/CD",
-    ],
-    "Delivery": [
-        "End-to-End Ownership",
-        "Client-Facing Delivery",
-        "Production Debugging",
-        "Code Review",
-        "Testing",
-    ],
+}
+
+SKILL_LINE_LIMITS = {
+    "Languages": 7,
+    "Systems \\& Performance": 6,
+    "Backend \\& Data": 6,
+    "Build \\& Deployment": 7,
+    "Distributed Systems": 6,
+    "Practices": 6,
 }
 
 PROJECTS = {
     "yomeets": {
         "name": "YoMeets",
-        "subtitle": "AI Meeting \\& Execution Assistant \\href{https://github.com/Nitin3560/YoMeets}{\\underline{\\small github}}",
+        "subtitle": "AI Meeting \\& Execution Assistant \\href{https://github.com/Nitin3560/YoMeets}{\\underline{\\footnotesize github}}",
         "tech": "TypeScript, Node.js, PostgreSQL/pgvector, Deepgram, LLM APIs, GitHub/Google APIs",
         "dates": "Jun 2026 -- July 2026",
         "bullets": [
@@ -61,12 +76,12 @@ PROJECTS = {
     },
     "careeros": {
         "name": "CareerOS",
-        "subtitle": "Large-Scale Data Processing \\& Search Platform \\href{https://github.com/Nitin3560/careeros}{\\underline{\\small github}}",
-        "tech": "React/Next.js, TypeScript, Python, FastAPI, PostgreSQL, Redis/RQ, Docker",
+        "subtitle": "Large-Scale Data Processing \\& Search Platform \\href{https://github.com/Nitin3560/careeros}{\\underline{\\footnotesize github}}",
+        "tech": "Python, FastAPI, PostgreSQL, Redis/RQ, Docker, React/Next.js, TypeScript",
         "dates": "July 2026 -- Present",
         "bullets": [
-            "Built a full-stack job matching platform on React/Next.js and FastAPI, ingesting from 50 sources and ranking 326K+ records.",
-            "Cut median matching latency from $\\sim$690 ms to $\\sim$3.5 ms by profiling a bottleneck and moving ranking into PostgreSQL.",
+            "Built a Python/FastAPI backend and data pipeline ingesting from 50 sources and ranking 326K+ job postings in PostgreSQL.",
+            "Profiled a performance bottleneck and moved ranking into PostgreSQL, cutting median latency from $\\sim$690 ms to $\\sim$3.5 ms.",
         ],
     },
     "cloudqueue": {
@@ -75,18 +90,18 @@ PROJECTS = {
         "tech": "Python, Redis, Kubernetes, Docker, AWS, Terraform, Linux",
         "dates": "Mar 2026 -- Jun 2026",
         "bullets": [
-            "Built a REST API-driven task queue in Python where a Kubernetes worker pool runs jobs asynchronously at $\\sim$1.4K/sec.",
-            "Implemented at-least-once delivery with idempotent execution, recovering from worker crashes in $<$10s with 0 duplicates.",
+            "Built a Python distributed task queue on Kubernetes processing jobs concurrently at $\\sim$1.4K tasks/sec across 8 workers.",
+            "Ensured correctness via at-least-once delivery and idempotent execution, recovering from crashes in $<$10s with 0 duplicates.",
         ],
     },
     "twinguard": {
         "name": "TwinGuard",
-        "subtitle": "Trust-Aware Real-Time UAV Autonomy Framework \\href{https://github.com/Nitin3560/TwinGuard}{\\underline{\\small github}}",
+        "subtitle": "Trust-Aware Real-Time UAV Autonomy Framework \\href{https://github.com/Nitin3560/TwinGuard}{\\underline{\\footnotesize github}}",
         "tech": "C++17, ROS 2, PX4 SITL, Gazebo, BehaviorTree.CPP, Nav2, Docker, GoogleTest",
         "dates": "Jun 2026 -- July 2026",
         "bullets": [
-            "Built a trust-aware UAV autonomy framework in C++17 and ROS 2, adapting navigation under injected localization faults.",
-            "Cut fault-recovery time 53.8\\% and tracking RMSE 49.8\\% with authority modes before unreliable state propagated.",
+            "Built a C++17/ROS 2 framework estimating localization trust in real time, cutting fault-recovery time 53.8\\%.",
+            "Adapted navigation through authority modes before unreliable state propagated, cutting tracking RMSE 49.8\\% under faults.",
         ],
     },
 }
@@ -187,51 +202,20 @@ def _jd_keywords(requirements: dict | None, job=None) -> list[str]:
 
 
 def _skill_lines(requirements: dict | None, job=None) -> list[tuple[str, list[str]]]:
-    lines = {label: list(values) for label, values in BASE_SKILL_LINES.items()}
-    for keyword in _jd_keywords(requirements, job):
-        target = "Delivery"
-        if keyword == "JavaScript" and "TypeScript/JavaScript" in lines["Languages"]:
-            continue
-        if keyword == "TypeScript" and "TypeScript/JavaScript" in lines["Languages"]:
-            continue
-        if keyword in {"Python", "TypeScript", "JavaScript", "Java", "Go", "SQL", "C++"}:
-            target = "Languages"
-        elif keyword in {"React", "Next.js", "React Native"}:
-            target = "Frontend"
-        elif keyword in {"FastAPI", "REST APIs", "Microservices"}:
-            target = "Backend \\& APIs"
-        elif keyword in {"RAG", "LLM", "Vector Search", "Agentic Workflows"}:
-            target = "AI Agents"
-        elif keyword in {
-            "PostgreSQL",
-            "MySQL",
-            "MongoDB",
-            "Redis",
-            "Valkey",
-            "Kafka",
-            "AWS",
-            "GCP",
-            "Azure",
-            "Docker",
-            "Kubernetes",
-            "Terraform",
-            "CI/CD",
-        }:
-            target = "Data \\& Cloud"
-        elif keyword == "Unix":
-            target = "Delivery"
-        if keyword not in lines[target]:
-            lines[target].insert(0, keyword)
-    return list(lines.items())
+    return [(label, list(values)) for label, values in BASE_SKILL_LINES.items()]
 
 
 def _project_order(requirements: dict | None, job=None) -> list[str]:
     text = " ".join(_plain_terms(requirements, job)).lower()
     scored = []
     for key, keywords in PROJECT_KEYWORDS.items():
-        score = sum(1 for keyword in keywords if keyword in text)
+        score = sum(
+            1
+            for keyword in keywords
+            if re.search(rf"(?<![a-z0-9]){re.escape(keyword)}(?![a-z0-9])", text)
+        )
         scored.append((score, key))
-    scored.sort(key=lambda item: (-item[0], ["yomeets", "careeros", "cloudqueue", "twinguard"].index(item[1])))
+    scored.sort(key=lambda item: (-item[0], ["cloudqueue", "careeros", "twinguard", "yomeets"].index(item[1])))
     ordered = [key for _, key in scored]
     return ordered[:3]
 
@@ -256,7 +240,8 @@ def _render_skills(requirements: dict | None, job=None) -> str:
         for value in values:
             if value not in compact_values:
                 compact_values.append(value)
-        rendered.append(f"     \\textbf{{{label}:}} {', '.join(compact_values[:11])}{suffix}")
+        limit = SKILL_LINE_LIMITS.get(label, 7)
+        rendered.append(f"     \\textbf{{{label}}}{{: {', '.join(compact_values[:limit])}}}{suffix}")
     return "\n".join(rendered)
 
 
@@ -271,8 +256,8 @@ def _render_projects(
         project = PROJECTS[key]
         bullets = _merge_tailored_bullets(project, tailored_bullets or [])
         chunk = rf"""\resumeProjectHeading
-  {{{project["name"]}}}{{{project["subtitle"]}}}{{{project["dates"]}}}
-  {{{project["tech"]}}}
+  {{{project["name"]}}}{{{project["subtitle"]}}}
+  {{{project["tech"]}}}{{{project["dates"]}}}
 \resumeItemListStart
   \resumeItem{{{bullets[0]}}}
   \resumeItem{{{bullets[1]}}}
@@ -294,7 +279,7 @@ def generate_tailored_latex(
 % License : MIT
 %------------------------
 
-\documentclass[letterpaper,10pt]{{article}}
+\documentclass[letterpaper,11pt]{{article}}
 
 \usepackage{{latexsym}}
 \usepackage[empty]{{fullpage}}
@@ -311,8 +296,7 @@ def generate_tailored_latex(
 \ifPDFTeX
 \input{{glyphtounicode}}
 \fi
-\usepackage{{newtxtext}}
-\usepackage{{newtxmath}}
+\usepackage{{mathptmx}} % Times-style standard font: narrower, keeps each bullet on one line
 
 \pagestyle{{fancy}}
 \fancyhf{{}}
@@ -320,11 +304,18 @@ def generate_tailored_latex(
 \renewcommand{{\headrulewidth}}{{0pt}}
 \renewcommand{{\footrulewidth}}{{0pt}}
 
-\addtolength{{\oddsidemargin}}{{-0.57in}}
-\addtolength{{\evensidemargin}}{{-0.57in}}
-\addtolength{{\textwidth}}{{1.14in}}
-\addtolength{{\topmargin}}{{-.82in}}
-\addtolength{{\textheight}}{{1.88in}}
+\addtolength{{\oddsidemargin}}{{-0.5in}}
+\addtolength{{\evensidemargin}}{{-0.5in}}
+\addtolength{{\textwidth}}{{1in}}
+\addtolength{{\topmargin}}{{-.73in}}
+\addtolength{{\textheight}}{{1.50in}}
+\ifXeTeX
+\addtolength{{\oddsidemargin}}{{-.07in}}
+\addtolength{{\evensidemargin}}{{-.07in}}
+\addtolength{{\textwidth}}{{.14in}}
+\addtolength{{\topmargin}}{{-.13in}}
+\addtolength{{\textheight}}{{0.72in}}
+\fi
 
 \urlstyle{{same}}
 
@@ -332,9 +323,9 @@ def generate_tailored_latex(
 \raggedright
 \setlength{{\tabcolsep}}{{0in}}
 
-\titleformat{{\section}}{{\bfseries\raggedright\Large}}{{}}{{0em}}{{}}[\color{{black}}\titlerule]
-\titlespacing*{{\section}}{{0pt}}{{11pt}}{{5pt}}
-\setlist[itemize]{{parsep=0pt,partopsep=0pt,itemsep=3pt,topsep=2pt}}
+\titleformat{{\section}}{{\bfseries\raggedright\large}}{{}}{{0em}}{{}}[\color{{black}}\titlerule]
+\titlespacing*{{\section}}{{0pt}}{{8pt}}{{5pt}}
+\setlist[itemize]{{parsep=0pt,partopsep=0pt,itemsep=2pt,topsep=2pt}}
 
 \ifPDFTeX
 \pdfgentounicode=1
@@ -347,32 +338,33 @@ def generate_tailored_latex(
 }}
 
 \newcommand{{\resumeSubheading}}[4]{{
-  \vspace{{1pt}}\item
+  \vspace{{-2pt}}\item
     \begin{{tabular*}}{{0.97\textwidth}}[t]{{l@{{\extracolsep{{\fill}}}}r}}
-      \textbf{{\large #1}} & {{\normalfont\small #2}} \\
-      \textit{{\small #3}} & \textit{{\small #4}} \\
-    \end{{tabular*}}\vspace{{-1pt}}
+      \textbf{{#1}} & {{\normalfont\small #2}} \\
+      \textit{{\small#3}} & \textit{{\small #4}} \\
+    \end{{tabular*}}\vspace{{-2pt}}
 }}
 
 \newcommand{{\resumeProjectHeading}}[4]{{
   \item
-  \begin{{tabular*}}{{0.97\textwidth}}{{l@{{\extracolsep{{\fill}}}}r}}
-    {{\large\textbf{{#1}} $|$ #2}} & {{\normalfont\small #3}} \\
-  \end{{tabular*}}\vspace{{-2pt}}\\
-  {{\small\textit{{#4}}}}\par\vspace{{-1pt}}
+  {{\normalsize\textbf{{#1}} $|$ #2}}\hfill{{\normalfont\small #4}}\\
+  {{\small\textit{{#3}}}}\par
 }}
 
 \renewcommand\labelitemii{{$\vcenter{{\hbox{{\tiny$\bullet$}}}}$}}
 
-\newcommand{{\resumeSubHeadingListStart}}{{\begin{{itemize}}[leftmargin=0.15in, label={{}},itemsep=7pt,topsep=2pt]}}
+\newcommand{{\resumeSubHeadingListStart}}{{\begin{{itemize}}[leftmargin=0.15in, label={{}},itemsep=4pt,topsep=2pt]}}
 \newcommand{{\resumeSubHeadingListEnd}}{{\end{{itemize}}}}
-\newcommand{{\resumeItemListStart}}{{\begin{{itemize}}[leftmargin=0.24in,itemsep=3pt,topsep=1pt]}}
+\newcommand{{\resumeItemListStart}}{{\begin{{itemize}}[leftmargin=0.2in]}}
 \newcommand{{\resumeItemListEnd}}{{\end{{itemize}}}}
 
 \begin{{document}}
+\ifXeTeX
+\enlargethispage{{4\baselineskip}}
+\fi
 
 \begin{{center}}
-    \textbf{{\LARGE Nitin Singh Rathore}} \\ \vspace{{1pt}}
+    \textbf{{\Large Nitin Singh Rathore}} \\ \vspace{{1pt}}
     \small +1 817 819 8146 $|$ \href{{mailto:nxr3560@mavs.uta.edu}}{{\underline{{nxr3560@mavs.uta.edu}}}} $|$
     \href{{https://www.linkedin.com/in/nitin-singh-rathore}}{{\underline{{linkedin.com/in/nitin-singh-rathore}}}} $|$
     \href{{https://github.com/Nitin3560}}{{\underline{{github.com/Nitin3560}}}} $|$
@@ -380,8 +372,8 @@ def generate_tailored_latex(
 \end{{center}}
 
 \section{{Technical Skills}}
- \begin{{itemize}}[leftmargin=0.18in, label={{}},itemsep=0pt,topsep=0pt]
-    \small{{\item[]{{
+ \begin{{itemize}}[leftmargin=0.15in, label={{}}]
+    \small{{\item{{
 {_render_skills(requirements, job)}
     }}}}
  \end{{itemize}}
@@ -393,10 +385,10 @@ def generate_tailored_latex(
   {{Software Engineer}}{{Sept 2023 -- Oct 2024}}
   {{WERBOOZ Pvt. Ltd}}{{Indore, India}}
   \resumeItemListStart
-    \resumeItem{{Built and maintained 6 production backend services in Java and Apex across 3 client applications, delivering REST APIs for scheduling, billing, and authentication that cut manual processing $\sim$40\%.}}
+    \resumeItem{{Designed, built, and deployed 6 production backend services in Java and Apex across 3 client applications, delivering REST APIs for scheduling, billing, and authentication that cut manual processing $\sim$40\%.}}
     \resumeItem{{Refactored 15+ high-latency SQL/SOQL queries across backend microservices, improving query performance 35\% via indexing and caching.}}
-    \resumeItem{{Engineered REST and SOAP API integrations with 5+ internal and third-party systems, sustaining 99.8\% uptime with JSON/XML mapping and retry logic.}}
-    \resumeItem{{Authored 500+ automated test cases (JUnit, Postman, Tosca) in CI/CD, cutting post-release defects 30\% and resolving 12 incidents within 2-hour SLA.}}
+    \resumeItem{{Engineered REST and SOAP API integrations with 5+ internal and third-party systems, keeping services highly available at 99.8\% uptime with JSON/XML mapping and retry logic.}}
+    \resumeItem{{Authored 500+ unit and integration tests (JUnit, Postman, Tosca) in CI/CD, cutting post-release defects 30\% and resolving 12 incidents within 2-hour SLA.}}
   \resumeItemListEnd
 
     \resumeSubheading
@@ -417,7 +409,7 @@ def generate_tailored_latex(
   \resumeSubHeadingListEnd
 
 \section{{Projects}}
-    \begin{{itemize}}[leftmargin=0.15in,label={{}},itemsep=8pt,topsep=2pt]
+    \begin{{itemize}}[leftmargin=0.15in,label={{}},itemsep=6pt,topsep=2pt]
 {_render_projects(requirements, job, bullets, project_limit=project_limit)}
     \resumeSubHeadingListEnd
 
