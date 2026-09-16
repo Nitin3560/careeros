@@ -83,6 +83,7 @@ PROJECTS = {
         "bullets": [
             "Built a job search platform on React/Next.js and FastAPI that ingests postings from 50 sources and ranks them against a profile, processing 326K+ jobs",
             "Cut median matching latency from $\\sim$690 ms to $\\sim$3.5 ms by profiling a bottleneck and moving filtering and ranking into PostgreSQL",
+            "Added deduplication, eligibility filters, and review queues so generated application packets target distinct, relevant software roles.",
         ],
     },
     "cloudqueue": {
@@ -93,6 +94,7 @@ PROJECTS = {
         "bullets": [
             "Built a REST API-driven task queue in Python where clients submit scraping jobs and a Kubernetes worker pool runs them asynchronously at $\\sim$1.4K/sec",
             "Implemented at-least-once delivery with idempotent execution, recovering from worker crashes in $<$10s with 0 duplicates",
+            "Added Redis-backed scheduling and worker status tracking to make retries, failures, and queue throughput visible during runs.",
         ],
     },
     "twinguard": {
@@ -245,12 +247,12 @@ def _render_projects(
     for key in _project_order(requirements, job)[:project_limit]:
         project = PROJECTS[key]
         bullets = _merge_tailored_bullets(project, tailored_bullets or [])
+        rendered_bullets = "\n".join(f"  \\resumeItem{{{bullet}}}" for bullet in bullets)
         chunk = rf"""\resumeProjectHeading
   {{{project["name"]}}}{{{project["subtitle"]}}}
   {{{project["tech"]}}}{{{project["dates"]}}}
 \resumeItemListStart
-  \resumeItem{{{bullets[0]}}}
-  \resumeItem{{{bullets[1]}}}
+{rendered_bullets}
 \resumeItemListEnd"""
         chunks.append(chunk)
     return "\n\n".join(chunks)
@@ -392,8 +394,9 @@ def generate_tailored_latex(
 \resumeSubheading
   {{Graduate Teaching Assistant}}{{Aug 2025 -- Present}}
   {{CSE Department, University of Texas at Arlington}}{{Arlington, Texas}}
-  \resumeItemListStart
+\resumeItemListStart
     \resumeItem{{Built a Python tool automating grading for 50+ weekly assignments; mentored 100+ students debugging Python and C/C++ across Data Science and Machine Learning coursework.}}
+    \resumeItem{{Reviewed code quality, correctness, and edge-case handling in student submissions, giving feedback that improved testing discipline across labs.}}
   \resumeItemListEnd
 
   \resumeSubHeadingListEnd
