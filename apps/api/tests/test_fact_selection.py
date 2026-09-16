@@ -35,6 +35,13 @@ def fact(value, project, weight, usability="ACTIVE"):
     )
 
 
+def keyed_fact(key, value, weight=1):
+    row = fact(value, None, weight)
+    row.fact_key = key
+    row.tier = "ATTESTED"
+    return row
+
+
 def test_blocked_fact_never_appears(monkeypatch):
     active = fact("FastAPI", "careeros", 5)
     blocked = fact("FastAPI", "careeros", 99, usability="BLOCKED")
@@ -69,3 +76,23 @@ def test_careeros_fact_outranks_equal_twinguard_fact(monkeypatch):
     )
 
     assert selected[:2] == [careeros, twinguard]
+
+
+def test_identity_and_resume_metrics_are_always_selected(monkeypatch):
+    filler = [fact(f"other-{index}", "misc", 10) for index in range(5)]
+    identity = keyed_fact("email", "nxr3560@mavs.uta.edu")
+    metric = keyed_fact("resume_metric_careeros_latency", "Cut latency from 690 ms to 3.5 ms.")
+    monkeypatch.setattr(
+        fact_selection,
+        "active_candidate_facts",
+        lambda db: filler + [identity, metric],
+    )
+
+    selected = fact_selection.select_facts_for_job(
+        FakeDb({"preferred": [{"value": "FastAPI"}]}),
+        uuid4(),
+        k=1,
+    )
+
+    assert identity in selected
+    assert metric in selected

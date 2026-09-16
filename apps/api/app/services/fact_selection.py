@@ -10,8 +10,15 @@ ALWAYS_INCLUDE_KEYS = {
     "degree",
     "education",
     "education:degree",
+    "email",
     "employment",
     "experience",
+    "full_name",
+    "github",
+    "linkedin",
+    "phone",
+    "portfolio",
+    "professional_swe_years",
     "work_experience",
 }
 
@@ -59,7 +66,12 @@ def _score_fact(fact: models.CandidateFact, job_terms: set[str]) -> int:
 
 def _is_always_include(fact: models.CandidateFact) -> bool:
     key = str(getattr(fact, "fact_key", "") or "").strip().lower()
-    return key in ALWAYS_INCLUDE_KEYS or key.startswith("education:") or key.startswith("employment:")
+    return (
+        key in ALWAYS_INCLUDE_KEYS
+        or key.startswith("education:")
+        or key.startswith("employment:")
+        or key.startswith("resume_metric_")
+    )
 
 
 def select_facts_for_job(
