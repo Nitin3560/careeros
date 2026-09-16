@@ -43,16 +43,16 @@ def test_skill_lines_preserve_fixed_template_density():
         [],
     )
 
-    assert "\\textbf{Languages}{: Python, C++ (C++17), C, Java, Go, R, SQL}" in latex
+    assert "\\textbf{Languages}{: TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)}" in latex
     assert "TypeScript/JavaScript, JavaScript" not in latex
-    assert "\\textbf{Systems \\& Performance}" in latex
-    assert "\\textbf{Backend \\& Data}" in latex
-    assert "\\textbf{Build \\& Deployment}" in latex
-    assert "\\textbf{Distributed Systems}" in latex
-    assert "\\textbf{Practices}" in latex
+    assert "\\textbf{AI Agents}" in latex
+    assert "\\textbf{Frontend}" in latex
+    assert "\\textbf{Backend \\& APIs}" in latex
+    assert "\\textbf{Cloud \\& Data}" in latex
+    assert "\\textbf{Delivery \\& Practices}" in latex
 
 
-def test_project_order_uses_job_terms():
+def test_project_order_matches_reference_style():
     job = SimpleNamespace(
         title="Robotics Software Engineer",
         company="Example",
@@ -61,7 +61,7 @@ def test_project_order_uses_job_terms():
 
     latex = resume_export.generate_tailored_latex(job, {}, [], project_limit=1)
 
-    assert "{TwinGuard}" in latex
+    assert "{YoMeets}" in latex
     assert "{CareerOS}" not in latex
 
 

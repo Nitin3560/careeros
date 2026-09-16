@@ -9,45 +9,46 @@ from xml.sax.saxutils import escape
 RESUME_FILENAME = "Nitin_Singh_Rathore_Resume"
 
 BASE_SKILL_LINES = {
-    "Languages": ["Python", "C++ (C++17)", "C", "Java", "Go", "R", "SQL"],
-    "Systems \\& Performance": [
-        "Linux/Unix",
-        "Concurrency",
-        "Performance Optimization",
-        "Memory Management",
-        "Profiling",
-        "Correctness",
+    "Languages": ["TypeScript/JavaScript", "Python", "Go", "Java", "SQL", "C++ (C++17)"],
+    "AI Agents": [
+        "Production AI Agents",
+        "Context Engineering",
+        "Tool Design",
+        "Evaluation Frameworks",
+        "RAG",
+        "Prompt Engineering",
     ],
-    "Backend \\& Data": [
-        "Highly Available Services",
-        "Large-Scale Data Processing",
-        "Data Pipelines",
-        "PostgreSQL",
-        "Redis",
-        "Kafka",
+    "Frontend": [
+        "Next.js",
+        "React",
+        "TypeScript",
+        "HTML5",
+        "CSS3",
+        "Responsive Web UI",
     ],
-    "Build \\& Deployment": [
-        "Kubernetes",
-        "Bazel",
-        "Docker",
-        "Terraform",
-        "CI/CD",
-        "GitHub Actions",
-        "Git",
-    ],
-    "Distributed Systems": [
+    "Backend \\& APIs": [
+        "FastAPI",
+        "Node.js",
+        "REST APIs",
         "Microservices",
         "Event-Driven Services",
-        "Idempotency",
-        "Crash Recovery",
-        "High Throughput",
-        "Low Latency",
+        "Third-Party Integrations",
     ],
-    "Practices": [
-        "Design Review",
+    "Cloud \\& Data": [
+        "Google Cloud (GCP)",
+        "AWS",
+        "Docker",
+        "Kubernetes",
+        "PostgreSQL",
+        "pgvector",
+        "Redis",
+        "CI/CD",
+    ],
+    "Delivery \\& Practices": [
+        "End-to-End Ownership",
+        "Client-Facing Delivery",
         "Code Review",
-        "Unit/Integration Testing",
-        "Debugging",
+        "Testing",
         "Cursor",
         "Copilot",
         "Claude Code",
@@ -55,18 +56,18 @@ BASE_SKILL_LINES = {
 }
 
 SKILL_LINE_LIMITS = {
-    "Languages": 7,
-    "Systems \\& Performance": 6,
-    "Backend \\& Data": 6,
-    "Build \\& Deployment": 7,
-    "Distributed Systems": 6,
-    "Practices": 6,
+    "Languages": 6,
+    "AI Agents": 6,
+    "Frontend": 6,
+    "Backend \\& APIs": 6,
+    "Cloud \\& Data": 8,
+    "Delivery \\& Practices": 6,
 }
 
 PROJECTS = {
     "yomeets": {
         "name": "YoMeets",
-        "subtitle": "AI Meeting \\& Execution Assistant \\href{https://github.com/Nitin3560/YoMeets}{\\underline{\\footnotesize github}}",
+        "subtitle": "AI Meeting \\& Execution Assistant",
         "tech": "TypeScript, Node.js, PostgreSQL/pgvector, Deepgram, LLM APIs, GitHub/Google APIs",
         "dates": "Jun 2026 -- July 2026",
         "bullets": [
@@ -76,22 +77,22 @@ PROJECTS = {
     },
     "careeros": {
         "name": "CareerOS",
-        "subtitle": "Large-Scale Data Processing \\& Search Platform \\href{https://github.com/Nitin3560/careeros}{\\underline{\\footnotesize github}}",
-        "tech": "Python, FastAPI, PostgreSQL, Redis/RQ, Docker, React/Next.js, TypeScript",
+        "subtitle": "Full-Stack Job Search \\& Matching Platform",
+        "tech": "React/Next.js, TypeScript, Python, FastAPI, PostgreSQL, Redis/RQ, Docker",
         "dates": "July 2026 -- Present",
         "bullets": [
-            "Built a Python/FastAPI backend and data pipeline ingesting from 50 sources and ranking 326K+ job postings in PostgreSQL.",
-            "Profiled a performance bottleneck and moved ranking into PostgreSQL, cutting median latency from $\\sim$690 ms to $\\sim$3.5 ms.",
+            "Built a job search platform on React/Next.js and FastAPI that ingests postings from 50 sources and ranks them against a profile, processing 326K+ jobs",
+            "Cut median matching latency from $\\sim$690 ms to $\\sim$3.5 ms by profiling a bottleneck and moving filtering and ranking into PostgreSQL",
         ],
     },
     "cloudqueue": {
         "name": "CloudQueue",
-        "subtitle": "Highly Available Distributed Task Queue",
-        "tech": "Python, Redis, Kubernetes, Docker, AWS, Terraform, Linux",
+        "subtitle": "Distributed Task Queue for Web Scraping Jobs",
+        "tech": "Python, Redis, Kubernetes, Docker, AWS, Terraform",
         "dates": "Mar 2026 -- Jun 2026",
         "bullets": [
-            "Built a Python distributed task queue on Kubernetes processing jobs concurrently at $\\sim$1.4K tasks/sec across 8 workers.",
-            "Ensured correctness via at-least-once delivery and idempotent execution, recovering from crashes in $<$10s with 0 duplicates.",
+            "Built a REST API-driven task queue in Python where clients submit scraping jobs and a Kubernetes worker pool runs them asynchronously at $\\sim$1.4K/sec",
+            "Implemented at-least-once delivery with idempotent execution, recovering from worker crashes in $<$10s with 0 duplicates",
         ],
     },
     "twinguard": {
@@ -206,18 +207,7 @@ def _skill_lines(requirements: dict | None, job=None) -> list[tuple[str, list[st
 
 
 def _project_order(requirements: dict | None, job=None) -> list[str]:
-    text = " ".join(_plain_terms(requirements, job)).lower()
-    scored = []
-    for key, keywords in PROJECT_KEYWORDS.items():
-        score = sum(
-            1
-            for keyword in keywords
-            if re.search(rf"(?<![a-z0-9]){re.escape(keyword)}(?![a-z0-9])", text)
-        )
-        scored.append((score, key))
-    scored.sort(key=lambda item: (-item[0], ["cloudqueue", "careeros", "twinguard", "yomeets"].index(item[1])))
-    ordered = [key for _, key in scored]
-    return ordered[:3]
+    return ["yomeets", "careeros", "cloudqueue"]
 
 
 def _merge_tailored_bullets(project: dict, tailored_bullets: list[dict]) -> list[str]:
@@ -367,8 +357,7 @@ def generate_tailored_latex(
     \textbf{{\Large Nitin Singh Rathore}} \\ \vspace{{1pt}}
     \small +1 817 819 8146 $|$ \href{{mailto:nxr3560@mavs.uta.edu}}{{\underline{{nxr3560@mavs.uta.edu}}}} $|$
     \href{{https://www.linkedin.com/in/nitin-singh-rathore}}{{\underline{{linkedin.com/in/nitin-singh-rathore}}}} $|$
-    \href{{https://github.com/Nitin3560}}{{\underline{{github.com/Nitin3560}}}} $|$
-    \href{{https://www.nitinsinghrathore.us/}}{{\underline{{nitinsinghrathore.us}}}}
+    \href{{https://github.com/Nitin3560}}{{\underline{{github.com/Nitin3560}}}}
 \end{{center}}
 
 \section{{Technical Skills}}
@@ -385,25 +374,25 @@ def generate_tailored_latex(
   {{Software Engineer}}{{Sept 2023 -- Oct 2024}}
   {{WERBOOZ Pvt. Ltd}}{{Indore, India}}
   \resumeItemListStart
-    \resumeItem{{Designed, built, and deployed 6 production backend services in Java and Apex across 3 client applications, delivering REST APIs for scheduling, billing, and authentication that cut manual processing $\sim$40\%.}}
-    \resumeItem{{Refactored 15+ high-latency SQL/SOQL queries across backend microservices, improving query performance 35\% via indexing and caching.}}
-    \resumeItem{{Engineered REST and SOAP API integrations with 5+ internal and third-party systems, keeping services highly available at 99.8\% uptime with JSON/XML mapping and retry logic.}}
-    \resumeItem{{Authored 500+ unit and integration tests (JUnit, Postman, Tosca) in CI/CD, cutting post-release defects 30\% and resolving 12 incidents within 2-hour SLA.}}
+    \resumeItem{{Built and maintained 6 production backend services in Java and Apex, delivering REST APIs that cut manual processing $\sim$40\%.}}
+    \resumeItem{{Refactored 15+ high-latency SQL/SOQL queries, improving query performance 35\% through indexing and caching.}}
+    \resumeItem{{Engineered REST and SOAP API integrations with 5+ internal and third-party systems, with JSON/XML mapping and retry logic.}}
+    \resumeItem{{Troubleshot production defects and automated regression/API testing in CI/CD, cutting post-release defects by 30\%.}}
   \resumeItemListEnd
 
     \resumeSubheading
   {{Software Engineer Intern}}{{Feb 2023 -- Sept 2023}}
   {{WERBOOZ Pvt. Ltd}}{{Indore, India}}
   \resumeItemListStart
-    \resumeItem{{Refactored 4 Java/SQL data-access modules into reusable components, cutting average query execution from $\sim$320 ms to $\sim$275 ms ($\sim$15\% faster).}}
-    \resumeItem{{Delivered 4 backend features across 2 production releases through Git pull requests and peer code review, adding JUnit tests that prevented 20+ defects across 3 release cycles.}}
+    \resumeItem{{Refactored Java service and data-access layers into reusable components, improving repository performance by $\sim$15\%.}}
+    \resumeItem{{Delivered 4 features across 2 releases through Git pull requests and peer code review, expanding testing to prevent 20+ defects.}}
   \resumeItemListEnd
 
 \resumeSubheading
   {{Graduate Teaching Assistant}}{{Aug 2025 -- Present}}
   {{CSE Department, University of Texas at Arlington}}{{Arlington, Texas}}
   \resumeItemListStart
-    \resumeItem{{Built a Python tool automating grading for 50+ weekly assignments; mentored 100+ students debugging Python and C/C++ in Data Science and ML coursework.}}
+    \resumeItem{{Built a Python tool automating grading for 50+ weekly assignments; mentored 100+ students debugging Python and C/C++ across Data Science and Machine Learning coursework.}}
   \resumeItemListEnd
 
   \resumeSubHeadingListEnd
