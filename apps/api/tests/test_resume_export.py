@@ -45,16 +45,14 @@ def test_skill_lines_preserve_fixed_template_density():
 
     assert "\\textbf{Languages:} TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)" in latex
     assert "TypeScript/JavaScript, JavaScript" not in latex
+    assert "engineer's toolkit" in resume_export.TECHNICAL_SKILLS_STYLE_RULE
+    assert "requirements checklist" in resume_export.TECHNICAL_SKILLS_STYLE_RULE
     assert "\\textbf{Frontend:}" in latex
     assert "\\textbf{Backend \\& APIs:}" in latex
     assert "\\textbf{Data \\& Messaging:}" in latex
     assert "\\textbf{Cloud \\& DevOps:}" in latex
     assert "\\textbf{AI/ML:}" in latex
     assert "\\textbf{Testing \\& Tools:}" in latex
-    assert "MySQL" in latex
-    assert "MongoDB" in latex
-    assert "Valkey" in latex
-    assert "React Native" in latex
     assert "Client-Facing Delivery" not in latex
     assert "End-to-End Ownership" not in latex
     assert "Prompt Engineering" not in latex

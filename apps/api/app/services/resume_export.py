@@ -8,10 +8,13 @@ from xml.sax.saxutils import escape
 
 RESUME_FILENAME = "Nitin_Singh_Rathore_Resume"
 
+TECHNICAL_SKILLS_STYLE_RULE = (
+    "Technical Skills must read like an engineer's toolkit, not a requirements checklist. "
+    "Use standard themed labels, keep each line within one theme, place job-description vocabulary "
+    "inside the closest matching group, and exclude non-skill phrases."
+)
+
 BASE_SKILL_LINES = {
-    # Keep Technical Skills as an engineer's toolkit, not a requirements checklist:
-    # labels must be standard engineering themes, JD vocabulary belongs inside
-    # the matching theme, and non-skill phrases stay out of this section.
     "Languages": ["TypeScript/JavaScript", "Python", "Go", "Java", "SQL", "C++ (C++17)"],
     "Frontend": ["Next.js", "React", "TypeScript", "HTML5", "CSS3", "Responsive Web UI"],
     "Backend \\& APIs": ["FastAPI", "Node.js", "REST APIs", "Microservices", "Event-Driven Services"],
@@ -21,53 +24,7 @@ BASE_SKILL_LINES = {
     "Testing \\& Tools": ["Pytest", "JUnit", "Postman", "Git", "Cursor", "Copilot"],
 }
 
-SKILL_LINE_LIMITS = {
-    "Languages": 7,
-    "Frontend": 7,
-    "Backend \\& APIs": 7,
-    "Data \\& Messaging": 7,
-    "Cloud \\& DevOps": 7,
-    "AI/ML": 7,
-    "Testing \\& Tools": 7,
-}
-
-JD_SKILL_GROUPS = {
-    "Python": "Languages",
-    "TypeScript": "Languages",
-    "JavaScript": "Languages",
-    "Java": "Languages",
-    "Go": "Languages",
-    "SQL": "Languages",
-    "C++": "Languages",
-    "React": "Frontend",
-    "Next.js": "Frontend",
-    "React Native": "Frontend",
-    "FastAPI": "Backend \\& APIs",
-    "REST APIs": "Backend \\& APIs",
-    "Microservices": "Backend \\& APIs",
-    "Distributed Systems": "Backend \\& APIs",
-    "Scalability": "Backend \\& APIs",
-    "Performance": "Backend \\& APIs",
-    "PostgreSQL": "Data \\& Messaging",
-    "MySQL": "Data \\& Messaging",
-    "MongoDB": "Data \\& Messaging",
-    "Redis": "Data \\& Messaging",
-    "Valkey": "Data \\& Messaging",
-    "Kafka": "Data \\& Messaging",
-    "Caching": "Data \\& Messaging",
-    "Vector Search": "AI/ML",
-    "RAG": "AI/ML",
-    "LLM": "AI/ML",
-    "Agentic Workflows": "AI/ML",
-    "AWS": "Cloud \\& DevOps",
-    "GCP": "Cloud \\& DevOps",
-    "Azure": "Cloud \\& DevOps",
-    "Docker": "Cloud \\& DevOps",
-    "Kubernetes": "Cloud \\& DevOps",
-    "Terraform": "Cloud \\& DevOps",
-    "CI/CD": "Cloud \\& DevOps",
-    "Unix": "Testing \\& Tools",
-}
+SKILL_LINE_LIMITS = {label: 7 for label in BASE_SKILL_LINES}
 
 PROJECTS = {
     "yomeets": {
@@ -146,80 +103,8 @@ def _ensure_period(value: str) -> str:
     return stripped if stripped.endswith(".") else f"{stripped}."
 
 
-def _plain_terms(requirements: dict | None, job=None) -> list[str]:
-    values: list[str] = []
-    if job is not None:
-        values.extend([getattr(job, "title", "") or "", getattr(job, "company", "") or ""])
-        values.append((getattr(job, "description_text", "") or "")[:3000])
-    for section in ("hard_requirements", "preferred", "skills", "technologies"):
-        for item in (requirements or {}).get(section, []) or []:
-            if isinstance(item, dict):
-                values.append(item.get("skill") or item.get("value") or item.get("source_text") or "")
-            else:
-                values.append(str(item))
-    return [value for value in values if value]
-
-
-def _jd_keywords(requirements: dict | None, job=None) -> list[str]:
-    text = " ".join(_plain_terms(requirements, job))
-    protected = [
-        "Python",
-        "TypeScript",
-        "JavaScript",
-        "Java",
-        "Go",
-        "SQL",
-        "C++",
-        "React",
-        "Next.js",
-        "FastAPI",
-        "PostgreSQL",
-        "MySQL",
-        "MongoDB",
-        "Redis",
-        "Valkey",
-        "Kafka",
-        "AWS",
-        "GCP",
-        "Azure",
-        "Docker",
-        "Kubernetes",
-        "Terraform",
-        "CI/CD",
-        "REST APIs",
-        "Microservices",
-        "Distributed Systems",
-        "Concurrency",
-        "Scalability",
-        "Performance",
-        "Caching",
-        "RAG",
-        "LLM",
-        "Vector Search",
-        "Agentic Workflows",
-        "Testing",
-        "Unix",
-        "React Native",
-    ]
-    found = []
-    lowered = text.lower()
-    for keyword in protected:
-        if keyword.lower() in lowered and keyword not in found:
-            found.append(keyword)
-    return found[:18]
-
-
 def _skill_lines(requirements: dict | None, job=None) -> list[tuple[str, list[str]]]:
-    grouped = {label: list(values) for label, values in BASE_SKILL_LINES.items()}
-    for keyword in _jd_keywords(requirements, job):
-        label = JD_SKILL_GROUPS.get(keyword)
-        if not label:
-            continue
-        values = grouped.setdefault(label, [])
-        normalized_keyword = "Google Cloud (GCP)" if keyword == "GCP" else keyword
-        if not any(normalized_keyword.lower() in value.lower().split("/") for value in values) and normalized_keyword not in values:
-            values.append(normalized_keyword)
-    return [(label, values) for label, values in grouped.items()]
+    return [(label, list(values)) for label, values in BASE_SKILL_LINES.items()]
 
 
 def _project_order(requirements: dict | None, job=None) -> list[str]:
