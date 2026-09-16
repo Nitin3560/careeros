@@ -43,14 +43,13 @@ def test_skill_lines_preserve_fixed_template_density():
         [],
     )
 
-    assert "Languages: TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)" in latex
-    assert "\\textbf{Languages}" not in latex
+    assert "\\textbf{Languages:} TypeScript/JavaScript, Python, Go, Java, SQL, C++ (C++17)" in latex
     assert "TypeScript/JavaScript, JavaScript" not in latex
-    assert "AI Agents:" in latex
-    assert "Frontend:" in latex
-    assert "Backend \\& APIs:" in latex
-    assert "Cloud \\& Data:" in latex
-    assert "Delivery \\& Practices:" in latex
+    assert "\\textbf{AI Agents:}" in latex
+    assert "\\textbf{Frontend:}" in latex
+    assert "\\textbf{Backend \\& APIs:}" in latex
+    assert "\\textbf{Cloud \\& Data:}" in latex
+    assert "\\textbf{Delivery \\& Practices:}" in latex
 
 
 def test_bold_scope_matches_requested_resume_fields():
@@ -61,12 +60,16 @@ def test_bold_scope_matches_requested_resume_fields():
     assert "\\textbf{\\Large Nitin Singh Rathore}" in latex
     assert "\\textbf{#1} $|$ #2" in latex
     assert "\\textbf{IEEE CSCN 2026}" in latex
-    assert "M.S. Thesis{: \\textbf{Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks}}" in latex
+    assert "\\textbf{M.S. Thesis:} Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks" in latex
     assert "\\textbf{University of Texas at Arlington}" in latex
     assert "\\textbf{Acropolis Institute of Technology \\& Research}" in latex
 
-    assert "\\textbf{Languages}" not in latex
-    assert "\\textbf{Software Engineer}" not in latex
+    assert "\\textbf{Languages:}" in latex
+    assert "\\textbf{#1} & {\\normalfont\\small #2}" in latex
+    assert "{Software Engineer}{Sept 2023 -- Oct 2024}" in latex
+    assert "{Software Engineer Intern}{Feb 2023 -- Sept 2023}" in latex
+    assert "{Graduate Teaching Assistant}{Aug 2025 -- Present}" in latex
+    assert "\\textbf{Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks}" not in latex
     assert "\\textbf{WERBOOZ Pvt. Ltd}" not in latex
 
 

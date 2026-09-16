@@ -231,7 +231,7 @@ def _render_skills(requirements: dict | None, job=None) -> str:
             if value not in compact_values:
                 compact_values.append(value)
         limit = SKILL_LINE_LIMITS.get(label, 7)
-        rendered.append(f"     {label}: {', '.join(compact_values[:limit])}{suffix}")
+        rendered.append(f"     \\textbf{{{label}:}} {', '.join(compact_values[:limit])}{suffix}")
     return "\n".join(rendered)
 
 
@@ -331,7 +331,7 @@ def generate_tailored_latex(
 \newcommand{{\resumeSubheading}}[4]{{
   \vspace{{-2pt}}\item
     \begin{{tabular*}}{{0.97\textwidth}}[t]{{l@{{\extracolsep{{\fill}}}}r}}
-      #1 & {{\normalfont\small #2}} \\
+      \textbf{{#1}} & {{\normalfont\small #2}} \\
       \textit{{\small#3}} & \textit{{\small #4}} \\
     \end{{tabular*}}\vspace{{-2pt}}
 }}
@@ -407,7 +407,7 @@ def generate_tailored_latex(
  \begin{{itemize}}[leftmargin=0.15in, label={{}}]
     \small{{\item{{
      \textbf{{IEEE CSCN 2026}}{{: Integrity-Aware Digital Twin Synchronization for ISAC-Enabled UAV Networks}} \\
-     M.S. Thesis{{: \textbf{{Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks}}}}
+     \textbf{{M.S. Thesis:}} Cross-Layer Supervisory Control for Low-Altitude UAV Swarm Networks
     }}}}
  \end{{itemize}}
 
