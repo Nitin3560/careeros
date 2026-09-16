@@ -9,59 +9,64 @@ from xml.sax.saxutils import escape
 RESUME_FILENAME = "Nitin_Singh_Rathore_Resume"
 
 BASE_SKILL_LINES = {
+    # Keep Technical Skills as an engineer's toolkit, not a requirements checklist:
+    # labels must be standard engineering themes, JD vocabulary belongs inside
+    # the matching theme, and non-skill phrases stay out of this section.
     "Languages": ["TypeScript/JavaScript", "Python", "Go", "Java", "SQL", "C++ (C++17)"],
-    "AI Agents": [
-        "Production AI Agents",
-        "Context Engineering",
-        "Tool Design",
-        "Evaluation Frameworks",
-        "RAG",
-        "Prompt Engineering",
-    ],
-    "Frontend": [
-        "Next.js",
-        "React",
-        "TypeScript",
-        "HTML5",
-        "CSS3",
-        "Responsive Web UI",
-    ],
-    "Backend \\& APIs": [
-        "FastAPI",
-        "Node.js",
-        "REST APIs",
-        "Microservices",
-        "Event-Driven Services",
-        "Third-Party Integrations",
-    ],
-    "Cloud \\& Data": [
-        "Google Cloud (GCP)",
-        "AWS",
-        "Docker",
-        "Kubernetes",
-        "PostgreSQL",
-        "pgvector",
-        "Redis",
-        "CI/CD",
-    ],
-    "Delivery \\& Practices": [
-        "End-to-End Ownership",
-        "Client-Facing Delivery",
-        "Code Review",
-        "Testing",
-        "Cursor",
-        "Copilot",
-        "Claude Code",
-    ],
+    "Frontend": ["Next.js", "React", "TypeScript", "HTML5", "CSS3", "Responsive Web UI"],
+    "Backend \\& APIs": ["FastAPI", "Node.js", "REST APIs", "Microservices", "Event-Driven Services"],
+    "Data \\& Messaging": ["PostgreSQL", "pgvector", "Redis", "Kafka"],
+    "Cloud \\& DevOps": ["Google Cloud (GCP)", "AWS", "Docker", "Kubernetes", "CI/CD", "GitHub Actions"],
+    "AI/ML": ["RAG", "LLM APIs", "Vector Search", "Tool Calling", "Evaluation Frameworks"],
+    "Testing \\& Tools": ["Pytest", "JUnit", "Postman", "Git", "Cursor", "Copilot"],
 }
 
 SKILL_LINE_LIMITS = {
-    "Languages": 6,
-    "AI Agents": 6,
-    "Frontend": 6,
-    "Backend \\& APIs": 6,
-    "Cloud \\& Data": 8,
-    "Delivery \\& Practices": 6,
+    "Languages": 7,
+    "Frontend": 7,
+    "Backend \\& APIs": 7,
+    "Data \\& Messaging": 7,
+    "Cloud \\& DevOps": 7,
+    "AI/ML": 7,
+    "Testing \\& Tools": 7,
+}
+
+JD_SKILL_GROUPS = {
+    "Python": "Languages",
+    "TypeScript": "Languages",
+    "JavaScript": "Languages",
+    "Java": "Languages",
+    "Go": "Languages",
+    "SQL": "Languages",
+    "C++": "Languages",
+    "React": "Frontend",
+    "Next.js": "Frontend",
+    "React Native": "Frontend",
+    "FastAPI": "Backend \\& APIs",
+    "REST APIs": "Backend \\& APIs",
+    "Microservices": "Backend \\& APIs",
+    "Distributed Systems": "Backend \\& APIs",
+    "Scalability": "Backend \\& APIs",
+    "Performance": "Backend \\& APIs",
+    "PostgreSQL": "Data \\& Messaging",
+    "MySQL": "Data \\& Messaging",
+    "MongoDB": "Data \\& Messaging",
+    "Redis": "Data \\& Messaging",
+    "Valkey": "Data \\& Messaging",
+    "Kafka": "Data \\& Messaging",
+    "Caching": "Data \\& Messaging",
+    "Vector Search": "AI/ML",
+    "RAG": "AI/ML",
+    "LLM": "AI/ML",
+    "Agentic Workflows": "AI/ML",
+    "AWS": "Cloud \\& DevOps",
+    "GCP": "Cloud \\& DevOps",
+    "Azure": "Cloud \\& DevOps",
+    "Docker": "Cloud \\& DevOps",
+    "Kubernetes": "Cloud \\& DevOps",
+    "Terraform": "Cloud \\& DevOps",
+    "CI/CD": "Cloud \\& DevOps",
+    "Unix": "Testing \\& Tools",
 }
 
 PROJECTS = {
@@ -205,7 +210,16 @@ def _jd_keywords(requirements: dict | None, job=None) -> list[str]:
 
 
 def _skill_lines(requirements: dict | None, job=None) -> list[tuple[str, list[str]]]:
-    return [(label, list(values)) for label, values in BASE_SKILL_LINES.items()]
+    grouped = {label: list(values) for label, values in BASE_SKILL_LINES.items()}
+    for keyword in _jd_keywords(requirements, job):
+        label = JD_SKILL_GROUPS.get(keyword)
+        if not label:
+            continue
+        values = grouped.setdefault(label, [])
+        normalized_keyword = "Google Cloud (GCP)" if keyword == "GCP" else keyword
+        if not any(normalized_keyword.lower() in value.lower().split("/") for value in values) and normalized_keyword not in values:
+            values.append(normalized_keyword)
+    return [(label, values) for label, values in grouped.items()]
 
 
 def _project_order(requirements: dict | None, job=None) -> list[str]:
@@ -226,8 +240,9 @@ def _merge_tailored_bullets(project: dict, tailored_bullets: list[dict]) -> list
 
 def _render_skills(requirements: dict | None, job=None) -> str:
     rendered = []
-    for index, (label, values) in enumerate(_skill_lines(requirements, job)):
-        suffix = r" \\[3pt]" if index < 5 else ""
+    skill_lines = _skill_lines(requirements, job)
+    for index, (label, values) in enumerate(skill_lines):
+        suffix = r" \\[3pt]" if index < len(skill_lines) - 1 else ""
         compact_values = []
         for value in values:
             if value not in compact_values:
