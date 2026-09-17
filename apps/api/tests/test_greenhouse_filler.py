@@ -29,7 +29,7 @@ def packet(tmp_path):
 
 
 def job(url="https://boards.greenhouse.io/spacex/jobs/8726225002"):
-    return SimpleNamespace(application_url=url)
+    return SimpleNamespace(application_url=url, description_text="")
 
 
 def good_facts():
@@ -70,6 +70,14 @@ def test_validate_before_typing_halts_on_identity_mismatch(tmp_path):
 def test_validate_before_typing_halts_on_non_greenhouse(tmp_path):
     with pytest.raises(GreenhouseFillHalt, match="not a Greenhouse"):
         validate_before_typing(packet(tmp_path), job("https://jobs.lever.co/x/y"), good_facts())
+
+
+def test_validate_before_typing_halts_on_itar_when_not_us_person(tmp_path):
+    itar_job = job()
+    itar_job.description_text = "To conform to U.S. Government export regulations, applicant must be a U.S. person as defined by ITAR."
+
+    with pytest.raises(GreenhouseFillHalt, match="ITAR"):
+        validate_before_typing(packet(tmp_path), itar_job, good_facts())
 
 
 def test_answer_for_label_maps_identity_and_immovables(tmp_path):

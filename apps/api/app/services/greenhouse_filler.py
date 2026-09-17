@@ -95,6 +95,12 @@ def validate_before_typing(packet: models.ApplicationPacket, job: models.Job, fa
         raise GreenhouseFillHalt("requires_sponsorship must be yes/true")
     if not _falsey(values.get("us_person")):
         raise GreenhouseFillHalt("us_person must be no/false")
+    description = _norm(getattr(job, "description_text", ""))
+    if (
+        ("itar" in description or "u.s. person" in description or "us person" in description)
+        and (_falsey(values.get("us_person")) or values.get("citizenship") not in {"United States", "USA"})
+    ):
+        raise GreenhouseFillHalt("job appears ITAR/U.S.-person restricted; candidate is not attested as a U.S. person")
     try:
         years = float(values.get("professional_swe_years", ""))
     except ValueError as exc:
@@ -142,6 +148,19 @@ def answer_for_label(label: str, values: dict[str, str], packet: models.Applicat
         return FillValue("No" if _falsey(values.get("us_person")) else "Yes")
     if "years" in text and "experience" in text:
         return FillValue(values["professional_swe_years"])
+    if "gpa" in text and "undergraduate" in text:
+        return FillValue(values["undergraduate_gpa"])
+    if "gpa" in text and "graduate" in text:
+        return FillValue(values["graduate_gpa"])
+    if "gpa" in text:
+        return FillValue(values["gpa"])
+    if "security clearance" in text:
+        return FillValue("None")
+    if "citizenship status" in text:
+        citizenship = values.get("citizenship", "")
+        if citizenship.lower() in {"india", "indian"}:
+            return FillValue("Other")
+        return FillValue(citizenship)
     if "how did you hear about this job" in text:
         return FillValue("Company website")
     if "school" in text:
