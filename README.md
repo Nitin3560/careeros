@@ -289,9 +289,9 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated hourly from CareerOS. Last run: **2026-09-19 21:23 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-09-19 22:00 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
 
-Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **5** roles.
+Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **6** roles.
 
 Eligibility: U.S. full-time software/AI roles whose posting states **up to 2 years** of professional experience. Open-ended requirements such as **2+ years**, internships, and roles requiring more than 2 years are excluded.
 
@@ -305,9 +305,9 @@ Large public and established technology, financial, and enterprise companies.
 |---|---|---|---|---|---|---|
 | esri | Software Developer I - Web Components<br><sub>Redlands, CA</sub> | 1 year | 2026-09-15 | 3 days ago |  | [Apply](https://www.esri.com/careers/5227685007?gh_jid=5227685007) |
 | esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-14 | 3 days ago |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
-| amazon | Software Development Engineer, Catalog System Services - SPCL <br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-14 | 1 hour ago |  | [Apply](https://account.amazon.jobs/jobs/10539357/apply) |
-| amazon | Software Development Engineer, iOS<br><sub>Cambridge, Massachusetts, USA</sub> | 1 year | 2026-09-09 | 1 hour ago |  | [Apply](https://account.amazon.jobs/jobs/10535234/apply) |
-| amazon | Software Development Engineer, SageMaker HyperPod Data Plane<br><sub>Santa Clara, California, USA</sub> | 1 year | 2026-08-27 | 1 hour ago |  | [Apply](https://account.amazon.jobs/jobs/10517662/apply) |
+| amazon | Software Development Engineer, Catalog System Services - SPCL <br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-14 | 2 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10539357/apply) |
+| amazon | Software Development Engineer, iOS<br><sub>Cambridge, Massachusetts, USA</sub> | 1 year | 2026-09-09 | 2 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10535234/apply) |
+| amazon | Software Development Engineer, SageMaker HyperPod Data Plane<br><sub>Santa Clara, California, USA</sub> | 1 year | 2026-08-27 | 2 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10517662/apply) |
 
 ### Tier 2
 
@@ -319,6 +319,8 @@ No matching roles in this tier right now.
 
 Startups, early-stage companies, and smaller technology businesses.
 
-No matching roles in this tier right now.
+| Company | Role | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|
+| relativity | Software Engineer I<br><sub>Long Beach, California, United States</sub> | 1 year | 2026-09-19 | 1 min ago |  | [Apply](https://boards.greenhouse.io/relativity/jobs/8747134002?gh_jid=8747134002) |
 
 <!-- ENTRY_JOBS:END -->
