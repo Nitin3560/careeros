@@ -7,8 +7,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from update_entry_jobs_readme import (  # noqa: E402
     EntryJob,
+    extract_salary,
     is_entry_full_time_title,
     render_markdown,
+    tier_for_job,
     update_readme,
 )
 
@@ -21,29 +23,58 @@ def test_entry_title_filter_keeps_full_time_entry_signals():
     assert is_entry_full_time_title("MTS, Platform")
 
 
-def test_entry_title_filter_excludes_intern_and_senior():
+def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
     assert not is_entry_full_time_title("Software Development Engineer Intern")
     assert not is_entry_full_time_title("Senior Software Engineer")
     assert not is_entry_full_time_title("Staff Software Engineer")
+    assert not is_entry_full_time_title("Entry Level Tech Sales - UK&I Market")
+    assert not is_entry_full_time_title("Product Design, Entry-Level")
+    assert not is_entry_full_time_title("Junior Investment Analyst")
 
 
-def test_render_and_update_marked_readme(tmp_path):
-    readme = tmp_path / "README.md"
-    readme.write_text("# Profile\n\nold\n")
-    job = EntryJob(
-        company="Stripe",
-        title="Software Engineer, Early Career",
-        location="San Francisco, Seattle, New York",
+def test_extract_salary_from_posting_text():
+    assert extract_salary("The salary range is $120,000 - $155,000 per year.") == "$120,000 - $155,000"
+    assert extract_salary("Compensation: $45/hr") == "$45/hr"
+    assert extract_salary("No range shown") == ""
+
+
+def make_job(company, title, salary="", location="Remote - US"):
+    return EntryJob(
+        company=company,
+        title=title,
+        location=location,
         date_posted=datetime(2026, 9, 19, tzinfo=timezone.utc),
         first_seen_at=datetime(2026, 9, 19, 19, tzinfo=timezone.utc),
-        application_url="https://stripe.com/jobs/search?gh_jid=1",
+        application_url=f"https://example.com/{company}",
         source="greenhouse",
+        salary=salary,
     )
 
-    block = render_markdown([job], since_hours=24)
+
+def test_tier_for_job_splits_a_b_c():
+    assert tier_for_job(make_job("stripe", "Software Engineer, Early Career")) == "Tier A"
+    assert tier_for_job(make_job("samsara", "Software Engineer I")) == "Tier B"
+    assert tier_for_job(make_job("smallco", "Member of Technical Staff")) == "Tier C"
+
+
+def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Profile\n\nold\n")
+    jobs = [
+        make_job("stripe", "Software Engineer, Early Career", "$120,000 - $155,000"),
+        make_job("samsara", "Software Engineer I"),
+        make_job("smallco", "Member of Technical Staff"),
+    ]
+
+    block = render_markdown(jobs, since_hours=168)
     assert update_readme(readme, block)
     content = readme.read_text()
 
     assert "<!-- ENTRY_JOBS:START -->" in content
-    assert "Software Engineer, Early Career" in content
-    assert "[Apply](https://stripe.com/jobs/search?gh_jid=1)" in content
+    assert "Quick links: [Tier A](#tier-a)" in content
+    assert "### Tier A" in content
+    assert "### Tier B" in content
+    assert "### Tier C" in content
+    assert "| Company | Role | Salary | Apply |" in content
+    assert "$120,000 - $155,000" in content
+    assert "[Apply](https://example.com/stripe)" in content

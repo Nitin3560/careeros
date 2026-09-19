@@ -2,6 +2,7 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,12 +26,32 @@ ENTRY_TITLE_RE = re.compile(
 )
 EXCLUDE_TITLE_RE = re.compile(
     r"\b(intern|internship|co-?op|apprentice|senior|sr\.?|staff|principal|lead|"
-    r"manager|architect|director|head of|vp)\b",
+    r"manager|architect|director|head of|vp|sales|account executive|analyst|"
+    r"product design|designer|support|customer|recruiter)\b",
+    re.I,
+)
+ENGINEERING_TITLE_RE = re.compile(
+    r"\b(software|sde|engineer|engineering|developer|backend|frontend|full[- ]?stack|"
+    r"platform|infrastructure|site reliability|sre|devops|machine learning|ml|ai|"
+    r"data engineer|member of technical staff|mts|firmware|embedded|fpga)\b",
     re.I,
 )
 FULL_TIME_HINT_RE = re.compile(r"\b(full[- ]time|regular|permanent)\b", re.I)
 DEFENSE_RE = re.compile(
     r"\b(itar|u\.s\. person|us person|security clearance|clearance|top secret|ts/sci|classified)\b",
+    re.I,
+)
+TIER_A_COMPANY_RE = re.compile(
+    r"\b(stripe|amazon|google|microsoft|meta|apple|nvidia|openai|anthropic|databricks|"
+    r"snowflake|cloudflare|figma|notion|linear|cursor|perplexity|reddit|roblox|block|"
+    r"coinbase|brex|pinterest|waymo|airbnb|uber|lyft|doordash|instacart|mongodb|"
+    r"gitlab|github|atlassian)\b",
+    re.I,
+)
+TIER_B_COMPANY_RE = re.compile(
+    r"\b(samsara|elastic|clear|idme|lightningai|rdccareers|zoominfo|abnormalsecurity|"
+    r"upstart|affirm|chime|mercury|fivetran|klaviyo|scaleai|grafanalabs|mozilla|"
+    r"backblaze|sezzle|oura|nexhealth)\b",
     re.I,
 )
 
@@ -44,6 +65,7 @@ class EntryJob:
     first_seen_at: datetime
     application_url: str | None
     source: str
+    salary: str | None = None
 
 
 def as_aware(value: datetime | None) -> datetime | None:
@@ -64,9 +86,37 @@ def is_entry_full_time_title(title: str, description: str | None = None) -> bool
         return True
     if EXCLUDE_TITLE_RE.search(title):
         return False
+    if not ENGINEERING_TITLE_RE.search(title):
+        return False
     if ENTRY_TITLE_RE.search(title):
         return True
     return False
+
+
+def extract_salary(text: str | None) -> str:
+    if not text:
+        return ""
+    match = re.search(
+        r"(\$\s?\d{2,3}(?:,\d{3})?(?:\s?[kK])?\s?(?:-|–|to)\s?\$?\s?\d{2,3}(?:,\d{3})?(?:\s?[kK])?)",
+        text,
+    )
+    if match:
+        return re.sub(r"\s+", " ", match.group(1)).replace("$ ", "$")
+    match = re.search(r"(\$\s?\d{2,3}(?:,\d{3})?(?:\s?[kK])?\s?(?:/|per)\s?(?:year|yr|hour|hr))", text, re.I)
+    if match:
+        return re.sub(r"\s+", " ", match.group(1)).replace("$ ", "$")
+    return ""
+
+
+def tier_for_job(job: EntryJob) -> str:
+    company_title = f"{job.company} {job.title}"
+    if TIER_A_COMPANY_RE.search(job.company):
+        return "Tier A"
+    if TIER_B_COMPANY_RE.search(job.company):
+        return "Tier B"
+    if re.search(r"\b(new grad|new graduate|university grad|university graduate|early career|software engineer\s*(i|1)|software development engineer\s*(i|1)|sde\s*(i|1))\b", company_title, re.I):
+        return "Tier B"
+    return "Tier C"
 
 
 def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
@@ -75,14 +125,14 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         rows = db.execute(
             text(
                 """
-                SELECT DISTINCT ON (coalesce(canonical_url, application_url, external_id))
-                       company, title, location, date_posted, first_seen_at,
-                       application_url, source, description_text
-                FROM jobs
-                WHERE first_seen_at > now() - (:hours * interval '1 hour')
-                  AND application_url IS NOT NULL
-                ORDER BY coalesce(canonical_url, application_url, external_id),
-                         first_seen_at DESC, date_posted DESC NULLS LAST
+                SELECT DISTINCT ON (coalesce(j.canonical_url, j.application_url, j.external_id))
+                       j.company, j.title, j.location, j.date_posted, j.first_seen_at,
+                       j.application_url, j.source, j.description_text
+                FROM jobs j
+                WHERE j.first_seen_at > now() - (:hours * interval '1 hour')
+                  AND j.application_url IS NOT NULL
+                ORDER BY coalesce(j.canonical_url, j.application_url, j.external_id),
+                         j.first_seen_at DESC, j.date_posted DESC NULLS LAST
                 """
             ),
             {"hours": since_hours},
@@ -102,6 +152,7 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
                     first_seen_at=as_aware(first_seen_at) or datetime.now(timezone.utc),
                     application_url=application_url,
                     source=source,
+                    salary=extract_salary(description),
                 )
             )
 
@@ -120,43 +171,60 @@ def escape_cell(value: object) -> str:
     return text_value.replace("|", "\\|")
 
 
-def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    lines = [
-        START_MARKER,
-        "## New Grad & Entry-Level Engineering Roles",
-        "",
-        f"Auto-updated from CareerOS at **{now}**. Showing full-time entry-level signals from the last **{since_hours} hours**.",
-        "",
-    ]
+def render_tier_table(jobs: list[EntryJob]) -> list[str]:
     if not jobs:
-        lines.extend(["No matching roles found in the current window.", "", END_MARKER])
-        return "\n".join(lines) + "\n"
+        return ["No matching roles in this tier right now.", ""]
 
-    lines.extend(
-        [
-            "| Company | Role | Location | Posted | Source | Apply |",
-            "|---|---|---|---|---|---|",
-        ]
-    )
+    lines = [
+        "| Company | Role | Salary | Apply |",
+        "|---|---|---|---|",
+    ]
     for job in jobs:
-        posted = (job.date_posted or job.first_seen_at).strftime("%Y-%m-%d")
         apply = f"[Apply]({job.application_url})" if job.application_url else ""
+        role = job.title
+        if job.location:
+            role = f"{role}<br><sub>{escape_cell(job.location)}</sub>"
         lines.append(
             "| "
             + " | ".join(
                 [
                     escape_cell(job.company),
-                    escape_cell(job.title),
-                    escape_cell(job.location),
-                    escape_cell(posted),
-                    escape_cell(job.source),
+                    role.replace("|", "\\|"),
+                    escape_cell(job.salary),
                     apply,
                 ]
             )
             + " |"
         )
-    lines.extend(["", END_MARKER])
+    lines.append("")
+    return lines
+
+
+def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    tiers: dict[str, list[EntryJob]] = defaultdict(list)
+    for job in jobs:
+        tiers[tier_for_job(job)].append(job)
+
+    lines = [
+        START_MARKER,
+        "## New Grad & Entry-Level Engineering Roles",
+        "",
+        f"Auto-updated from CareerOS at **{now}**. Postings stay on this page for **7 days**.",
+        "",
+        "Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)",
+        "",
+        "### Tier A",
+        "",
+        *render_tier_table(tiers["Tier A"]),
+        "### Tier B",
+        "",
+        *render_tier_table(tiers["Tier B"]),
+        "### Tier C",
+        "",
+        *render_tier_table(tiers["Tier C"]),
+        END_MARKER,
+    ]
     return "\n".join(lines) + "\n"
 
 
@@ -185,7 +253,7 @@ def update_readme(path: Path, block: str) -> bool:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--readme", default=str(ROOT / "README.md"))
-    parser.add_argument("--since-hours", type=int, default=24)
+    parser.add_argument("--since-hours", type=int, default=168)
     parser.add_argument("--limit", type=int, default=50)
     args = parser.parse_args()
 

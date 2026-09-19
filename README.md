@@ -289,16 +289,53 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated from CareerOS at **2026-09-19 19:55 UTC**. Showing full-time entry-level signals from the last **24 hours**.
+Auto-updated from CareerOS at **2026-09-19 20:13 UTC**. Postings stay on this page for **7 days**.
 
-| Company | Role | Location | Posted | Source | Apply |
-|---|---|---|---|---|---|
-| samsara | Software Engineer I, External Platform EMEA (Poland, Remote) | Remote - Poland | 2026-09-18 | greenhouse | [Apply](https://www.samsara.com/company/careers/roles/8210695?gh_jid=8210695) |
-| relativity | GNC Simulation Engineer I | Long Beach, California, United States | 2026-09-18 | greenhouse | [Apply](https://boards.greenhouse.io/relativity/jobs/8819367002?gh_jid=8819367002) |
-| stripe | Software Engineer, Early Career — Immediate Start | Toronto | 2026-09-17 | greenhouse | [Apply](https://stripe.com/jobs/search?gh_jid=8212517) |
-| stripe | Software Engineer, Early Career — Immediate Start | San Francisco, Seattle, New York | 2026-09-17 | greenhouse | [Apply](https://stripe.com/jobs/search?gh_jid=8212508) |
-| altentechnologyusa | ADAS Validation Engineer(Junior) | Chelsea, Michigan, United States | 2026-09-17 | greenhouse | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5204290007) |
-| amazon | Software Development Engineer, Early Career | Newark, New Jersey, USA | 2026-09-04 | amazon | [Apply](https://account.amazon.jobs/jobs/10529830/apply) |
-| amazon | Software Development Engineer, Early Career | Cambridge, Massachusetts, USA | 2026-09-04 | amazon | [Apply](https://account.amazon.jobs/jobs/10530257/apply) |
+Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)
+
+### Tier A
+
+| Company | Role | Salary | Apply |
+|---|---|---|---|
+| stripe | Software Engineer, Early Career — Immediate Start<br><sub>Toronto</sub> |  | [Apply](https://stripe.com/jobs/search?gh_jid=8212517) |
+| stripe | Software Engineer, Early Career — Immediate Start<br><sub>San Francisco, Seattle, New York</sub> |  | [Apply](https://stripe.com/jobs/search?gh_jid=8212508) |
+| stripe | Software Engineer, New Grad<br><sub>Singapore</sub> |  | [Apply](https://stripe.com/jobs/search?gh_jid=8160776) |
+| amazon | Software Development Engineer, Early Career<br><sub>Newark, New Jersey, USA</sub> |  | [Apply](https://account.amazon.jobs/jobs/10529830/apply) |
+| amazon | Software Development Engineer, Early Career<br><sub>Cambridge, Massachusetts, USA</sub> |  | [Apply](https://account.amazon.jobs/jobs/10530257/apply) |
+
+### Tier B
+
+| Company | Role | Salary | Apply |
+|---|---|---|---|
+| samsara | Software Engineer I, External Platform EMEA (Poland, Remote)<br><sub>Remote - Poland</sub> |  | [Apply](https://www.samsara.com/company/careers/roles/8210695?gh_jid=8210695) |
+| doordashusa | Software Engineer I, Entry-Level (Graduation Date: Fall 2026-Summer 2027) - US<br><sub>Los Angeles, CA; New York, NY; San Francisco, CA; Sunnyvale, CA; Seattle, WA</sub> |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8163709) |
+| axon | Software Engineer I<br><sub>Bucharest, Bucharest, Romania</sub> |  | [Apply](https://job-boards.greenhouse.io/axon/jobs/7818932003) |
+| esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
+| scaleai | Software Engineer - New Grad<br><sub>London, UK</sub> |  | [Apply](https://job-boards.greenhouse.io/scaleai/jobs/4730862005) |
+| scaleai | Software Engineer - New Grad<br><sub>Doha, Qatar</sub> |  | [Apply](https://job-boards.greenhouse.io/scaleai/jobs/4730851005) |
+| affirm | Software Engineer I, Frontend (Upfunnel)<br><sub>Remote Canada</sub> |  | [Apply](https://job-boards.greenhouse.io/affirm/jobs/7985907003) |
+| scaleai | Software Engineer - New Grad<br><sub>San Francisco, CA</sub> |  | [Apply](https://job-boards.greenhouse.io/scaleai/jobs/4730836005) |
+
+### Tier C
+
+| Company | Role | Salary | Apply |
+|---|---|---|---|
+| axon | Site Reliability Engineer I<br><sub>London, England, United Kingdom</sub> |  | [Apply](https://job-boards.greenhouse.io/axon/jobs/7667846003) |
+| relativity | GNC Simulation Engineer I<br><sub>Long Beach, California, United States</sub> |  | [Apply](https://boards.greenhouse.io/relativity/jobs/8819367002?gh_jid=8819367002) |
+| altentechnologyusa | ADAS Validation Engineer(Junior)<br><sub>Chelsea, Michigan, United States</sub> |  | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5204290007) |
+| relativity | Vehicle Mechanisms Engineer I - 2026 Graduate<br><sub>Long Beach, California, United States</sub> |  | [Apply](https://boards.greenhouse.io/relativity/jobs/8761567002?gh_jid=8761567002) |
+| axon | Firmware Engineer I<br><sub>Ho Chi Minh City, Ho Chi Minh City, Vietnam</sub> |  | [Apply](https://job-boards.greenhouse.io/axon/jobs/7992162003) |
+| esri | Product Engineer I – ArcGIS Pro Sharing Team<br><sub>Redlands, CA</sub> |  | [Apply](https://www.esri.com/careers/5227152007?gh_jid=5227152007) |
+| nebius | Junior Identity & Access Engineer (Early Talent)<br><sub>Prague, Czech Republic</sub> |  | [Apply](https://careers.nebius.com/?gh_jid=4974213101) |
+| lilasciences | Engineer I, Research Operations (2nd Shift)<br><sub>Cambridge, MA USA</sub> |  | [Apply](https://job-boards.greenhouse.io/lilasciences/jobs/4386306009) |
+| CesiumAstro | Radiation Effects Engineer I<br><sub>El Segundo, CA</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/9e51c48b-593f-4775-9484-64d2465d7cf3) |
+| altentechnologyusa | Junior Brake/Suspension Engineer<br><sub>Chelsea, Michigan, United States</sub> |  | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5231655007) |
+| CesiumAstro | Mechanical Engineer I<br><sub>Westminster, CO</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/ebf75b86-512b-476c-bf66-d0e399a21929) |
+| CesiumAstro | Mechanical Engineer I<br><sub>El Segundo, CA</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/afe752ca-1eb7-4814-87af-77e7f320a7d8) |
+| CesiumAstro | Mechanical Engineer I<br><sub>Austin, TX</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/022424e4-8d66-4f94-9ffa-99eb6b77d458) |
+| CesiumAstro | Manufacturing Engineer I<br><sub>Austin, TX</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/8ec1f26b-a47d-4160-9cbd-1f09c8716b90) |
+| CesiumAstro | Electrical Engineer I<br><sub>Westminster, CO</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/d40a968c-60b0-4c96-b455-44c72ee5ab13) |
+| CesiumAstro | FPGA Engineer I<br><sub>Austin, TX</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/fb2ee9a4-646b-41d8-a037-3acb648db8e1) |
+| CesiumAstro | Electrical Engineer I<br><sub>Austin, TX</sub> |  | [Apply](https://jobs.lever.co/CesiumAstro/c783c39b-60c5-4154-9190-96c35e2f8fcb) |
 
 <!-- ENTRY_JOBS:END -->
