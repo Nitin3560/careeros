@@ -30,10 +30,28 @@ EXCLUDE_TITLE_RE = re.compile(
     r"product design|designer|support|customer|recruiter)\b",
     re.I,
 )
-ENGINEERING_TITLE_RE = re.compile(
-    r"\b(software|sde|engineer|engineering|developer|backend|frontend|full[- ]?stack|"
+TECH_TITLE_RE = re.compile(
+    r"\b(software|sde|developer|backend|frontend|front[- ]?end|full[- ]?stack|"
     r"platform|infrastructure|site reliability|sre|devops|machine learning|ml|ai|"
-    r"data engineer|member of technical staff|mts|firmware|embedded|fpga)\b",
+    r"data engineer|member of technical staff|mts|firmware|embedded|systems engineer|"
+    r"security engineer|cloud engineer|mobile engineer|ios engineer|android engineer)\b",
+    re.I,
+)
+US_LOCATION_RE = re.compile(
+    r"\b(United States|USA|US Remote|Remote US|Remote - US|Remote, US|Remote in the US|"
+    r"US-Remote|Remote - United States)\b|"
+    r"\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IA|KS|KY|LA|ME|MD|MA|"
+    r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|"
+    r"TX|UT|VT|VA|WA|WV|WI|WY|DC)\b|"
+    r"\b(California|Washington|New York|Texas|Massachusetts|Virginia|Colorado|Illinois|"
+    r"New Jersey|Michigan|Florida|Georgia|North Carolina|Oregon|Arizona|Ohio|Pennsylvania|"
+    r"Tennessee|Utah|Wisconsin|Minnesota|Missouri|Connecticut|Maryland|Indiana)\b",
+    re.I,
+)
+NON_US_LOCATION_RE = re.compile(
+    r"\b(United Kingdom|England|London|Canada|Toronto|Vancouver|Poland|Romania|"
+    r"Vietnam|Singapore|India|Bengaluru|Prague|Czech|Qatar|Doha|Ireland|Dublin|"
+    r"Netherlands|Germany|France|Spain|Mexico|Brazil|Australia|Taiwan|Japan)\b",
     re.I,
 )
 FULL_TIME_HINT_RE = re.compile(r"\b(full[- ]time|regular|permanent)\b", re.I)
@@ -76,6 +94,14 @@ def as_aware(value: datetime | None) -> datetime | None:
     return value
 
 
+def is_us_location(location: str | None) -> bool:
+    if not location:
+        return False
+    if NON_US_LOCATION_RE.search(location):
+        return False
+    return US_LOCATION_RE.search(location) is not None
+
+
 def is_entry_full_time_title(title: str, description: str | None = None) -> bool:
     text_blob = f"{title}\n{description or ''}"
     if DEFENSE_RE.search(text_blob):
@@ -86,7 +112,7 @@ def is_entry_full_time_title(title: str, description: str | None = None) -> bool
         return True
     if EXCLUDE_TITLE_RE.search(title):
         return False
-    if not ENGINEERING_TITLE_RE.search(title):
+    if not TECH_TITLE_RE.search(title):
         return False
     if ENTRY_TITLE_RE.search(title):
         return True
@@ -142,7 +168,7 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
 
     jobs: list[EntryJob] = []
     for company, title, location, date_posted, first_seen_at, application_url, source, description in rows:
-        if is_entry_full_time_title(title, description):
+        if is_us_location(location) and is_entry_full_time_title(title, description):
             jobs.append(
                 EntryJob(
                     company=company,

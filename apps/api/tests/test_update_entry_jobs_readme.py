@@ -9,6 +9,7 @@ from update_entry_jobs_readme import (  # noqa: E402
     EntryJob,
     extract_salary,
     is_entry_full_time_title,
+    is_us_location,
     render_markdown,
     tier_for_job,
     update_readme,
@@ -23,6 +24,17 @@ def test_entry_title_filter_keeps_full_time_entry_signals():
     assert is_entry_full_time_title("MTS, Platform")
 
 
+def test_location_filter_requires_us_signal_first():
+    assert is_us_location("San Francisco, Seattle, New York")
+    assert is_us_location("Long Beach, California, United States")
+    assert is_us_location("Redlands, CA")
+    assert is_us_location("Remote - United States")
+    assert not is_us_location("London, England, United Kingdom")
+    assert not is_us_location("Toronto")
+    assert not is_us_location("Ho Chi Minh City, Vietnam")
+    assert not is_us_location("Prague, Czech Republic")
+
+
 def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
     assert not is_entry_full_time_title("Software Development Engineer Intern")
     assert not is_entry_full_time_title("Senior Software Engineer")
@@ -30,6 +42,9 @@ def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
     assert not is_entry_full_time_title("Entry Level Tech Sales - UK&I Market")
     assert not is_entry_full_time_title("Product Design, Entry-Level")
     assert not is_entry_full_time_title("Junior Investment Analyst")
+    assert not is_entry_full_time_title("Mechanical Engineer I")
+    assert not is_entry_full_time_title("Radiation Effects Engineer I")
+    assert not is_entry_full_time_title("GNC Simulation Engineer I")
 
 
 def test_extract_salary_from_posting_text():
