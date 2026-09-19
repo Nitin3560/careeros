@@ -38,3 +38,8 @@ fi
 git add "$README_PATH"
 git commit -m "Update entry-level job README feed"
 git push
+
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+  git push origin HEAD:main
+fi
