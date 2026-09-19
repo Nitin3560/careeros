@@ -285,3 +285,20 @@ The larger engineering problem became building a system that could continuously 
 The result is more than a job scraper.
 
 > **CareerOS is a full-stack job search system that turns fragmented company job data into a persistent, searchable, and ranked candidate workflow.**
+
+<!-- ENTRY_JOBS:START -->
+## New Grad & Entry-Level Engineering Roles
+
+Auto-updated from CareerOS at **2026-09-19 19:55 UTC**. Showing full-time entry-level signals from the last **24 hours**.
+
+| Company | Role | Location | Posted | Source | Apply |
+|---|---|---|---|---|---|
+| samsara | Software Engineer I, External Platform EMEA (Poland, Remote) | Remote - Poland | 2026-09-18 | greenhouse | [Apply](https://www.samsara.com/company/careers/roles/8210695?gh_jid=8210695) |
+| relativity | GNC Simulation Engineer I | Long Beach, California, United States | 2026-09-18 | greenhouse | [Apply](https://boards.greenhouse.io/relativity/jobs/8819367002?gh_jid=8819367002) |
+| stripe | Software Engineer, Early Career — Immediate Start | Toronto | 2026-09-17 | greenhouse | [Apply](https://stripe.com/jobs/search?gh_jid=8212517) |
+| stripe | Software Engineer, Early Career — Immediate Start | San Francisco, Seattle, New York | 2026-09-17 | greenhouse | [Apply](https://stripe.com/jobs/search?gh_jid=8212508) |
+| altentechnologyusa | ADAS Validation Engineer(Junior) | Chelsea, Michigan, United States | 2026-09-17 | greenhouse | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5204290007) |
+| amazon | Software Development Engineer, Early Career | Newark, New Jersey, USA | 2026-09-04 | amazon | [Apply](https://account.amazon.jobs/jobs/10529830/apply) |
+| amazon | Software Development Engineer, Early Career | Cambridge, Massachusetts, USA | 2026-09-04 | amazon | [Apply](https://account.amazon.jobs/jobs/10530257/apply) |
+
+<!-- ENTRY_JOBS:END -->

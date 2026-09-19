@@ -240,8 +240,8 @@ def test_fetch_amazon_jobs_paginates_and_normalizes_response(monkeypatch):
         2: FakeAmazonResponse([amazon_job("102", "SDE I")], hits=3),
     }
 
-    def fake_get(url, params, timeout):
-        requested.append({"url": url, "params": params, "timeout": timeout})
+    def fake_get(url, params, timeout, **kwargs):
+        requested.append({"url": url, "params": params, "timeout": timeout, "kwargs": kwargs})
         return pages[params["offset"]]
 
     monkeypatch.setattr(amazon.httpx, "get", fake_get)

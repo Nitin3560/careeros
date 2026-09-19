@@ -59,10 +59,17 @@ US_STATE_PATTERN = (
     r"MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|"
     r"SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC"
 )
+V3_US_CITY_PATTERN = (
+    r"San Francisco|Seattle|New York|NYC|Chicago|Atlanta|Austin|Boston|"
+    r"Los Angeles|San Diego|San Jose|Mountain View|Palo Alto|Menlo Park|"
+    r"Redwood City|Sunnyvale|Bellevue|Denver|Boulder|Phoenix|Portland|"
+    r"Dallas|Houston|Arlington|Washington|Remote in the US|US-Remote"
+)
 V3_LOCATION_PATTERN = (
     r"\y(United States|USA|Remote — US|Remote \(US\)|Remote US|Remote - US|"
-    r"Remote, US|US Remote|Remote from the US)\y"
+    r"Remote, US|US Remote|Remote from the US|Remote in the US|US-Remote)\y"
     rf"|, ({US_STATE_PATTERN}),?\s*(United States|USA|US)\y"
+    rf"|\y({V3_US_CITY_PATTERN})\y"
 )
 V3_CLEARANCE_TITLE_PATTERN = (
     r"\y(ts/sci|top secret|security clearance|polygraph|public trust|"

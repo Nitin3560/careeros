@@ -44,6 +44,9 @@ def test_v3_location_filter_requires_us_signal():
     pattern = apply_title_filter.FILTERS["v3"]["location"]
 
     assert matches(pattern, "San Mateo, CA, United States")
+    assert matches(pattern, "Seattle, WA")
+    assert matches(pattern, "San Francisco, Seattle, New York")
+    assert matches(pattern, "US-San Francisco; US-New York City; US-Seattle; US-Remote; US-Chicago")
     assert matches(pattern, "Remote - US")
     assert matches(pattern, "US Remote")
     assert not matches(pattern, "London, UK")

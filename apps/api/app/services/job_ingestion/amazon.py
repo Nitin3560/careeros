@@ -25,6 +25,7 @@ def fetch_amazon_jobs(query_slug: str = "software-development-engineer") -> list
                 "result_limit": RESULT_LIMIT,
                 "sort": "relevant",
             },
+            headers={"Accept-Encoding": "identity"},
             timeout=15.0,
         )
         response.raise_for_status()
