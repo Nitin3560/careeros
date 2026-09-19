@@ -273,7 +273,23 @@ def escape_cell(value: object) -> str:
     return text_value.replace("|", "\\|")
 
 
-def render_tier_table(jobs: list[EntryJob]) -> list[str]:
+def format_time_ago(value: datetime, now: datetime | None = None) -> str:
+    current = as_aware(now) or datetime.now(timezone.utc)
+    observed = as_aware(value) or current
+    seconds = max(0, int((current - observed).total_seconds()))
+    if seconds < 60:
+        return "just now"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    days = hours // 24
+    return f"{days} day{'s' if days != 1 else ''} ago"
+
+
+def render_tier_table(jobs: list[EntryJob], now: datetime | None = None) -> list[str]:
     if not jobs:
         return ["No matching roles in this tier right now.", ""]
 
@@ -287,7 +303,7 @@ def render_tier_table(jobs: list[EntryJob]) -> list[str]:
         if job.location:
             role = f"{role}<br><sub>{escape_cell(job.location)}</sub>"
         posted = (job.date_posted or job.first_seen_at).strftime("%Y-%m-%d")
-        found = job.first_seen_at.strftime("%Y-%m-%d %H:%M UTC")
+        found = format_time_ago(job.first_seen_at, now)
         lines.append(
             "| "
             + " | ".join(
@@ -307,8 +323,11 @@ def render_tier_table(jobs: list[EntryJob]) -> list[str]:
     return lines
 
 
-def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+def render_markdown(
+    jobs: list[EntryJob], since_hours: int, now: datetime | None = None
+) -> str:
+    generated_at = as_aware(now) or datetime.now(timezone.utc)
+    generated_label = generated_at.strftime("%Y-%m-%d %H:%M UTC")
     tiers: dict[str, list[EntryJob]] = defaultdict(list)
     for job in jobs:
         tiers[tier_for_job(job)].append(job)
@@ -317,7 +336,7 @@ def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
         START_MARKER,
         "## New Grad & Entry-Level Engineering Roles",
         "",
-        f"Auto-updated hourly from CareerOS. Last run: **{now}**. Showing U.S. software/AI/tech postings found in the last **7 days**.",
+        f"Auto-updated hourly from CareerOS. Last run: **{generated_label}**. Showing U.S. software/AI/tech postings found in the last **7 days**.",
         "",
         f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
@@ -329,17 +348,17 @@ def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
         "",
         "Large public and established technology, financial, and enterprise companies.",
         "",
-        *render_tier_table(tiers["Tier 1"]),
+        *render_tier_table(tiers["Tier 1"], generated_at),
         "### Tier 2",
         "",
         "Established mid-sized companies with meaningful engineering organizations.",
         "",
-        *render_tier_table(tiers["Tier 2"]),
+        *render_tier_table(tiers["Tier 2"], generated_at),
         "### Tier 3",
         "",
         "Startups, early-stage companies, and smaller technology businesses.",
         "",
-        *render_tier_table(tiers["Tier 3"]),
+        *render_tier_table(tiers["Tier 3"], generated_at),
         END_MARKER,
     ]
     return "\n".join(lines) + "\n"

@@ -9,6 +9,7 @@ from update_entry_jobs_readme import (  # noqa: E402
     EntryJob,
     extract_entry_experience,
     extract_salary,
+    format_time_ago,
     is_eligible_tech_title,
     is_entry_full_time_title,
     is_us_location,
@@ -75,6 +76,14 @@ def test_experience_filter_requires_zero_to_two_years_from_posting():
     assert extract_entry_experience("Software engineering experience is useful.") is None
 
 
+def test_found_age_is_human_readable():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    assert format_time_ago(datetime(2026, 9, 19, 19, 59, 30, tzinfo=timezone.utc), now) == "just now"
+    assert format_time_ago(datetime(2026, 9, 19, 19, 2, tzinfo=timezone.utc), now) == "58 min ago"
+    assert format_time_ago(datetime(2026, 9, 19, 16, 0, tzinfo=timezone.utc), now) == "4 hours ago"
+    assert format_time_ago(datetime(2026, 9, 17, 20, 0, tzinfo=timezone.utc), now) == "2 days ago"
+
+
 def make_job(company, title, salary="", location="Remote - US"):
     return EntryJob(
         company=company,
@@ -105,7 +114,11 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
         make_job("smallco", "Software Development Engineer, AWS Lambda"),
     ]
 
-    block = render_markdown(jobs, since_hours=168)
+    block = render_markdown(
+        jobs,
+        since_hours=168,
+        now=datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc),
+    )
     assert update_readme(readme, block)
     content = readme.read_text()
 
@@ -116,6 +129,6 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
     assert "### Tier 2" in content
     assert "### Tier 3" in content
     assert "| Company | Role | Experience | Posted | Found | Salary | Apply |" in content
-    assert "2026-09-19 19:00 UTC" in content
+    assert "1 hour ago" in content
     assert "$120,000 - $155,000" in content
     assert "[Apply](https://example.com/stripe)" in content
