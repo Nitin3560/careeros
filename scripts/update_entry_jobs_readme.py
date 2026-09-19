@@ -176,20 +176,24 @@ def render_tier_table(jobs: list[EntryJob]) -> list[str]:
         return ["No matching roles in this tier right now.", ""]
 
     lines = [
-        "| Company | Role | Salary | Apply |",
-        "|---|---|---|---|",
+        "| Company | Role | Posted | Found | Salary | Apply |",
+        "|---|---|---|---|---|---|",
     ]
     for job in jobs:
         apply = f"[Apply]({job.application_url})" if job.application_url else ""
         role = job.title
         if job.location:
             role = f"{role}<br><sub>{escape_cell(job.location)}</sub>"
+        posted = (job.date_posted or job.first_seen_at).strftime("%Y-%m-%d")
+        found = job.first_seen_at.strftime("%Y-%m-%d %H:%M UTC")
         lines.append(
             "| "
             + " | ".join(
                 [
                     escape_cell(job.company),
                     role.replace("|", "\\|"),
+                    escape_cell(posted),
+                    escape_cell(found),
                     escape_cell(job.salary),
                     apply,
                 ]
@@ -210,7 +214,7 @@ def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
         START_MARKER,
         "## New Grad & Entry-Level Engineering Roles",
         "",
-        f"Auto-updated from CareerOS at **{now}**. Postings stay on this page for **7 days**.",
+        f"Auto-updated hourly from CareerOS. Last run: **{now}**. Showing only postings found in the last **7 days**.",
         "",
         "Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)",
         "",

@@ -75,6 +75,7 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
     assert "### Tier A" in content
     assert "### Tier B" in content
     assert "### Tier C" in content
-    assert "| Company | Role | Salary | Apply |" in content
+    assert "| Company | Role | Posted | Found | Salary | Apply |" in content
+    assert "2026-09-19 19:00 UTC" in content
     assert "$120,000 - $155,000" in content
     assert "[Apply](https://example.com/stripe)" in content
