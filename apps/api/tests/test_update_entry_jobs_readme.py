@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from update_entry_jobs_readme import (  # noqa: E402
     EntryJob,
     extract_salary,
+    is_eligible_tech_title,
     is_entry_full_time_title,
     is_us_location,
     render_markdown,
@@ -22,6 +23,13 @@ def test_entry_title_filter_keeps_full_time_entry_signals():
     assert is_entry_full_time_title("Engineer I, Backend")
     assert is_entry_full_time_title("Member of Technical Staff")
     assert is_entry_full_time_title("MTS, Platform")
+
+
+def test_eligible_tech_title_keeps_broader_non_senior_tech_roles_for_tier_c():
+    assert is_eligible_tech_title("Software Development Engineer, AWS Lambda")
+    assert is_eligible_tech_title("AI Engineer")
+    assert is_eligible_tech_title("Backend Developer")
+    assert is_eligible_tech_title("Software Engineer, Early Career — Immediate Start", "This role is classified as exempt.")
 
 
 def test_location_filter_requires_us_signal_first():
@@ -40,11 +48,13 @@ def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
     assert not is_entry_full_time_title("Senior Software Engineer")
     assert not is_entry_full_time_title("Staff Software Engineer")
     assert not is_entry_full_time_title("Entry Level Tech Sales - UK&I Market")
-    assert not is_entry_full_time_title("Product Design, Entry-Level")
-    assert not is_entry_full_time_title("Junior Investment Analyst")
-    assert not is_entry_full_time_title("Mechanical Engineer I")
-    assert not is_entry_full_time_title("Radiation Effects Engineer I")
-    assert not is_entry_full_time_title("GNC Simulation Engineer I")
+    assert not is_eligible_tech_title("Product Design, Entry-Level")
+    assert not is_eligible_tech_title("Junior Investment Analyst")
+    assert not is_eligible_tech_title("Mechanical Engineer I")
+    assert not is_eligible_tech_title("Radiation Effects Engineer I")
+    assert not is_eligible_tech_title("GNC Simulation Engineer I")
+    assert not is_eligible_tech_title("Software Development Engineer III")
+    assert not is_eligible_tech_title("Software Development Engineer, Strategic Defense")
 
 
 def test_extract_salary_from_posting_text():
@@ -63,13 +73,14 @@ def make_job(company, title, salary="", location="Remote - US"):
         application_url=f"https://example.com/{company}",
         source="greenhouse",
         salary=salary,
+        dedupe_key=f"queue:{company}:{title}",
     )
 
 
 def test_tier_for_job_splits_a_b_c():
     assert tier_for_job(make_job("stripe", "Software Engineer, Early Career")) == "Tier A"
     assert tier_for_job(make_job("samsara", "Software Engineer I")) == "Tier B"
-    assert tier_for_job(make_job("smallco", "Member of Technical Staff")) == "Tier C"
+    assert tier_for_job(make_job("smallco", "Software Development Engineer, AWS Lambda")) == "Tier C"
 
 
 def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
@@ -78,7 +89,7 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
     jobs = [
         make_job("stripe", "Software Engineer, Early Career", "$120,000 - $155,000"),
         make_job("samsara", "Software Engineer I"),
-        make_job("smallco", "Member of Technical Staff"),
+        make_job("smallco", "Software Development Engineer, AWS Lambda"),
     ]
 
     block = render_markdown(jobs, since_hours=168)
@@ -86,6 +97,7 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
     content = readme.read_text()
 
     assert "<!-- ENTRY_JOBS:START -->" in content
+    assert "Speed: CareerOS refreshes every hour" in content
     assert "Quick links: [Tier A](#tier-a)" in content
     assert "### Tier A" in content
     assert "### Tier B" in content

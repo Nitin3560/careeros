@@ -27,7 +27,8 @@ ENTRY_TITLE_RE = re.compile(
 EXCLUDE_TITLE_RE = re.compile(
     r"\b(intern|internship|co-?op|apprentice|senior|sr\.?|staff|principal|lead|"
     r"manager|architect|director|head of|vp|sales|account executive|analyst|"
-    r"product design|designer|support|customer|recruiter)\b",
+    r"product design|designer|support|customer|recruiter|engineer\s*(iii|3)\b|"
+    r"software development engineer\s*(iii|3)\b|sde\s*(iii|3)\b|level\s*5)\b",
     re.I,
 )
 TECH_TITLE_RE = re.compile(
@@ -54,9 +55,30 @@ NON_US_LOCATION_RE = re.compile(
     r"Netherlands|Germany|France|Spain|Mexico|Brazil|Australia|Taiwan|Japan)\b",
     re.I,
 )
+
+TIER_A_ENTRY_RE = re.compile(
+    r"\b(new grad|new graduate|university grad|university graduate|college grad|"
+    r"recent grad|early career|graduate software)\b",
+    re.I,
+)
+TIER_B_ENTRY_RE = re.compile(
+    r"\b(software engineer\s*(i|1|ii|2)\b|software development engineer\s*(i|1|ii|2)\b|"
+    r"sde\s*(i|1|ii|2)\b|engineer\s*(i|1|ii|2)\b|junior|associate software engineer|"
+    r"member of technical staff|mts)\b",
+    re.I,
+)
 FULL_TIME_HINT_RE = re.compile(r"\b(full[- ]time|regular|permanent)\b", re.I)
-DEFENSE_RE = re.compile(
-    r"\b(itar|u\.s\. person|us person|security clearance|clearance|top secret|ts/sci|classified)\b",
+TITLE_DEFENSE_RE = re.compile(
+    r"\b(defense|missile|payload|radar|spacecraft|flight software|top secret|ts/sci|public trust)\b",
+    re.I,
+)
+DESCRIPTION_HARD_STOP_RE = re.compile(
+    r"\b(itar|u\.s\. person|us person|security clearance|active clearance|top secret|ts/sci)\b",
+    re.I,
+)
+DEFENSE_COMPANY_RE = re.compile(
+    r"\b(anduril|spacex|rocketlab|trueanomaly|varda|cesiumastro|accenturefederalservices|"
+    r"darkwolf|freedomconsulting|systemstechnologyresearch|morsecorp|questdefense)\b",
     re.I,
 )
 TIER_A_COMPANY_RE = re.compile(
@@ -84,6 +106,7 @@ class EntryJob:
     application_url: str | None
     source: str
     salary: str | None = None
+    dedupe_key: str | None = None
 
 
 def as_aware(value: datetime | None) -> datetime | None:
@@ -102,21 +125,25 @@ def is_us_location(location: str | None) -> bool:
     return US_LOCATION_RE.search(location) is not None
 
 
-def is_entry_full_time_title(title: str, description: str | None = None) -> bool:
+def is_eligible_tech_title(title: str, description: str | None = None) -> bool:
     text_blob = f"{title}\n{description or ''}"
-    if DEFENSE_RE.search(text_blob):
+    if TITLE_DEFENSE_RE.search(title) or DESCRIPTION_HARD_STOP_RE.search(description or ""):
         return False
-    # MTS-style postings can be full-time entry roles, and the phrase contains
-    # "Staff", so handle it before the senior/staff exclusion.
     if re.search(r"\b(member of technical staff|mts)\b", title, re.I):
         return True
     if EXCLUDE_TITLE_RE.search(title):
         return False
-    if not TECH_TITLE_RE.search(title):
-        return False
-    if ENTRY_TITLE_RE.search(title):
-        return True
-    return False
+    return TECH_TITLE_RE.search(title) is not None
+
+
+def is_entry_full_time_title(title: str, description: str | None = None) -> bool:
+    # Backward-compatible helper used by tests and older scripts. The README feed
+    # now includes all eligible non-senior U.S. tech roles, then tiers explicit
+    # entry-level signals above broader roles.
+    return is_eligible_tech_title(title, description) and (
+        TIER_A_ENTRY_RE.search(title) is not None
+        or TIER_B_ENTRY_RE.search(title) is not None
+    )
 
 
 def extract_salary(text: str | None) -> str:
@@ -135,12 +162,9 @@ def extract_salary(text: str | None) -> str:
 
 
 def tier_for_job(job: EntryJob) -> str:
-    company_title = f"{job.company} {job.title}"
-    if TIER_A_COMPANY_RE.search(job.company):
+    if TIER_A_ENTRY_RE.search(job.title):
         return "Tier A"
-    if TIER_B_COMPANY_RE.search(job.company):
-        return "Tier B"
-    if re.search(r"\b(new grad|new graduate|university grad|university graduate|early career|software engineer\s*(i|1)|software development engineer\s*(i|1)|sde\s*(i|1))\b", company_title, re.I):
+    if TIER_B_ENTRY_RE.search(job.title):
         return "Tier B"
     return "Tier C"
 
@@ -151,14 +175,13 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         rows = db.execute(
             text(
                 """
-                SELECT DISTINCT ON (coalesce(j.canonical_url, j.application_url, j.external_id))
-                       j.company, j.title, j.location, j.date_posted, j.first_seen_at,
-                       j.application_url, j.source, j.description_text
+                SELECT j.company, j.title, j.location, j.date_posted, j.first_seen_at,
+                       j.application_url, j.source, j.description_text,
+                       coalesce(j.queue_key, j.canonical_url, j.application_url, j.external_id) AS dedupe_key
                 FROM jobs j
                 WHERE j.first_seen_at > now() - (:hours * interval '1 hour')
                   AND j.application_url IS NOT NULL
-                ORDER BY coalesce(j.canonical_url, j.application_url, j.external_id),
-                         j.first_seen_at DESC, j.date_posted DESC NULLS LAST
+                ORDER BY j.first_seen_at DESC, j.date_posted DESC NULLS LAST
                 """
             ),
             {"hours": since_hours},
@@ -167,20 +190,29 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         db.close()
 
     jobs: list[EntryJob] = []
-    for company, title, location, date_posted, first_seen_at, application_url, source, description in rows:
-        if is_us_location(location) and is_entry_full_time_title(title, description):
-            jobs.append(
-                EntryJob(
-                    company=company,
-                    title=title,
-                    location=location,
-                    date_posted=as_aware(date_posted),
-                    first_seen_at=as_aware(first_seen_at) or datetime.now(timezone.utc),
-                    application_url=application_url,
-                    source=source,
-                    salary=extract_salary(description),
-                )
+    seen_keys: set[str] = set()
+    for company, title, location, date_posted, first_seen_at, application_url, source, description, dedupe_key in rows:
+        if DEFENSE_COMPANY_RE.search(company):
+            continue
+        if not (is_us_location(location) and is_eligible_tech_title(title, description)):
+            continue
+        key = str(dedupe_key or application_url or f"{company}:{title}:{location}")
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        jobs.append(
+            EntryJob(
+                company=company,
+                title=title,
+                location=location,
+                date_posted=as_aware(date_posted),
+                first_seen_at=as_aware(first_seen_at) or datetime.now(timezone.utc),
+                application_url=application_url,
+                source=source,
+                salary=extract_salary(description),
+                dedupe_key=key,
             )
+        )
 
     jobs.sort(
         key=lambda job: (
@@ -240,17 +272,25 @@ def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
         START_MARKER,
         "## New Grad & Entry-Level Engineering Roles",
         "",
-        f"Auto-updated hourly from CareerOS. Last run: **{now}**. Showing only postings found in the last **7 days**.",
+        f"Auto-updated hourly from CareerOS. Last run: **{now}**. Showing U.S. software/AI/tech postings found in the last **7 days**.",
+        "",
+        f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
         "Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)",
         "",
         "### Tier A",
         "",
+        "Exact new-grad / university-grad / early-career full-time tech roles.",
+        "",
         *render_tier_table(tiers["Tier A"]),
         "### Tier B",
         "",
+        "Engineer I/II, SDE I/II, junior, associate, and MTS-style tech roles.",
+        "",
         *render_tier_table(tiers["Tier B"]),
         "### Tier C",
+        "",
+        "Other U.S. non-senior software/AI/tech roles found this week.",
         "",
         *render_tier_table(tiers["Tier C"]),
         END_MARKER,
