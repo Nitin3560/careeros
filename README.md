@@ -289,9 +289,9 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated hourly from CareerOS. Last run: **2026-09-19 21:19 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-09-19 21:23 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
 
-Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **6** roles.
+Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **5** roles.
 
 Eligibility: U.S. full-time software/AI roles whose posting states **up to 2 years** of professional experience. Open-ended requirements such as **2+ years**, internships, and roles requiring more than 2 years are excluded.
 
@@ -303,7 +303,6 @@ Large public and established technology, financial, and enterprise companies.
 
 | Company | Role | Experience | Posted | Found | Salary | Apply |
 |---|---|---|---|---|---|---|
-| amazon | Software Development Engineer, AWS Security<br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-16 | 1 hour ago |  | [Apply](https://account.amazon.jobs/jobs/10544608/apply) |
 | esri | Software Developer I - Web Components<br><sub>Redlands, CA</sub> | 1 year | 2026-09-15 | 3 days ago |  | [Apply](https://www.esri.com/careers/5227685007?gh_jid=5227685007) |
 | esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-14 | 3 days ago |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
 | amazon | Software Development Engineer, Catalog System Services - SPCL <br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-14 | 1 hour ago |  | [Apply](https://account.amazon.jobs/jobs/10539357/apply) |

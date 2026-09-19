@@ -76,6 +76,12 @@ def test_experience_filter_requires_zero_to_two_years_from_posting():
     assert extract_entry_experience("Requires 2+ years of professional software experience.") is None
     assert extract_entry_experience("At least 2 years of relevant engineering experience.") is None
     assert extract_entry_experience("2 years minimum of professional experience.") is None
+    assert extract_entry_experience(
+        "Basic Qualifications\n"
+        "2+ years of non-internship design or architecture (design patterns, reliability, and scaling) "
+        "of new and existing systems experience\n"
+        "1+ years of software development engineer or related occupational experience"
+    ) is None
     assert extract_entry_experience("Requires 3+ years of professional experience.") is None
     assert extract_entry_experience("Software engineering experience is useful.") is None
 

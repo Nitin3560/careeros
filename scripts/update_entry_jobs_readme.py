@@ -114,6 +114,14 @@ EXPERIENCE_BEFORE_YEARS_RE = re.compile(
     r"(?P<high>\d{1,2}))?\s*\+?\s*years?\b",
     re.I | re.S,
 )
+OPEN_ENDED_TWO_PLUS_RE = re.compile(
+    r"\b(?:"
+    r"(?:2|[3-9]|[1-9]\d)\s*\+\s*years?|"
+    r"(?:at least|minimum(?: of)?)\s+(?:2|[3-9]|[1-9]\d)\s+years?|"
+    r"(?:2|[3-9]|[1-9]\d)\s+years?\s+(?:or more|minimum)"
+    r")\b",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -166,6 +174,10 @@ def is_entry_full_time_title(title: str, description: str | None = None) -> bool
 def extract_entry_experience(text: str | None) -> str | None:
     """Return posting-backed 0-2 year evidence, or None when it is absent/too senior."""
     if not text:
+        return None
+    # Check the full posting first. A lower requirement must never hide a second,
+    # disqualifying requirement elsewhere in the qualifications list.
+    if OPEN_ENDED_TWO_PLUS_RE.search(text):
         return None
     if NO_EXPERIENCE_RE.search(text):
         return "0 years"
