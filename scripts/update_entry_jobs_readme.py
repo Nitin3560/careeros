@@ -179,6 +179,17 @@ def extract_entry_experience(text: str | None) -> str | None:
             spans.add(match.span())
             low = int(match.group("low"))
             high = int(match.group("high") or low)
+            context_start = max(0, match.start() - 30)
+            context_end = min(len(text), match.end() + 20)
+            context = text[context_start:context_end]
+            open_ended = bool(
+                re.search(r"\b(at least|minimum(?: of)?)\s*$", text[context_start:match.start()], re.I)
+                or re.search(r"^\s*(?:\+|or more\b|minimum\b)", text[match.end():context_end], re.I)
+                or (match.group("high") is None and re.search(rf"\b{low}\s*\+", match.group(0)))
+                or re.search(rf"\b{low}\s+years?\s+(?:or more|minimum)\b", match.group(0), re.I)
+            )
+            if low >= 2 and open_ended:
+                return None
             ranges.append((low, high))
 
     if not ranges or any(low > 2 or high > 2 for low, high in ranges):
@@ -340,7 +351,7 @@ def render_markdown(
         "",
         f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
-        "Eligibility: U.S. full-time software/AI roles whose posting states **0–2 years** of professional experience. Internships and roles requiring more than 2 years are excluded.",
+        "Eligibility: U.S. full-time software/AI roles whose posting states **up to 2 years** of professional experience. Open-ended requirements such as **2+ years**, internships, and roles requiring more than 2 years are excluded.",
         "",
         "Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)",
         "",
