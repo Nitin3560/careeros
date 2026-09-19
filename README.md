@@ -289,131 +289,59 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated hourly from CareerOS. Last run: **2026-09-19 20:59 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-09-19 21:04 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
 
-Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **100** roles.
+Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **26** roles.
 
-Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)
+Eligibility: U.S. full-time software/AI roles whose posting states **0–2 years** of professional experience. Internships and roles requiring more than 2 years are excluded.
 
-### Tier A
+Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)
 
-Exact new-grad / university-grad / early-career full-time tech roles.
+### Tier 1
 
-| Company | Role | Posted | Found | Salary | Apply |
-|---|---|---|---|---|---|
-| stripe | Software Engineer, Early Career — Immediate Start<br><sub>San Francisco, Seattle, New York</sub> | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://stripe.com/jobs/search?gh_jid=8212508) |
+Large public and established technology, financial, and enterprise companies.
 
-### Tier B
+| Company | Role | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|
+| pinterest | Software Engineer II, Data Analytics & Engineering<br><sub>San Francisco, CA, US; Remote, US</sub> | 2 years | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](https://www.pinterestcareers.com/jobs/?gh_jid=8213988) |
+| reddit | Software Engineer, Ingestion Platform<br><sub>Remote - United States</sub> | 2 years | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8214910) |
+| coinbase | Software Engineer, Developer Infrastructure<br><sub>Remote - USA</sub> | 2 years | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://www.coinbase.com/careers/positions/7991839?gh_jid=7991839) |
+| doordashusa | Software Engineer, Full Stack - Developer Insights<br><sub>San Francisco, CA; New York, NY; Los Angeles, CA; Seattle, WA</sub> | 2 years | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8207877) |
+| esri | Software Developer II - Android Apps<br><sub>Portland, ME</sub> | 2 years | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://www.esri.com/careers/5040328007?gh_jid=5040328007) |
+| amazon | Software Dev Engineer II-TEST , Agentic Workspaces <br><sub>Seattle, Washington, USA</sub> | 1–2 years | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544628/apply) |
+| amazon | Software Development Engineer, AWS Security<br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544608/apply) |
+| esri | Software Developer I - Web Components<br><sub>Redlands, CA</sub> | 1 year | 2026-09-15 | 2026-09-16 05:04 UTC |  | [Apply](https://www.esri.com/careers/5227685007?gh_jid=5227685007) |
+| esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-14 | 2026-09-16 05:04 UTC |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
+| amazon | Software Development Engineer, Catalog System Services - SPCL <br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-14 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10539357/apply) |
+| klaviyo | IT Systems Engineer <br><sub>Boston, MA</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC |  | [Apply](https://www.klaviyo.com/careers/jobs/7990570003?gh_jid=7990570003) |
+| lyft | Machine Learning Engineer, Fulfillment<br><sub>San Francisco, CA</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC | $140,800 - $176,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8688633002?gh_jid=8688633002) |
+| esri | C++ Software Developer II - Raster Analysis<br><sub>Redlands, CA</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC |  | [Apply](https://www.esri.com/careers/5177200007?gh_jid=5177200007) |
+| esri | Spatial Data Engineer II<br><sub>Redlands, CA</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC |  | [Apply](https://www.esri.com/careers/5230512007?gh_jid=5230512007) |
+| robinhood | Software Engineer, Tokenization<br><sub>Menlo Park, CA; New York, NY</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC |  | [Apply](https://boards.greenhouse.io/robinhood/jobs/8189005?t=gh_src=&gh_jid=8189005) |
+| coinbase | Software Engineer- Money Movement <br><sub>Remote - USA</sub> | 2 years | 2026-09-10 | 2026-09-16 05:04 UTC |  | [Apply](https://www.coinbase.com/careers/positions/8177946?gh_jid=8177946) |
+| amazon | Software Development Engineer, iOS<br><sub>Cambridge, Massachusetts, USA</sub> | 1 year | 2026-09-09 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10535234/apply) |
+| thenewyorktimes | Software Engineer, Growth Conversion<br><sub>New York, NY</sub> | 2 years | 2026-09-08 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/thenewyorktimes/jobs/4730745005) |
+| amazon | Software Development Engineer, CreativeX<br><sub>New York, New York, USA</sub> | 1–2 years | 2026-09-08 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10532554/apply) |
+| lyft | Machine Learning Engineer<br><sub>New York, NY</sub> | 2 years | 2026-09-04 | 2026-09-16 05:04 UTC | $140,800 - $176,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8689127002?gh_jid=8689127002) |
+| coinbase | Threat Intelligence Platform Engineer<br><sub>Remote - USA</sub> | 2 years | 2026-09-03 | 2026-09-16 05:04 UTC |  | [Apply](https://www.coinbase.com/careers/positions/8177619?gh_jid=8177619) |
+| amazon | Software Development Engineer, SageMaker HyperPod Data Plane<br><sub>Santa Clara, California, USA</sub> | 1 year | 2026-08-27 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10517662/apply) |
 
-Engineer I/II, SDE I/II, junior, associate, and MTS-style tech roles.
+### Tier 2
 
-| Company | Role | Posted | Found | Salary | Apply |
-|---|---|---|---|---|---|
-| pinterest | Software Engineer II, Data Analytics & Engineering<br><sub>San Francisco, CA, US; Remote, US</sub> | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](https://www.pinterestcareers.com/jobs/?gh_jid=8213988) |
-| torcrobotics | Software Engineer 2<br><sub>Blacksburg, VA</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/torcrobotics/jobs/8783949002) |
-| amazon | Software Dev Engineer II, EC2 Capacity Reservations<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553910/apply) |
-| amazon | Embedded Software Development Engineer II (C/C++), AWS EC2 VPC NX<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553911/apply) |
-| amazon | Software Development Engineer II, AWS WorkSpaces, AWS WorkSpaces Control Plane Backend<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553627/apply) |
-| amazon | Software Development Engineer II, OrcaLabs<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553852/apply) |
-| amazon | Software Development Engineer II, PACMAN<br><sub>Bellevue, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10554069/apply) |
-| amazon | Software Development Engineer II, S3 Storage Control Plane - Durability<br><sub>Bellevue, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553307/apply) |
-| amazon | Software Development Engineer 2, Prime Video Personalization and Discovery<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553194/apply) |
-| amazon | Software Development Engineer II, AWS Fintech<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553922/apply) |
-| amazon | Software Development Engineer II, Amazon Leo<br><sub>Redmond, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553807/apply) |
-| axon | Software Engineer II<br><sub>Sterling, Virginia, United States</sub> | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/axon/jobs/6288464003) |
-| doordashusa | Software Engineer I, Entry-Level (Graduation Date: Fall 2026-Summer 2027) - US<br><sub>Los Angeles, CA; New York, NY; San Francisco, CA; Sunnyvale, CA; Seattle, WA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8163709) |
-| amazon | Software Development Engineer II, AWS Marketplace<br><sub>Austin, Texas, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552221/apply) |
-| amazon | Software Dev Engineer II, Device Engagament Metrics<br><sub>Denver, Colorado, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552789/apply) |
-| amazon | SDE II , AWS IoT Fleet Management<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552293/apply) |
-| brex | Software Engineer II, Backend<br><sub>New York, New York, United States</sub> | 2026-09-16 | 2026-09-19 19:26 UTC | $152,000 - $190,000 | [Apply](https://www.brex.com/careers/8815443002?gh_jid=8815443002) |
-| axon | Site Reliability Engineer II<br><sub>Boston, Massachusetts, United States</sub> | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/axon/jobs/7997565003) |
-| amazon | Software Dev Engineer II-TEST , Agentic Workspaces <br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544628/apply) |
-| amazon | Software Development Engineer II, Hosted Execution (HEX)<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544701/apply) |
-| amazon | Software Dev Engineer II, Prime Air<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10545581/apply) |
+Established mid-sized companies with meaningful engineering organizations.
 
-### Tier C
+| Company | Role | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|
+| rdccareers | Full Stack Software Engineer <br><sub>Austin, Texas, United States</sub> | 2 years | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](https://boards.greenhouse.io/rdccareers/jobs/7997475003?gh_jid=7997475003) |
+| abnormalsecurity | Software Engineer II - Insider Risk<br><sub>Hybrid - San Francisco, CA, USA</sub> | 2 years | 2026-09-11 | 2026-09-16 05:04 UTC |  | [Apply](https://abnormal.ai/careers/jobs/7992780003?gh_jid=7992780003) |
+| chime | Software Engineer, Growth<br><sub>San Francisco, CA, USA</sub> | 2 years | 2026-09-10 | 2026-09-16 05:04 UTC |  | [Apply](https://boards.greenhouse.io/chime/jobs/8782503002?gh_jid=8782503002) |
 
-Other U.S. non-senior software/AI/tech roles found this week.
+### Tier 3
 
-| Company | Role | Posted | Found | Salary | Apply |
-|---|---|---|---|---|---|
-| roblox | Software Engineer, Engine Infrastructure<br><sub>San Mateo, CA, United States</sub> | 2026-09-19 | 2026-09-16 05:04 UTC |  | [Apply](https://careers.roblox.com/jobs/8171506?gh_jid=8171506) |
-| roblox | Software Engineer, Discovery UX<br><sub>San Mateo, CA, United States</sub> | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](https://careers.roblox.com/jobs/8168383?gh_jid=8168383) |
-| rdccareers | Full Stack Software Engineer <br><sub>Austin, Texas, United States</sub> | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](https://boards.greenhouse.io/rdccareers/jobs/7997475003?gh_jid=7997475003) |
-| reddit | Frontend Engineer, Ads<br><sub>Remote - United States</sub> | 2026-09-19 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8194576) |
-| block | Software Engineer<br><sub>Bay Area, CA, United States of America</sub> | 2026-09-19 | 2026-09-19 19:26 UTC |  | [Apply](http://block.xyz/careers/jobs/5426213008?gh_jid=5426213008) |
-| reddit | Software Engineer, Ingestion Platform<br><sub>Remote - United States</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8214910) |
-| esri | Software and Mobility Asset Supervisor<br><sub>Redlands, CA</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://www.esri.com/careers/5233640007?gh_jid=5233640007) |
-| lyft | Backend Software Engineer, Airports<br><sub>San Francisco, CA</sub> | 2026-09-18 | 2026-09-19 19:26 UTC | $128,000 - $160,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8806570002?gh_jid=8806570002) |
-| andurilindustries | IT Systems Engineer<br><sub>Costa Mesa, California, United States</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://boards.greenhouse.io/andurilindustries/jobs/5239480007?gh_jid=5239480007) |
-| andurilindustries | Mission Software Engineer<br><sub>Lexington, Massachusetts, United States</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://boards.greenhouse.io/andurilindustries/jobs/5239687007?gh_jid=5239687007) |
-| andurilindustries | Production Software Engineer<br><sub>Fort Collins, Colorado, United States</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://boards.greenhouse.io/andurilindustries/jobs/5189514007?gh_jid=5189514007) |
-| andurilindustries | Site Reliability Engineer<br><sub>Waltham, Massachusetts, United States</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://boards.greenhouse.io/andurilindustries/jobs/5236881007?gh_jid=5236881007) |
-| andurilindustries | Quality Systems Engineer<br><sub>Ashville, Ohio, United States</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://boards.greenhouse.io/andurilindustries/jobs/5200601007?gh_jid=5200601007) |
-| twitch | Software Engineer, Data Platform<br><sub>San Francisco, CA</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/twitch/jobs/8817023002) |
-| waymo | Marketplace Platform, TLM<br><sub>Mountain View, CA, USA</sub> | 2026-09-18 | 2026-09-19 19:27 UTC |  | [Apply](https://careers.withwaymo.com/jobs?gh_jid=7436212) |
-| waymo | Machine Learning Engineer, Perception<br><sub>Mountain View, CA, USA; San Francisco, CA, USA</sub> | 2026-09-18 | 2026-09-19 19:27 UTC |  | [Apply](https://careers.withwaymo.com/jobs?gh_jid=8212478) |
-| scoutmotors | AI Workflow Engineer<br><sub>Charlotte, North Carolina, United States</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/scoutmotors/jobs/5240865007) |
-| torcrobotics | Software Engineer, II - Map Enablement<br><sub>Ann Arbor, MI</sub> | 2026-09-18 | 2026-09-19 19:26 UTC | $139,000 - $166,800 | [Apply](https://job-boards.greenhouse.io/torcrobotics/jobs/8789483002) |
-| doordashusa | Software Engineer<br><sub>San Francisco, CA; Seattle, WA; NYC, NY</sub> | 2026-09-18 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8212984) |
-| coinbase | Software Engineer, Developer Infrastructure<br><sub>Remote - USA</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://www.coinbase.com/careers/positions/7991839?gh_jid=7991839) |
-| anthropic | Recruiting Analytics Data Engineer <br><sub>San Francisco, CA \| New York City, NY \| Seattle, WA</sub> | 2026-09-18 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/anthropic/jobs/5424111008) |
-| amazon | Software Development Engineer, Amazon Devices, DS2 (Device Software & Services)<br><sub>Denver, Colorado, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553819/apply) |
-| amazon | Software Development Engineer, Leo Data Science Platform<br><sub>Redmond, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553004/apply) |
-| amazon | Software Development Engineer, Prime Video ML Infrastructure<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553195/apply) |
-| amazon | Software Development Engineer, AWS Analytics Engineering<br><sub>Seattle, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553986/apply) |
-| amazon | Software Development Engineer, AWS OpenSearch Service<br><sub>Austin, Texas, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10554084/apply) |
-| amazon | Software Development Engineer, Devices & Services Trust CX Innovations<br><sub>Sunnyvale, California, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553155/apply) |
-| amazon | Software Development Engineer, Advengers - Amazon Ads Brand & Video<br><sub>New York, New York, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553871/apply) |
-| amazon | Software Development Engineer, SageMaker Unified Studio<br><sub>Bellevue, Washington, USA</sub> | 2026-09-18 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10553306/apply) |
-| anthropic | Pre-training Data Infrastructure Engineer<br><sub>San Francisco, CA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/anthropic/jobs/4973067008) |
-| verkada | Embedded Engineer - Streaming<br><sub>San Mateo, CA United States</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/verkada/jobs/5230322007) |
-| alpaca | Software Engineer - Core Trading<br><sub>Remote - Americas or EU</sub> | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/alpaca/jobs/6194973004) |
-| rebuildmanufacturing | Software Development Engineer<br><sub>Los Angeles, CA; Seattle, WA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC | $111,543 – $167,315 | [Apply](https://job-boards.greenhouse.io/rebuildmanufacturing/jobs/4732952005) |
-| reddit | Front End Software Engineer, Consumer Engineering<br><sub>Remote - United States</sub> | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8147559) |
-| flyzipline | ML Infrastructure Engineer<br><sub>South San Francisco, California, USA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC | $160,000 - $250,000 | [Apply](https://www.zipline.com/open-roles/7989516003?gh_jid=7989516003) |
-| flyzipline | Embedded Firmware Engineer<br><sub>South San Francisco, California, USA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC | $160,000 - $250,000 | [Apply](https://www.zipline.com/open-roles/7989547003?gh_jid=7989547003) |
-| doordashusa | Software Engineer, Full Stack - Developer Insights<br><sub>San Francisco, CA; New York, NY; Los Angeles, CA; Seattle, WA</sub> | 2026-09-17 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8207877) |
-| doordashusa | Software Engineer - Developer Experience, Web<br><sub>San Francisco, CA; Sunnyvale, CA; Los Angeles, CA; Seattle, WA; New York, NY</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8197854) |
-| doordashusa | Software Engineer, Code Quality<br><sub>San Francisco, CA; Seattle, WA; New York, NY; Los Angeles, CA</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8202736) |
-| doordashusa | Software Engineer, Cloud Infrastructure<br><sub>New York, NY</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8180903) |
-| doordashusa | Software Engineer, Storage - Distributed Caching<br><sub>San Francisco, CA; Seattle, WA; New York, NY</sub> | 2026-09-17 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/doordashusa/jobs/8191134) |
-| point72 | Quant Library Developer, Macro Technology<br><sub>United States</sub> | 2026-09-17 | 2026-09-16 05:04 UTC | $200,000-$300,000 | [Apply](https://boards.greenhouse.io/point72/jobs/8782787002?gh_jid=8782787002) |
-| amazon | Software Development Engineer , Amazon Leo Commerce<br><sub>Redmond, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552346/apply) |
-| amazon | Software Development Engineer, AWS Lambda<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552708/apply) |
-| amazon | Software Development Engineer, Network Fabric Engineering<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552082/apply) |
-| amazon | Software Development Engineer, Amazon Connect Telecom Engineering<br><sub>Sunnyvale, California, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552602/apply) |
-| amazon | Software Development Engineer, Amazon Vulnerability Management Service (AVMS)<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10551950/apply) |
-| amazon | Software Development Engineer, Agentic AI DevOps<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552775/apply) |
-| amazon | Software Development Engineer , Ground Control Console (GC2)<br><sub>Redmond, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10551480/apply) |
-| amazon | Software Development Engineer<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10551443/apply) |
-| amazon | Software Development Engineer, EC2 Machine Learning Supercompute<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552548/apply) |
-| amazon | Software Dev Engineer, Benefits Experience & Technology (BXT)<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552585/apply) |
-| amazon | Software Development Engineer, AWS Partnerships<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552237/apply) |
-| amazon | Software Development Engineer, Distributed Systems, Annapurna Labs<br><sub>Seattle, Washington, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552584/apply) |
-| amazon | Software Development Engineer, Amazon WorkSpaces Applications<br><sub>Sunnyvale, California, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10552157/apply) |
-| amazon | Software Engineer, AWS SageMaker Unified Studio<br><sub>Arlington, Virginia, USA</sub> | 2026-09-17 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10551396/apply) |
-| reddit | Software Engineer, Consumer Engineering<br><sub>Remote - United States</sub> | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8172457) |
-| anthropic | Copywriter, Developer<br><sub>San Francisco, CA \| New York City, NY</sub> | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/anthropic/jobs/5423931008) |
-| esri | Software Developer II - Android Apps<br><sub>Portland, ME</sub> | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://www.esri.com/careers/5040328007?gh_jid=5040328007) |
-| stripe | Backend Engineer, Intelligent Commerce<br><sub>Seattle, San Francisco, New York</sub> | 2026-09-16 | 2026-09-16 05:04 UTC |  | [Apply](https://stripe.com/jobs/search?gh_jid=7988264) |
-| anthropic | Software Engineer, Tokens and Prompt Structures<br><sub>San Francisco, CA \| New York City, NY</sub> | 2026-09-16 | 2026-09-19 19:26 UTC |  | [Apply](https://job-boards.greenhouse.io/anthropic/jobs/5421263008) |
-| reddit | Front End Software Engineer, Media Player<br><sub>Remote - United States</sub> | 2026-09-16 | 2026-09-16 05:04 UTC |  | [Apply](https://job-boards.greenhouse.io/reddit/jobs/8198102) |
-| amazon | Software Development Engineer , Inventory Accounting<br><sub>Redmond, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10546898/apply) |
-| amazon | Software Development Engineer, AWS Transform Migrations <br><sub>Boston, Massachusetts, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544626/apply) |
-| amazon | Software Development Engineer, AWS Quick<br><sub>Bellevue, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10550866/apply) |
-| amazon | Software Development Engineer, Specialist AI Tooling, Specialist Technology Team<br><sub>Austin, Texas, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547170/apply) |
-| amazon | Software Dev Engineer<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10548148/apply) |
-| amazon | Software Development Engineer, Amazon Publisher Monetization - Video Ads, Ads - Video Demand - Fixed<br><sub>New York, New York, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10551376/apply) |
-| amazon | Software Development Engineer, Tax and Account Compliance Tech<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10550363/apply) |
-| amazon | Software Development Engineer, Agentic AI, Velocity Labs<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10545820/apply) |
-| amazon | Software Development Engineer, Infrastructure Reliability Engineering<br><sub>Arlington, Virginia, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10545098/apply) |
-| amazon | Software Development Engineer, Humorphic Labs<br><sub>Austin, Texas, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547103/apply) |
-| amazon | Software Development Engineer , Leo Commerce Data Platform<br><sub>Redmond, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547041/apply) |
-| amazon | Software Development Engineer, Special Projects<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547105/apply) |
-| amazon | Software Development Engineer, FSx for Lustre<br><sub>Boston, Massachusetts, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547306/apply) |
-| amazon | Software Development Engineer, AWS Security<br><sub>Seattle, Washington, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544608/apply) |
-| amazon | Software Development Engineer , AWS Kubernetes (K8s), AWS Kubernetes<br><sub>Santa Clara, California, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10544200/apply) |
-| amazon | Software Development Engineer, Amazon DSP, Amazon Ad Exchange<br><sub>Arlington, Virginia, USA</sub> | 2026-09-16 | 2026-09-19 19:39 UTC |  | [Apply](https://account.amazon.jobs/jobs/10547074/apply) |
+Startups, early-stage companies, and smaller technology businesses.
+
+| Company | Role | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|
+| altentechnologyusa | Embedded Software Application Engineer<br><sub>Greensboro, North Carolina, United States</sub> | 2 years | 2026-09-09 | 2026-09-16 05:04 UTC | $75,000 - $77,000 | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5233722007) |
 
 <!-- ENTRY_JOBS:END -->

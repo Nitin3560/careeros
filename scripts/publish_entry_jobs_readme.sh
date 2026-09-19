@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-/Library/Frameworks/Python.framework/Versions/3.13/bin/python3}"
 SINCE_HOURS="${SINCE_HOURS:-168}"
-LIMIT="${LIMIT:-100}"
+LIMIT="${LIMIT:-150}"
 BOARD_LIMIT="${BOARD_LIMIT:-100}"
 BOARD_PRIORITY="${BOARD_PRIORITY:-1}"
 README_PATH="${README_PATH:-$ROOT/README.md}"

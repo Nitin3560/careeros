@@ -27,7 +27,8 @@ ENTRY_TITLE_RE = re.compile(
 EXCLUDE_TITLE_RE = re.compile(
     r"\b(intern|internship|co-?op|apprentice|senior|sr\.?|staff|principal|lead|"
     r"manager|architect|director|head of|vp|sales|account executive|analyst|"
-    r"product design|designer|support|customer|recruiter|engineer\s*(iii|3)\b|"
+    r"supervisor|technician|facilities|administrator|product design|designer|support|"
+    r"customer|recruiter|engineer\s*(iii|3)\b|"
     r"software development engineer\s*(iii|3)\b|sde\s*(iii|3)\b|level\s*5)\b",
     re.I,
 )
@@ -56,14 +57,13 @@ NON_US_LOCATION_RE = re.compile(
     re.I,
 )
 
-TIER_A_ENTRY_RE = re.compile(
+EXPLICIT_ENTRY_TITLE_RE = re.compile(
     r"\b(new grad|new graduate|university grad|university graduate|college grad|"
-    r"recent grad|early career|graduate software)\b",
-    re.I,
-)
-TIER_B_ENTRY_RE = re.compile(
-    r"\b(software engineer\s*(i|1|ii|2)\b|software development engineer\s*(i|1|ii|2)\b|"
-    r"sde\s*(i|1|ii|2)\b|engineer\s*(i|1|ii|2)\b|junior|associate software engineer|"
+    r"recent grad|early career|entry[- ]level|graduate software|junior|"
+    r"software engineer\s*(i|1)\b|software development engineer\s*(i|1)\b|"
+    r"software developer\s*(i|1)\b|backend engineer\s*(i|1)\b|"
+    r"full[- ]?stack engineer\s*(i|1)\b|(?:ml|ai) engineer\s*(i|1)\b|"
+    r"sde\s*(i|1)\b|engineer\s*(i|1)\b|associate software engineer|"
     r"member of technical staff|mts)\b",
     re.I,
 )
@@ -81,18 +81,38 @@ DEFENSE_COMPANY_RE = re.compile(
     r"darkwolf|freedomconsulting|systemstechnologyresearch|morsecorp|questdefense)\b",
     re.I,
 )
-TIER_A_COMPANY_RE = re.compile(
-    r"\b(stripe|amazon|google|microsoft|meta|apple|nvidia|openai|anthropic|databricks|"
-    r"snowflake|cloudflare|figma|notion|linear|cursor|perplexity|reddit|roblox|block|"
-    r"coinbase|brex|pinterest|waymo|airbnb|uber|lyft|doordash|instacart|mongodb|"
-    r"gitlab|github|atlassian)\b",
+TIER_1_COMPANY_RE = re.compile(
+    r"\b(google|alphabet|amazon|microsoft|meta|facebook|apple|nvidia|oracle|ibm|"
+    r"salesforce|adobe|intel|cisco|uber|airbnb|doordash|stripe|block|paypal|"
+    r"capitalone|capital one|jpmorgan|jp morgan|goldmansachs|goldman sachs|"
+    r"bankofamerica|bank of america|walmart|target|costco|homedepot|home depot|"
+    r"databricks|snowflake|servicenow|workday|atlassian|mongodb|cloudflare|"
+    r"coinbase|roblox|reddit|pinterest|lyft|instacart|twilio|splunk|"
+    r"doordashusa|robinhood|thenewyorktimes|new york times|esri|klaviyo)\b",
     re.I,
 )
-TIER_B_COMPANY_RE = re.compile(
+TIER_2_COMPANY_RE = re.compile(
     r"\b(samsara|elastic|clear|idme|lightningai|rdccareers|zoominfo|abnormalsecurity|"
     r"upstart|affirm|chime|mercury|fivetran|klaviyo|scaleai|grafanalabs|mozilla|"
-    r"backblaze|sezzle|oura|nexhealth)\b",
+    r"backblaze|sezzle|oura|nexhealth|figma|notion|brex|gitlab|github|"
+    r"anthropic|openai|perplexity|linear|waymo)\b",
     re.I,
+)
+
+NO_EXPERIENCE_RE = re.compile(
+    r"\b(no (?:professional |prior |previous )?experience (?:is )?required|"
+    r"zero years? of (?:professional |relevant )?experience)\b",
+    re.I,
+)
+YEARS_BEFORE_EXPERIENCE_RE = re.compile(
+    r"\b(?P<low>\d{1,2})(?:\s*(?:-|–|—|to)\s*(?P<high>\d{1,2}))?\s*\+?\s*"
+    r"years?\b.{0,100}?\bexperience\b",
+    re.I | re.S,
+)
+EXPERIENCE_BEFORE_YEARS_RE = re.compile(
+    r"\bexperience\b.{0,100}?\b(?P<low>\d{1,2})(?:\s*(?:-|–|—|to)\s*"
+    r"(?P<high>\d{1,2}))?\s*\+?\s*years?\b",
+    re.I | re.S,
 )
 
 
@@ -106,6 +126,7 @@ class EntryJob:
     application_url: str | None
     source: str
     salary: str | None = None
+    experience: str | None = None
     dedupe_key: str | None = None
 
 
@@ -137,13 +158,34 @@ def is_eligible_tech_title(title: str, description: str | None = None) -> bool:
 
 
 def is_entry_full_time_title(title: str, description: str | None = None) -> bool:
-    # Backward-compatible helper used by tests and older scripts. The README feed
-    # now includes all eligible non-senior U.S. tech roles, then tiers explicit
-    # entry-level signals above broader roles.
     return is_eligible_tech_title(title, description) and (
-        TIER_A_ENTRY_RE.search(title) is not None
-        or TIER_B_ENTRY_RE.search(title) is not None
+        EXPLICIT_ENTRY_TITLE_RE.search(title) is not None
     )
+
+
+def extract_entry_experience(text: str | None) -> str | None:
+    """Return posting-backed 0-2 year evidence, or None when it is absent/too senior."""
+    if not text:
+        return None
+    if NO_EXPERIENCE_RE.search(text):
+        return "0 years"
+
+    ranges: list[tuple[int, int]] = []
+    spans: set[tuple[int, int]] = set()
+    for pattern in (YEARS_BEFORE_EXPERIENCE_RE, EXPERIENCE_BEFORE_YEARS_RE):
+        for match in pattern.finditer(text):
+            if match.span() in spans:
+                continue
+            spans.add(match.span())
+            low = int(match.group("low"))
+            high = int(match.group("high") or low)
+            ranges.append((low, high))
+
+    if not ranges or any(low > 2 or high > 2 for low, high in ranges):
+        return None
+    low = min(item[0] for item in ranges)
+    high = max(item[1] for item in ranges)
+    return f"{low} year" if low == high == 1 else (f"{low} years" if low == high else f"{low}–{high} years")
 
 
 def extract_salary(text: str | None) -> str:
@@ -162,11 +204,11 @@ def extract_salary(text: str | None) -> str:
 
 
 def tier_for_job(job: EntryJob) -> str:
-    if TIER_A_ENTRY_RE.search(job.title):
-        return "Tier A"
-    if TIER_B_ENTRY_RE.search(job.title):
-        return "Tier B"
-    return "Tier C"
+    if TIER_1_COMPANY_RE.search(job.company):
+        return "Tier 1"
+    if TIER_2_COMPANY_RE.search(job.company):
+        return "Tier 2"
+    return "Tier 3"
 
 
 def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
@@ -194,7 +236,8 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
     for company, title, location, date_posted, first_seen_at, application_url, source, description, dedupe_key in rows:
         if DEFENSE_COMPANY_RE.search(company):
             continue
-        if not (is_us_location(location) and is_eligible_tech_title(title, description)):
+        experience = extract_entry_experience(description)
+        if not (is_us_location(location) and is_eligible_tech_title(title, description) and experience):
             continue
         key = str(dedupe_key or application_url or f"{company}:{title}:{location}")
         if key in seen_keys:
@@ -210,6 +253,7 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
                 application_url=application_url,
                 source=source,
                 salary=extract_salary(description),
+                experience=experience,
                 dedupe_key=key,
             )
         )
@@ -234,8 +278,8 @@ def render_tier_table(jobs: list[EntryJob]) -> list[str]:
         return ["No matching roles in this tier right now.", ""]
 
     lines = [
-        "| Company | Role | Posted | Found | Salary | Apply |",
-        "|---|---|---|---|---|---|",
+        "| Company | Role | Experience | Posted | Found | Salary | Apply |",
+        "|---|---|---|---|---|---|---|",
     ]
     for job in jobs:
         apply = f"[Apply]({job.application_url})" if job.application_url else ""
@@ -250,6 +294,7 @@ def render_tier_table(jobs: list[EntryJob]) -> list[str]:
                 [
                     escape_cell(job.company),
                     role.replace("|", "\\|"),
+                    escape_cell(job.experience),
                     escape_cell(posted),
                     escape_cell(found),
                     escape_cell(job.salary),
@@ -276,23 +321,25 @@ def render_markdown(jobs: list[EntryJob], since_hours: int) -> str:
         "",
         f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
-        "Quick links: [Tier A](#tier-a) · [Tier B](#tier-b) · [Tier C](#tier-c)",
+        "Eligibility: U.S. full-time software/AI roles whose posting states **0–2 years** of professional experience. Internships and roles requiring more than 2 years are excluded.",
         "",
-        "### Tier A",
+        "Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)",
         "",
-        "Exact new-grad / university-grad / early-career full-time tech roles.",
+        "### Tier 1",
         "",
-        *render_tier_table(tiers["Tier A"]),
-        "### Tier B",
+        "Large public and established technology, financial, and enterprise companies.",
         "",
-        "Engineer I/II, SDE I/II, junior, associate, and MTS-style tech roles.",
+        *render_tier_table(tiers["Tier 1"]),
+        "### Tier 2",
         "",
-        *render_tier_table(tiers["Tier B"]),
-        "### Tier C",
+        "Established mid-sized companies with meaningful engineering organizations.",
         "",
-        "Other U.S. non-senior software/AI/tech roles found this week.",
+        *render_tier_table(tiers["Tier 2"]),
+        "### Tier 3",
         "",
-        *render_tier_table(tiers["Tier C"]),
+        "Startups, early-stage companies, and smaller technology businesses.",
+        "",
+        *render_tier_table(tiers["Tier 3"]),
         END_MARKER,
     ]
     return "\n".join(lines) + "\n"
