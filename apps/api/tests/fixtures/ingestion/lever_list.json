@@ -1,0 +1,14 @@
+[
+  {
+    "id": "lever-1",
+    "text": "Backend Engineer",
+    "categories": {"location": "Remote - US"},
+    "hostedUrl": "https://jobs.lever.co/example/lever-1",
+    "createdAt": 1789819200000,
+    "description": "<p>Build reliable services.</p>",
+    "lists": [
+      {"text": "Requirements", "content": "<ul><li>1-2 years of experience</li><li>Python</li></ul>"}
+    ],
+    "additional": "<p><strong>Benefits</strong></p><p>Health coverage.</p>"
+  }
+]

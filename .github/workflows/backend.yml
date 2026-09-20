@@ -9,8 +9,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: "sqlite+pysqlite:///:memory:"
       REDIS_URL: "redis://localhost:6379/0"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: careeros
+          POSTGRES_PASSWORD: careeros
+          POSTGRES_DB: careeros_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U careeros -d careeros_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: apps/api
@@ -21,4 +34,6 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install ".[dev]"
-      - run: python -m pytest tests -q
+      - run: DATABASE_URL=postgresql://careeros:careeros@localhost:5432/careeros_test alembic upgrade head
+      - run: DATABASE_URL=postgresql://careeros:careeros@localhost:5432/careeros_test python -m pytest tests/test_poller_postgres.py -q
+      - run: DATABASE_URL=sqlite+pysqlite:///:memory: python -m pytest tests -q --ignore=tests/test_poller_postgres.py

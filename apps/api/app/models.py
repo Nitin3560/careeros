@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import UserDefinedType
@@ -143,6 +143,19 @@ class Job(Base):
     skip_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     matched_pattern: Mapped[str | None] = mapped_column(String, nullable=True)
     filter_version: Mapped[int | None] = mapped_column(nullable=True)
+    board_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ats_boards.id"), nullable=True
+    )
+    raw_payload: Mapped[dict | None] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=True
+    )
+    content_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    description_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="pending"
+    )
+    description_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
+    description_next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class JobRequirement(Base):
@@ -189,6 +202,42 @@ class AtsBoard(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    tier: Mapped[str] = mapped_column(String, nullable=False, default="B")
+    next_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    poll_interval_seconds: Mapped[int] = mapped_column(default=3600, nullable=False)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_status_code: Mapped[int | None] = mapped_column(nullable=True)
+    etag: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_modified: Mapped[str | None] = mapped_column(Text, nullable=True)
+    list_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_display: Mapped[str | None] = mapped_column(String, nullable=True)
+    empty_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    not_found_count: Mapped[int] = mapped_column(default=0, nullable=False)
+
+
+class PollRun(Base):
+    __tablename__ = "poll_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    boards_due: Mapped[int] = mapped_column(default=0, nullable=False)
+    boards_polled: Mapped[int] = mapped_column(default=0, nullable=False)
+    ok: Mapped[int] = mapped_column(default=0, nullable=False)
+    not_modified: Mapped[int] = mapped_column(default=0, nullable=False)
+    unchanged_hash: Mapped[int] = mapped_column(default=0, nullable=False)
+    empty: Mapped[int] = mapped_column(default=0, nullable=False)
+    failed: Mapped[int] = mapped_column(default=0, nullable=False)
+    dead: Mapped[int] = mapped_column(default=0, nullable=False)
+    new_jobs: Mapped[int] = mapped_column(default=0, nullable=False)
+    updated_jobs: Mapped[int] = mapped_column(default=0, nullable=False)
+    expired_jobs: Mapped[int] = mapped_column(default=0, nullable=False)
+    reappeared_jobs: Mapped[int] = mapped_column(default=0, nullable=False)
+    detail_fetches: Mapped[int] = mapped_column(default=0, nullable=False)
+    p50_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    p95_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class CompanyTarget(Base):

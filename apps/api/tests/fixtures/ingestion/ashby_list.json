@@ -1,0 +1,13 @@
+{
+  "organizationName": "Example AI",
+  "jobs": [
+    {
+      "id": "ashby-1",
+      "title": "AI Engineer I",
+      "location": "San Francisco, CA",
+      "jobUrl": "https://jobs.ashbyhq.com/example/ashby-1",
+      "publishedAt": "2026-09-19T12:00:00Z",
+      "descriptionHtml": "<h2>What you will do</h2><p>Ship ML systems.</p><h2>Qualifications</h2><ul><li>No prior experience required</li></ul>"
+    }
+  ]
+}

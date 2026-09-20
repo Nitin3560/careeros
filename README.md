@@ -250,6 +250,30 @@ docker compose up --build
 
 Quickstart documentation will be updated soon.
 
+### Bulk collection poller rollout
+
+Run these steps in order from the repository root. The poller collects raw jobs and normalized descriptions only; classification and matching stay downstream.
+
+```bash
+# 1. Schema and legacy board links
+cd apps/api && alembic upgrade head && cd ../..
+python scripts/backfill_job_board_ids.py
+python scripts/backfill_job_descriptions.py
+python scripts/assign_board_tiers.py
+
+# 2. Capacity and real-source quality checks
+python scripts/load_test_poller.py
+python scripts/smoke_test_sources.py --database-url "$DATABASE_URL"
+
+# 3. One full shadow sweep (expiry remains off)
+POLLER_EXPIRY_ENABLED=false python scripts/run_poller.py
+
+# 4. In another terminal, inspect coverage and quality
+python scripts/coverage_report.py
+```
+
+`POLLER_CONCURRENCY` defaults to `64`. Use `POLLER_BOARD_LIMIT` and `POLLER_ATS` for bounded tests. After reviewing a clean full sweep, restart with `POLLER_EXPIRY_ENABLED=true`. Enable the daily cleanup only after that by setting `POLLER_RETENTION_ENABLED=true` and running `scripts/retain_expired_jobs.py`. The coverage report writes `reports/coverage_report.json`; focus on schedule lag, p50/p95 latency, source-level description quality, and first-seen freshness.
+
 ---
 
 ## Documentation

@@ -1,0 +1,1 @@
+"""High-throughput collection infrastructure."""
