@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import json
 from pathlib import Path
 import sys
 import uuid
@@ -13,7 +15,9 @@ from scripts.detect_ats import (
     careers_candidates,
     detect_one,
     persist_result,
-    resolve_careers_url,
+    probe_url,
+    selection_where,
+    write_review_csv,
 )
 
 
@@ -72,9 +76,11 @@ class _RegistryDB:
     def __init__(self):
         self.board_id = None
         self.board_inserts = 0
+        self.statements = []
 
     def execute(self, statement, params):
         sql = str(statement)
+        self.statements.append((sql, params))
         if "SELECT id FROM ats_boards" in sql:
             return _ScalarResult(self.board_id)
         if "INSERT INTO ats_boards" in sql:
@@ -89,13 +95,17 @@ def test_detection_persistence_is_idempotent_and_failure_inserts_nothing():
     match = find_ats([], "https://jobs.ashbyhq.com/acme", "")
     persist_result(db, row, match, "error", "low", "verification failed")
     assert db.board_inserts == 0
+    registry_update = next(item for item in db.statements if "UPDATE company_registry" in item[0])
+    assert "detection_status <> 'detected'" in registry_update[0]
+    assert registry_update[1]["protected"] is True
     persist_result(db, row, match, "detected", "high", match.evidence)
     persist_result(db, row, match, "detected", "high", match.evidence)
     assert db.board_inserts == 1
 
 
 def test_careers_candidates_follow_required_order():
-    assert careers_candidates("example.com") == [
+    candidates = careers_candidates("example.com")
+    assert candidates[:7] == [
         "https://example.com/careers",
         "https://example.com/jobs",
         "https://careers.example.com",
@@ -103,6 +113,17 @@ def test_careers_candidates_follow_required_order():
         "https://www.example.com/careers",
         "https://www.example.com/jobs",
         "https://example.com",
+    ]
+    assert candidates[7:] == [
+        "https://example.com/about/careers",
+        "https://example.com/company/careers",
+        "https://example.com/company/jobs",
+        "https://example.com/join",
+        "https://example.com/join-us",
+        "https://example.com/work-with-us",
+        "https://example.com/careers/jobs",
+        "https://example.com/en/careers",
+        "https://example.com/careers/open-positions",
     ]
 
 
@@ -130,7 +151,7 @@ def test_blank_careers_url_is_discovered_persisted_and_verified():
         returned_row, match, status, confidence, evidence = result
         assert (match.ats, status, confidence) == ("ashby", "detected", "high")
         assert returned_row["careers_url"] == "https://careers.example.com"
-        assert returned_row["_attempted_urls"] == careers_candidates("example.com")[:3]
+        assert [item["url"] for item in returned_row["_attempt_diagnostics"]] == careers_candidates("example.com")[:3]
         assert "discovered_careers_url=https://careers.example.com" in evidence
 
     asyncio.run(scenario())
@@ -152,7 +173,10 @@ def test_discovery_limits_concurrent_requests_per_domain_to_three():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             domain_semaphores = {}
             await asyncio.gather(*(
-                resolve_careers_url(client, asyncio.Semaphore(20), domain_semaphores, "example.com")
+                probe_url(
+                    client, asyncio.Semaphore(20), domain_semaphores,
+                    "example.com", "https://example.com/careers",
+                )
                 for _ in range(8)
             ))
         assert maximum == 3
@@ -165,10 +189,95 @@ def test_not_found_discovery_retains_every_attempted_url():
         def handler(request):
             return httpx.Response(404, request=request)
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            response, candidate, attempted = await resolve_careers_url(
-                client, asyncio.Semaphore(8), {}, "missing.example"
+            row = {
+                "id": uuid.uuid4(), "company_name": "Missing", "domain": "missing.example",
+                "careers_url": None, "priority": 2,
+            }
+            returned_row, _match, status, _confidence, evidence = await detect_one(
+                client, asyncio.Semaphore(8), {}, row
             )
-        assert response is None and candidate is None
-        assert attempted == careers_candidates("missing.example")
+        assert status == "not_found"
+        attempted = [item["url"] for item in returned_row["_attempt_diagnostics"] if not item["playwright"]]
+        assert attempted == careers_candidates("missing.example") + ["https://missing.example/sitemap.xml"]
+        assert "final_status_code" in evidence
 
     asyncio.run(scenario())
+
+
+def test_403_plain_http_then_playwright_success_is_detected():
+    async def scenario():
+        def handler(request):
+            if "boards-api.greenhouse.io" in str(request.url):
+                return httpx.Response(200, request=request, json={"jobs": []})
+            return httpx.Response(403, request=request, text="blocked")
+
+        async def browser(url):
+            return {
+                "url": url, "status_code": 200,
+                "html": '<iframe src="https://boards.greenhouse.io/acme"></iframe>',
+                "network_urls": [],
+            }
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            row = {"id": uuid.uuid4(), "company_name": "Acme", "domain": "acme.com", "careers_url": None, "priority": 1}
+            return await detect_one(client, asyncio.Semaphore(8), {}, row, playwright_loader=browser)
+
+    row, match, status, _confidence, evidence = asyncio.run(scenario())
+    assert (match.ats, status) == ("greenhouse", "detected")
+    assert row["_attempt_diagnostics"][0]["final_status_code"] == 403
+    assert row["_attempt_diagnostics"][1]["playwright"] is True
+    assert "diagnostics=" in evidence
+
+
+def test_homepage_link_discovery_finds_greenhouse_board():
+    async def scenario():
+        def handler(request):
+            url = str(request.url)
+            if "boards-api.greenhouse.io" in url:
+                return httpx.Response(200, request=request, json={"jobs": []})
+            if url == "https://acme.com":
+                return httpx.Response(200, request=request, text='<a href="/open-roles">Work with us</a>')
+            if url == "https://acme.com/open-roles":
+                return httpx.Response(200, request=request, text='<iframe src="https://boards.greenhouse.io/acme"></iframe>')
+            return httpx.Response(404, request=request)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            row = {"id": uuid.uuid4(), "company_name": "Acme", "domain": "acme.com", "careers_url": None, "priority": 1}
+            return await detect_one(client, asyncio.Semaphore(8), {}, row)
+    _row, match, status, _confidence, _evidence = asyncio.run(scenario())
+    assert (match.ats, status) == ("greenhouse", "detected")
+
+
+def test_sitemap_fallback_finds_greenhouse_board():
+    async def scenario():
+        def handler(request):
+            url = str(request.url)
+            if "boards-api.greenhouse.io" in url:
+                return httpx.Response(200, request=request, json={"jobs": []})
+            if url == "https://acme.com/sitemap.xml":
+                return httpx.Response(200, request=request, text="<urlset><url><loc>https://acme.com/teams/careers-list</loc></url></urlset>")
+            if url == "https://acme.com/teams/careers-list":
+                return httpx.Response(200, request=request, text='<a href="https://boards.greenhouse.io/acme">Jobs</a>')
+            return httpx.Response(404, request=request)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            row = {"id": uuid.uuid4(), "company_name": "Acme", "domain": "acme.com", "careers_url": None, "priority": 1}
+            return await detect_one(client, asyncio.Semaphore(8), {}, row)
+    _row, match, status, _confidence, _evidence = asyncio.run(scenario())
+    assert (match.ats, status) == ("greenhouse", "detected")
+
+
+def test_review_csv_includes_error_diagnostics_and_retry_selects_only_errors(tmp_path):
+    row = {
+        "company_name": "Blocked", "careers_url": "https://blocked.test/careers",
+        "_attempt_diagnostics": [{
+            "url": "https://blocked.test/careers", "final_status_code": 503,
+            "redirect_chain": ["https://blocked.test/careers"],
+            "exception_type": None, "response_size": 7, "playwright": False,
+        }],
+    }
+    output = tmp_path / "review.csv"
+    write_review_csv(output, [(row, None, "error", "low", "blocked")])
+    record = next(csv.DictReader(output.open()))
+    assert record["status"] == "error"
+    assert json.loads(record["attempt_diagnostics"])[0]["final_status_code"] == 503
+    assert selection_where(True) == "detection_status = 'error'"
+    assert "pending" in selection_where(False)
