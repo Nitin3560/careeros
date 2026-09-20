@@ -14,8 +14,15 @@ import httpx
 from .types import BoardSpec, FetchResult
 
 
-HOST_LIMITS = {"greenhouse": 16, "lever": 8, "ashby": 8, "amazon": 2}
-HOST_RATES = {"greenhouse": 16.0, "lever": 8.0, "ashby": 8.0, "amazon": 2.0}
+HOST_LIMITS = {
+    "greenhouse": 16, "lever": 8, "ashby": 8, "amazon": 2,
+    "smartrecruiters": 4, "workable": 4,
+}
+HOST_RATES = {
+    "greenhouse": 16.0, "lever": 8.0, "ashby": 8.0, "amazon": 2.0,
+    "smartrecruiters": 4.0, "workable": 4.0,
+}
+TENANT_ATS = {"workday", "phenom", "eightfold", "oracle", "icims"}
 logger = logging.getLogger("careeros.poller")
 
 
@@ -93,22 +100,27 @@ class AsyncBoardFetcher:
     async def __aexit__(self, *_args) -> None:
         await self.client.aclose()
 
-    def _ensure_workday_host(self, host: str) -> None:
+    def _ensure_tenant_host(self, host: str) -> None:
         if host not in self.host_sems:
             self.host_sems[host] = asyncio.Semaphore(2)
             self.buckets[host] = TokenBucket(2.0)
             self.breakers[host] = CircuitBreaker()
 
+    # Kept for callers/tests written before tenant-scoped adapters were generalized.
+    def _ensure_workday_host(self, host: str) -> None:
+        self._ensure_tenant_host(host)
+
     async def request(self, host: str, url: str, *, method: str = "GET", **kwargs) -> httpx.Response:
-        if host.startswith("workday:"):
-            self._ensure_workday_host(host)
+        tenant_scoped = host.split(":", 1)[0] in TENANT_ATS
+        if tenant_scoped:
+            self._ensure_tenant_host(host)
         await self.breakers[host].wait()
         last_error: Exception | None = None
         for attempt in range(4):
             await self.buckets[host].acquire()
             try:
                 async with self.global_sem, self.host_sems[host]:
-                    if host.startswith("workday:"):
+                    if tenant_scoped:
                         async with self.workday_global_sem:
                             response = await self.client.post(url, **kwargs) if method == "POST" else await self.client.get(url, **kwargs)
                     else:
@@ -153,6 +165,12 @@ class AsyncBoardFetcher:
                 response, jobs, display = await self._fetch_amazon(board.slug, amazon_pages)
             elif board.ats == "workday":
                 response, jobs, display, complete, fetch_error = await self._fetch_workday(board)
+            elif board.ats == "smartrecruiters":
+                response, jobs, display, complete, fetch_error = await self._fetch_smartrecruiters(board)
+            elif board.ats == "workable":
+                response, jobs, display, complete, fetch_error = await self._fetch_workable(board)
+            elif board.ats in {"phenom", "eightfold", "oracle", "icims"}:
+                response, jobs, display, complete, fetch_error = await self._fetch_tenant_board(board)
             else:
                 response = await self.request(board.ats, self._list_url(board), headers=headers)
                 if response.status_code == 304:
@@ -225,6 +243,55 @@ class AsyncBoardFetcher:
                 raise ValueError("Workday detail is not an object")
             return {**raw, **detail, "_workday_host": host, "_workday_tenant": tenant, "_workday_site": site}, True
         except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError):
+            return raw, False
+
+    async def fetch_detail(self, board: BoardSpec, raw: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+        """Fetch job text only after the scheduler proves the row is new/changed."""
+        try:
+            if board.ats == "greenhouse":
+                return await self.fetch_greenhouse_detail(board, raw)
+            if board.ats == "workday":
+                return await self.fetch_workday_detail(board, raw)
+            if board.ats == "smartrecruiters":
+                response = await self.request(
+                    "smartrecruiters",
+                    f"https://api.smartrecruiters.com/v1/companies/{board.slug}/postings/{raw['id']}",
+                )
+            elif board.ats == "workable":
+                shortcode = raw.get("shortcode") or raw.get("id")
+                response = await self.request(
+                    "workable",
+                    f"https://apply.workable.com/api/v1/widget/accounts/{board.slug}",
+                    params={"details": "true"},
+                )
+            elif board.ats == "oracle":
+                host, _site = board.slug.split("|", 1)
+                raw_id = raw.get("Id") or raw.get("id")
+                response = await self.request(
+                    f"oracle:{host}",
+                    f"https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions/{raw_id}",
+                    params={"onlyData": "true"},
+                )
+            else:
+                # Phenom, Eightfold and iCIMS fixtures contain full text in the
+                # paginated result. Keeping this hook makes detail URLs additive.
+                return raw, bool(source_description(raw))
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("detail response is not an object")
+            if board.ats == "workable":
+                candidates = payload.get("jobs") or []
+                detail = next(
+                    (item for item in candidates if str(item.get("shortcode") or item.get("id")) == str(shortcode)),
+                    None,
+                )
+                if detail is None:
+                    raise ValueError("Workable detail response omitted requested job")
+            else:
+                detail = payload.get("job") or payload.get("items", [payload])[0] or payload
+            return {**raw, **detail}, True
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, json.JSONDecodeError):
             return raw, False
 
     @staticmethod
@@ -313,3 +380,115 @@ class AsyncBoardFetcher:
         elif mismatch:
             error = f"Workday count mismatch collected={len(jobs)} total={total}"
         return last_response, jobs, tenant, complete, error
+
+    async def _fetch_smartrecruiters(self, board: BoardSpec):
+        url = f"https://api.smartrecruiters.com/v1/companies/{board.slug}/postings"
+        return await self._paged_get(
+            board, "smartrecruiters", url, "content", "totalFound",
+            lambda offset: {"limit": 100, "offset": offset}, board.slug,
+        )
+
+    async def _fetch_workable(self, board: BoardSpec):
+        response = await self.request(
+            "workable", f"https://apply.workable.com/api/v1/widget/accounts/{board.slug}",
+            params={"details": "false"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        jobs = payload.get("jobs") if isinstance(payload, dict) else None
+        if not isinstance(jobs, list):
+            raise ValueError("Workable response has no jobs array")
+        total = payload.get("total") or payload.get("count") or len(jobs)
+        complete = len(jobs) == int(total)
+        error = None if complete else f"Workable count mismatch collected={len(jobs)} total={total}"
+        return response, jobs, payload.get("name") or board.slug, complete, error
+
+    async def _fetch_tenant_board(self, board: BoardSpec):
+        if board.ats == "phenom":
+            host, tenant = board.slug.split("|", 1)
+            url = f"https://{host}/api/phenom/jobapi/searchjobs"
+            return await self._paged_post(
+                board, f"phenom:{host}", url, "jobs", "totalJobs",
+                lambda page: {"refNum": tenant, "pageSize": 100, "pageNo": page + 1}, tenant,
+                container="data",
+            )
+        if board.ats == "eightfold":
+            host, tenant = board.slug.split("|", 1)
+            url = f"https://{host}/api/pcsx/search"
+            return await self._paged_get(
+                board, f"eightfold:{host}", url, "positions", "totalCount",
+                lambda offset: {"domain": tenant, "start": offset, "num": 100}, tenant,
+            )
+        if board.ats == "oracle":
+            host, site = board.slug.split("|", 1)
+            url = f"https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
+            return await self._paged_get(
+                board, f"oracle:{host}", url, "items", "totalResults",
+                lambda offset: {"onlyData": "true", "limit": 100, "offset": offset,
+                                "finder": f"findReqs;siteNumber={site}"}, site,
+            )
+        host = board.slug
+        url = f"https://{host}/jobs/search"
+        return await self._paged_get(
+            board, f"icims:{host}", url, "jobs", "total",
+            lambda offset: {"in_iframe": 1, "mode": "job", "pr": offset // 100 + 1,
+                            "searchRelation": "keyword_all", "format": "json"}, host,
+        )
+
+    async def _paged_get(self, board, host_key, url, jobs_key, total_key, params_for, display, *, container=None):
+        jobs, offset, total, last = [], 0, None, None
+        hit_cap = False
+        for _page in range(self.workday_max_pages):
+            last = await self.request(host_key, url, params=params_for(offset))
+            last.raise_for_status()
+            payload = last.json()
+            data = payload.get(container, {}) if container else payload
+            page = data.get(jobs_key) if isinstance(data, dict) else None
+            if not isinstance(page, list):
+                raise ValueError(f"{board.ats} response has no {jobs_key} array")
+            if total is None:
+                total = int(data.get(total_key) if data.get(total_key) is not None else len(page))
+            jobs.extend(page)
+            if not page or len(jobs) >= total:
+                break
+            offset += len(page)
+        else:
+            hit_cap = True
+        return self._complete_page_result(board, last, jobs, total, hit_cap, display)
+
+    async def _paged_post(self, board, host_key, url, jobs_key, total_key, body_for, display, *, container=None):
+        jobs, total, last = [], None, None
+        hit_cap = False
+        for page_number in range(self.workday_max_pages):
+            last = await self.request(host_key, url, method="POST", json=body_for(page_number))
+            last.raise_for_status()
+            payload = last.json()
+            data = payload.get(container, {}) if container else payload
+            page = data.get(jobs_key) if isinstance(data, dict) else None
+            if not isinstance(page, list):
+                raise ValueError(f"{board.ats} response has no {jobs_key} array")
+            if total is None:
+                total = int(data.get(total_key) if data.get(total_key) is not None else len(page))
+            jobs.extend(page)
+            if not page or len(jobs) >= total:
+                break
+        else:
+            hit_cap = True
+        return self._complete_page_result(board, last, jobs, total, hit_cap, display)
+
+    def _complete_page_result(self, board, response, jobs, total, hit_cap, display):
+        if response is None:
+            raise ValueError(f"{board.ats} returned no response")
+        mismatch = total is None or len(jobs) != total
+        complete = not hit_cap and not mismatch
+        if hit_cap:
+            error = f"{board.ats} page cap reached ({self.workday_max_pages})"
+        elif mismatch:
+            error = f"{board.ats} count mismatch collected={len(jobs)} total={total}"
+        else:
+            error = None
+        return response, jobs, display, complete, error
+
+
+def source_description(raw: dict[str, Any]) -> str:
+    return str(raw.get("description") or raw.get("descriptionHtml") or raw.get("jobDescription") or "")

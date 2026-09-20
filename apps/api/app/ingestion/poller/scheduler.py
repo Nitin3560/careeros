@@ -159,7 +159,7 @@ class PollScheduler:
         return len(stats)
 
     async def _retry_pending_details(self, fetcher: AsyncBoardFetcher) -> None:
-        pending = await self.repository.pending_greenhouse_details(limit=100)
+        pending = await self.repository.pending_details(limit=100)
         for row in pending:
             board = BoardSpec(**{
                 key: row[key] for key in (
@@ -167,11 +167,13 @@ class PollScheduler:
                     "list_hash", "consecutive_failures", "not_found_count", "empty_since",
                 )
             })
-            if board.ats == "workday":
+            if hasattr(fetcher, "fetch_detail"):
+                detail, ok = await fetcher.fetch_detail(board, row["raw_payload"] or {})
+            elif board.ats == "workday":
                 detail, ok = await fetcher.fetch_workday_detail(board, row["raw_payload"] or {})
             else:
                 detail, ok = await fetcher.fetch_greenhouse_detail(board, row["raw_payload"] or {})
-            normalized = normalize_job("greenhouse", board.slug, detail, pending=not ok)
+            normalized = normalize_job(board.ats, board.slug, detail, pending=not ok)
             await self.repository.finish_pending_detail(
                 row["job_id"], normalized, success=ok,
                 attempts=int(row["description_attempts"] or 0) + 1,
@@ -195,7 +197,11 @@ class PollScheduler:
         fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
         normalized = []
         detail_fetches = 0
-        if board.ats in {"greenhouse", "workday"}:
+        detail_sources = {
+            "greenhouse", "workday", "smartrecruiters", "workable",
+            "phenom", "eightfold", "oracle", "icims",
+        }
+        if board.ats in detail_sources:
             state = await self.repository.board_job_state(board.id)
             details: list[dict] = []
             pending: list[dict] = []
@@ -213,7 +219,9 @@ class PollScheduler:
                     pending.append(raw)
 
             async def fetch_detail(raw: dict):
-                if board.ats == "workday":
+                if hasattr(fetcher, "fetch_detail"):
+                    detail, ok = await fetcher.fetch_detail(board, raw)
+                elif board.ats == "workday":
                     detail, ok = await fetcher.fetch_workday_detail(board, raw)
                 else:
                     detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)

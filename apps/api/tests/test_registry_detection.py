@@ -49,6 +49,24 @@ def test_workday_locale_url_captures_host_tenant_and_site():
     assert match.slug == "acme.wd5.myworkdayjobs.com|acme|External"
 
 
+@pytest.mark.parametrize("url,ats,slug", [
+    ("https://jobs.smartrecruiters.com/Acme", "smartrecruiters", "Acme"),
+    ("https://apply.workable.com/acme/", "workable", "acme"),
+    ("https://careers.acme.com/api/phenom/jobapi/searchjobs", "phenom", "careers.acme.com|careers"),
+    ("https://acme.eightfold.ai/careers", "eightfold", "acme.eightfold.ai|acme"),
+    ("https://acme.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/External?siteNumber=External", "oracle", "acme.fa.us2.oraclecloud.com|External"),
+    ("https://careers-acme.icims.com/jobs/search", "icims", "careers-acme.icims.com"),
+])
+def test_supported_adapters_capture_board_endpoint_parameters(url, ats, slug):
+    match = find_ats([], url, "")
+    assert match.ats == ats and match.slug == slug and match.supported
+    if ats in {"phenom", "eightfold", "oracle", "icims"}:
+        assert match.endpoint_params["host"] in slug
+        assert match.endpoint_params["endpoint"].startswith("https://")
+    else:
+        assert match.endpoint_params["company_slug"] == slug
+
+
 def test_embedded_supported_board_beats_generic_unsupported_link():
     markup = '<a href="https://smartrecruiters.com/acme">old</a><iframe src="https://jobs.ashbyhq.com/acme"></iframe>'
     assert find_ats([], "https://example.com", markup).ats == "ashby"
@@ -61,6 +79,21 @@ def test_verification_failure_is_false_and_cannot_be_accepted():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             match = find_ats([], "https://jobs.ashbyhq.com/acme", "")
             assert await verify_match(client, match) is False
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("url,payload", [
+    ("https://careers.acme.com/api/phenom/jobapi/searchjobs", {"data": {"jobs": []}}),
+    ("https://acme.eightfold.ai/careers", {"positions": []}),
+    ("https://acme.oraclecloud.com/hcmUI/CandidateExperience?siteNumber=External", {"items": []}),
+    ("https://careers-acme.icims.com/jobs/search", {"jobs": []}),
+])
+def test_tenant_adapter_fingerprint_is_verified_with_list_shape(url, payload):
+    async def scenario():
+        def handler(request):
+            return httpx.Response(200, request=request, json=payload)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            assert await verify_match(client, find_ats([], url, "")) is True
     asyncio.run(scenario())
 
 

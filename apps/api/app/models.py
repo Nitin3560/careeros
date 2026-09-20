@@ -236,6 +236,7 @@ class CompanyRegistry(Base):
     workday_host: Mapped[str | None] = mapped_column(Text, nullable=True)
     workday_tenant: Mapped[str | None] = mapped_column(Text, nullable=True)
     workday_site: Mapped[str | None] = mapped_column(Text, nullable=True)
+    adapter_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     detection_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     detection_confidence: Mapped[str | None] = mapped_column(String, nullable=True)
     detection_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)

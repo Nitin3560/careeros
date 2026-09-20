@@ -128,6 +128,17 @@ def source_description_html(source: str, raw: dict[str, Any]) -> str:
         return _clean_fragment("\n".join(parts))
     if source == "workday":
         return _clean_fragment(raw.get("jobDescription") or raw.get("description"))
+    if source == "smartrecruiters":
+        advert = raw.get("jobAd") or {}
+        sections = advert.get("sections") or {}
+        return _clean_fragment("\n".join(
+            str(value.get("text") if isinstance(value, dict) else value)
+            for value in sections.values() if value
+        ) or raw.get("description"))
+    if source == "workable":
+        return _clean_fragment(raw.get("description") or raw.get("descriptionHtml"))
+    if source == "oracle":
+        return _clean_fragment(raw.get("ExternalJobDescription") or raw.get("JobDescription"))
     return _clean_fragment(raw.get("descriptionHtml") or raw.get("description") or raw.get("descriptionPlain"))
 
 
@@ -161,7 +172,7 @@ def external_id(source: str, raw: dict[str, Any]) -> str:
         raw_id = raw.get("jobReqId") or raw.get("jobRequisitionId") or raw.get("externalPath")
         return f"workday_{tenant}_{raw_id}"
     raw_id = raw.get("id_icims") if source == "amazon" else raw.get("id")
-    raw_id = raw_id or raw.get("id") or raw.get("jobId")
+    raw_id = raw_id or raw.get("Id") or raw.get("jobId") or raw.get("refNumber") or raw.get("shortcode")
     return f"{source}_{raw_id}"
 
 
@@ -189,7 +200,41 @@ def normalize_job(source: str, slug: str, raw: dict[str, Any], *, pending: bool 
         if url and str(url).startswith("/"):
             url = f"https://www.amazon.jobs{url}"
         posted = raw.get("posted_date")
-    else:
+    elif source == "smartrecruiters":
+        title = raw.get("name") or raw.get("title") or ""
+        loc = raw.get("location") or {}
+        location = ", ".join(filter(None, (loc.get("city"), loc.get("region"), loc.get("country")))) if isinstance(loc, dict) else str(loc)
+        url = raw.get("applyUrl") or raw.get("postingUrl")
+        posted = raw.get("releasedDate") or raw.get("createdOn")
+    elif source == "workable":
+        title = raw.get("title") or ""
+        loc = raw.get("location") or {}
+        location = ", ".join(filter(None, (loc.get("city"), loc.get("region"), loc.get("country")))) if isinstance(loc, dict) else str(loc)
+        url = raw.get("url") or raw.get("application_url")
+        posted = raw.get("created_at") or raw.get("published_at")
+    elif source == "phenom":
+        title = raw.get("title") or raw.get("jobTitle") or ""
+        location = raw.get("location") or ", ".join(filter(None, (raw.get("city"), raw.get("state"), raw.get("country"))))
+        url = raw.get("applyUrl") or raw.get("jobUrl")
+        posted = raw.get("postedDate") or raw.get("datePosted")
+    elif source == "eightfold":
+        title = raw.get("name") or raw.get("title") or ""
+        location = raw.get("location") or raw.get("locationName")
+        url = raw.get("positionUrl") or raw.get("applyUrl")
+        posted = raw.get("dateCreated") or raw.get("postedDate")
+    elif source == "oracle":
+        title = raw.get("Title") or raw.get("title") or ""
+        location = raw.get("PrimaryLocation") or raw.get("Location")
+        url = raw.get("ExternalCareerSite") or raw.get("ApplyUrl")
+        posted = raw.get("PostedDate") or raw.get("CreationDate")
+    elif source == "icims":
+        title = raw.get("title") or raw.get("jobTitle") or ""
+        location = raw.get("location") or raw.get("locations")
+        if isinstance(location, list):
+            location = "; ".join(str(item.get("name") if isinstance(item, dict) else item) for item in location)
+        url = raw.get("url") or raw.get("applyUrl")
+        posted = raw.get("postedDate") or raw.get("datePosted")
+    else:  # workday
         title = raw.get("title") or ""
         extra_locations = raw.get("additionalLocations") or []
         if isinstance(extra_locations, list):
@@ -232,9 +277,11 @@ def stable_list_hash(source: str, jobs: list[dict[str, Any]]) -> str:
         stable.append(
             {
                 "id": external_id(source, job),
-                "title": job.get("title") or job.get("text"),
-                "location": location or (job.get("categories") or {}).get("location"),
-                "updated": job.get("updated_at") or job.get("publishedAt") or job.get("createdAt"),
+                "title": job.get("title") or job.get("text") or job.get("name") or job.get("Title") or job.get("jobTitle"),
+                "location": location or job.get("PrimaryLocation") or job.get("locationName")
+                            or (job.get("categories") or {}).get("location"),
+                "updated": job.get("updated_at") or job.get("publishedAt") or job.get("createdAt")
+                           or job.get("releasedDate") or job.get("PostedDate") or job.get("postedDate"),
             }
         )
     payload = json.dumps(sorted(stable, key=lambda item: item["id"]), sort_keys=True, separators=(",", ":"))

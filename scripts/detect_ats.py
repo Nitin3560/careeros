@@ -277,6 +277,7 @@ def persist_result(db, row, match, status, confidence, evidence):
             workday_host=:host, workday_tenant=:tenant, workday_site=:site,
             detection_status=:status, detection_confidence=:confidence,
             detection_evidence=:evidence, board_id=:board_id, careers_url=:careers_url,
+            adapter_config=CAST(:adapter_config AS jsonb),
             last_detected_at=now(), updated_at=now() WHERE id=:id
               AND (NOT :protected OR detection_status <> 'detected')
     """), {
@@ -286,6 +287,7 @@ def persist_result(db, row, match, status, confidence, evidence):
         "site": match.workday_site if match else None,
         "status": status, "confidence": confidence, "evidence": evidence,
         "board_id": board_id, "careers_url": row.get("careers_url"), "id": row["id"],
+        "adapter_config": json.dumps(match.endpoint_params if match else {}),
         "protected": protected,
     })
 

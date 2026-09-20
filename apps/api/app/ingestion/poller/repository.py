@@ -398,7 +398,7 @@ class PollRepository:
             "last_seen_at": job_now, "last_verified_at": job_now,
         }
 
-    async def pending_greenhouse_details(self, limit: int = 100) -> list[dict]:
+    async def pending_details(self, limit: int = 100) -> list[dict]:
         async with self.sessions.begin() as session:
             rows = (await session.execute(text("""
                 SELECT j.id AS job_id, j.raw_payload, j.description_attempts,
@@ -406,7 +406,8 @@ class PollRepository:
                        b.last_modified, b.list_hash, b.consecutive_failures,
                        b.not_found_count, b.empty_since
                 FROM jobs j JOIN ats_boards b ON b.id=j.board_id
-                WHERE j.description_status='pending' AND j.source IN ('greenhouse','workday')
+                WHERE j.description_status='pending' AND j.source IN
+                  ('greenhouse','workday','smartrecruiters','workable','phenom','eightfold','oracle','icims')
                   AND coalesce(j.description_next_attempt_at, now()) <= now()
                 ORDER BY j.description_next_attempt_at NULLS FIRST LIMIT :limit
                 FOR UPDATE OF j SKIP LOCKED
@@ -418,6 +419,8 @@ class PollRepository:
                     .bindparams(bindparam("ids", expanding=True)), {"ids": ids}
                 )
         return [dict(row) for row in rows]
+
+    pending_greenhouse_details = pending_details
 
     async def finish_pending_detail(self, job_id: uuid.UUID, job, *, success: bool, attempts: int) -> None:
         async with self.sessions.begin() as session:
