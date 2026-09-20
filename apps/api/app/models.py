@@ -144,18 +144,20 @@ class Job(Base):
     matched_pattern: Mapped[str | None] = mapped_column(String, nullable=True)
     filter_version: Mapped[int | None] = mapped_column(nullable=True)
     board_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("ats_boards.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("ats_boards.id"), nullable=True, deferred=True
     )
     raw_payload: Mapped[dict | None] = mapped_column(
-        JSON().with_variant(JSONB, "postgresql"), nullable=True
+        JSON().with_variant(JSONB, "postgresql"), nullable=True, deferred=True
     )
-    content_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String, nullable=True, deferred=True)
     description_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="pending"
+        String, nullable=False, server_default="pending", deferred=True
     )
-    description_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    description_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
-    description_next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    description_html: Mapped[str | None] = mapped_column(Text, nullable=True, deferred=True)
+    description_attempts: Mapped[int] = mapped_column(server_default="0", nullable=False, deferred=True)
+    description_next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, deferred=True
+    )
 
 
 class JobRequirement(Base):
@@ -202,17 +204,17 @@ class AtsBoard(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    tier: Mapped[str] = mapped_column(String, nullable=False, default="B")
-    next_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    poll_interval_seconds: Mapped[int] = mapped_column(default=3600, nullable=False)
-    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_status_code: Mapped[int | None] = mapped_column(nullable=True)
-    etag: Mapped[str | None] = mapped_column(Text, nullable=True)
-    last_modified: Mapped[str | None] = mapped_column(Text, nullable=True)
-    list_hash: Mapped[str | None] = mapped_column(String, nullable=True)
-    company_display: Mapped[str | None] = mapped_column(String, nullable=True)
-    empty_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    not_found_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    tier: Mapped[str] = mapped_column(String, nullable=False, server_default="B", deferred=True)
+    next_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, deferred=True)
+    poll_interval_seconds: Mapped[int] = mapped_column(server_default="3600", nullable=False, deferred=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, deferred=True)
+    last_status_code: Mapped[int | None] = mapped_column(nullable=True, deferred=True)
+    etag: Mapped[str | None] = mapped_column(Text, nullable=True, deferred=True)
+    last_modified: Mapped[str | None] = mapped_column(Text, nullable=True, deferred=True)
+    list_hash: Mapped[str | None] = mapped_column(String, nullable=True, deferred=True)
+    company_display: Mapped[str | None] = mapped_column(String, nullable=True, deferred=True)
+    empty_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, deferred=True)
+    not_found_count: Mapped[int] = mapped_column(server_default="0", nullable=False, deferred=True)
 
 
 class PollRun(Base):
