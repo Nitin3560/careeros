@@ -131,7 +131,7 @@ class PollRepository:
             for row in rows
         }
 
-    async def write_board(self, write: BoardWrite) -> WriteStats:
+    async def write_board(self, write: BoardWrite, *, update_board_state: bool = True) -> WriteStats:
         result = write.result
         now = datetime.now(timezone.utc)
         job_now = now.replace(tzinfo=None)
@@ -233,33 +233,34 @@ class PollRepository:
                 )
                 expired_count = update.rowcount or 0
 
-            status, tier, failures, not_found, empty_since = next_board_state(
-                result.board, success=True, status_code=result.status_code,
-                job_count=len(fetched), now=now,
-            )
-            interval = next_interval_seconds(tier, failures)
-            await session.execute(
-                text(
-                    """
-                    UPDATE ats_boards SET status=:status, tier=:tier, job_count=:count,
-                        last_ingested_at=:now, last_success_at=:now, last_status_code=:code,
-                        last_error=NULL, consecutive_failures=:failures,
-                        not_found_count=:not_found, empty_since=:empty_since,
-                        etag=COALESCE(:etag, etag), last_modified=COALESCE(:last_modified, last_modified),
-                        list_hash=:list_hash, company_display=COALESCE(:display, company_display),
-                        poll_interval_seconds=:interval, next_poll_at=:next_poll, updated_at=:now
-                    WHERE id=:id
-                    """
-                ),
-                {
-                    "status": status, "tier": tier, "count": len(fetched), "now": now,
-                    "code": result.status_code, "failures": failures, "not_found": not_found,
-                    "empty_since": empty_since, "etag": result.etag,
-                    "last_modified": result.last_modified, "list_hash": write.list_hash,
-                    "display": result.company_display, "interval": interval,
-                    "next_poll": now + timedelta(seconds=interval), "id": result.board.id,
-                },
-            )
+            if update_board_state:
+                status, tier, failures, not_found, empty_since = next_board_state(
+                    result.board, success=True, status_code=result.status_code,
+                    job_count=len(fetched), now=now,
+                )
+                interval = next_interval_seconds(tier, failures)
+                await session.execute(
+                    text(
+                        """
+                        UPDATE ats_boards SET status=:status, tier=:tier, job_count=:count,
+                            last_ingested_at=:now, last_success_at=:now, last_status_code=:code,
+                            last_error=NULL, consecutive_failures=:failures,
+                            not_found_count=:not_found, empty_since=:empty_since,
+                            etag=COALESCE(:etag, etag), last_modified=COALESCE(:last_modified, last_modified),
+                            list_hash=:list_hash, company_display=COALESCE(:display, company_display),
+                            poll_interval_seconds=:interval, next_poll_at=:next_poll, updated_at=:now
+                        WHERE id=:id
+                        """
+                    ),
+                    {
+                        "status": status, "tier": tier, "count": len(fetched), "now": now,
+                        "code": result.status_code, "failures": failures, "not_found": not_found,
+                        "empty_since": empty_since, "etag": result.etag,
+                        "last_modified": result.last_modified, "list_hash": write.list_hash,
+                        "display": result.company_display, "interval": interval,
+                        "next_poll": now + timedelta(seconds=interval), "id": result.board.id,
+                    },
+                )
         return WriteStats(
             status="empty" if not fetched else "ok",
             new_jobs=len(plan.new),

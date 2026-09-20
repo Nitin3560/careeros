@@ -46,6 +46,15 @@ async def select_boards(repo: PollRepository, per_source: int) -> list[BoardSpec
     return boards
 
 
+async def clear_smoke_conditionals(repo: PollRepository, boards: list[BoardSpec]) -> None:
+    async with repo.sessions.begin() as session:
+        for board in boards:
+            await session.execute(text("""
+                UPDATE ats_boards SET etag=NULL, last_modified=NULL, list_hash=NULL
+                WHERE id=:id
+            """), {"id": board.id})
+
+
 async def main_async(args) -> int:
     config = PollerConfig.from_env(async_url(args.database_url))
     repo = PollRepository(config)
@@ -55,45 +64,52 @@ async def main_async(args) -> int:
         if not boards:
             print("no eligible smoke-test boards found")
             return 1
+        await clear_smoke_conditionals(repo, boards)
         async with AsyncBoardFetcher(config.concurrency, config.user_agent) as fetcher:
             for board in boards:
-                result = await fetcher.fetch_board(board, amazon_pages=1 if board.ats == "amazon" else None)
-                if not result.complete:
-                    print(f"{board.ats}/{board.slug}: failed {result.error}")
-                    failures += 1
-                    continue
-                state = await repo.board_job_state(board.id)
-                fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
-                normalized = []
-                details = 0
-                for raw in result.jobs:
-                    pending = False
-                    payload = raw
-                    if board.ats == "greenhouse":
-                        details += 1
-                        payload, ok = await fetcher.fetch_greenhouse_detail(board, raw)
-                        pending = not ok
-                    normalized.append(normalize_job(board.ats, board.slug, payload, pending=pending))
-                result = replace(result, detail_fetches=details)
-                outcome = await repo.write_board(BoardWrite(
-                    result=result, jobs=normalized, fetched_ids=fetched_ids,
-                    list_hash=stable_list_hash(board.ats, result.jobs),
-                ))
-                nonempty = sum(bool(job.description_text) for job in normalized)
-                headings = sum(any(
-                    line.startswith("## ") and bool(line[3:].strip())
-                    for line in job.description_text.splitlines()
-                ) for job in normalized)
-                leftovers = sum(bool(re.search(r"<[^>]+>|&(?:[A-Za-z]+|#[0-9]+);", job.description_text)) for job in normalized)
-                count = max(len(normalized), 1)
-                print(
-                    f"{board.ats}/{board.slug}: {outcome.status} jobs={len(result.jobs)} "
-                    f"nonempty={100*nonempty/count:.1f}% headings={100*headings/count:.1f}% "
-                    f"leftover_markup={leftovers}"
-                )
-                for sample in normalized[:2]:
-                    print(f"  SAMPLE {sample.title}:\n{sample.description_text[:700]}\n")
-                if normalized and (nonempty / count < 0.99 or leftovers):
+                fresh_board = replace(board, etag=None, last_modified=None, list_hash=None)
+                try:
+                    result = await fetcher.fetch_board(
+                        fresh_board, amazon_pages=1 if board.ats == "amazon" else None
+                    )
+                    if not result.complete:
+                        print(f"{board.ats}/{board.slug}: failed {result.error}")
+                        failures += 1
+                        continue
+                    fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
+                    normalized = []
+                    details = 0
+                    for raw in result.jobs:
+                        pending = False
+                        payload = raw
+                        if board.ats == "greenhouse":
+                            details += 1
+                            payload, ok = await fetcher.fetch_greenhouse_detail(fresh_board, raw)
+                            pending = not ok
+                        normalized.append(normalize_job(board.ats, board.slug, payload, pending=pending))
+                    result = replace(result, detail_fetches=details)
+                    outcome = await repo.write_board(BoardWrite(
+                        result=result, jobs=normalized, fetched_ids=fetched_ids,
+                        list_hash=stable_list_hash(board.ats, result.jobs),
+                    ), update_board_state=False)
+                    nonempty = sum(bool(job.description_text) for job in normalized)
+                    headings = sum(any(
+                        line.startswith("## ") and bool(line[3:].strip())
+                        for line in job.description_text.splitlines()
+                    ) for job in normalized)
+                    leftovers = sum(bool(re.search(r"<[^>]+>|&(?:[A-Za-z]+|#[0-9]+);", job.description_text)) for job in normalized)
+                    count = max(len(normalized), 1)
+                    print(
+                        f"{board.ats}/{board.slug}: {outcome.status} jobs={len(result.jobs)} "
+                        f"nonempty={100*nonempty/count:.1f}% headings={100*headings/count:.1f}% "
+                        f"leftover_markup={leftovers}"
+                    )
+                    for sample in normalized[:2]:
+                        print(f"  SAMPLE {sample.title}:\n{sample.description_text[:700]}\n")
+                    if normalized and (nonempty / count < 0.99 or leftovers):
+                        failures += 1
+                except Exception as exc:
+                    print(f"{board.ats}/{board.slug}: failed {type(exc).__name__}: {exc}")
                     failures += 1
     finally:
         await repo.close()

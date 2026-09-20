@@ -148,6 +148,50 @@ def test_conditional_request_treats_304_as_complete_unchanged():
     asyncio.run(scenario())
 
 
+def test_fetcher_handles_real_top_level_shape_for_every_ats():
+    async def scenario():
+        payloads = {
+            "greenhouse": {"jobs": [load("greenhouse_detail.json")], "meta": {}},
+            "lever": load("lever_list.json"),
+            "ashby": load("ashby_list.json"),
+            "amazon": {
+                "hits": 1,
+                "jobs": [{"id_icims": "1", "title": "Software Development Engineer"}],
+            },
+        }
+
+        def handler(request):
+            if "greenhouse.io" in request.url.host:
+                payload = payloads["greenhouse"]
+            elif "lever.co" in request.url.host:
+                payload = payloads["lever"]
+            elif "ashbyhq.com" in request.url.host:
+                payload = payloads["ashby"]
+            else:
+                payload = payloads["amazon"]
+            return httpx.Response(200, request=request, json=payload)
+
+        fetcher = AsyncBoardFetcher(concurrency=4)
+        await fetcher.client.aclose()
+        fetcher.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            results = {
+                ats: await fetcher.fetch_board(
+                    board(ats=ats, slug="software-development-engineer" if ats == "amazon" else "example"),
+                    amazon_pages=1 if ats == "amazon" else None,
+                )
+                for ats in ("greenhouse", "lever", "ashby", "amazon")
+            }
+        finally:
+            await fetcher.client.aclose()
+
+        assert all(result.complete for result in results.values())
+        assert all(len(result.jobs) == 1 for result in results.values())
+        assert results["lever"].company_display is None
+
+    asyncio.run(scenario())
+
+
 def test_failed_amazon_page_makes_entire_fetch_incomplete():
     async def scenario():
         def handler(request):

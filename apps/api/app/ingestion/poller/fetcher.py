@@ -146,10 +146,18 @@ class AsyncBoardFetcher:
                     )
                 response.raise_for_status()
                 payload = response.json()
-                jobs = payload if board.ats == "lever" else payload.get("jobs", [])
+                if board.ats == "lever":
+                    if not isinstance(payload, list):
+                        raise ValueError("Lever response is not a top-level array")
+                    jobs = payload
+                    display = None
+                else:
+                    if not isinstance(payload, dict):
+                        raise ValueError(f"{board.ats} response is not an object")
+                    jobs = payload.get("jobs", [])
+                    display = payload.get("organizationName") or payload.get("name")
                 if not isinstance(jobs, list):
                     raise ValueError("job list is not an array")
-                display = payload.get("organizationName") or payload.get("name")
             return FetchResult(
                 board=board,
                 complete=True,
@@ -217,6 +225,8 @@ class AsyncBoardFetcher:
             )
             last_response.raise_for_status()
             payload = last_response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("Amazon response is not an object")
             page = payload.get("jobs") or []
             if not isinstance(page, list):
                 raise ValueError("Amazon jobs page is not an array")
