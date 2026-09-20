@@ -13,8 +13,15 @@ build/
 
 # Env / secrets
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
+
+# Local data and generated artifacts
+backup_before_phase1a.sql
+*.sql
+generated/
+logs/
 
 # OS
 .DS_Store

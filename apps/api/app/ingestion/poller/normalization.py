@@ -16,6 +16,7 @@ from .types import NormalizedJob
 BLOCK_TAGS = {"p", "div", "section", "article", "br", "hr", "table", "tr"}
 HEADING_TAGS = {f"h{level}" for level in range(1, 7)}
 DROP_TAGS = {"script", "style", "noscript", "svg"}
+NORMALIZER_VERSION = 2
 
 
 def _clean_fragment(value: str | None) -> str:
@@ -23,7 +24,9 @@ def _clean_fragment(value: str | None) -> str:
 
 
 def _compact(value: str) -> str:
-    return re.sub(r"[ \t\f\v]+", " ", value).strip()
+    # ``\s`` includes NBSP and the other Unicode space separators. Normalize
+    # them before collapsing so source HTML cannot create invisible artifacts.
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def html_to_text(value: str | None) -> str:
@@ -47,12 +50,22 @@ def html_to_text(value: str | None) -> str:
     def visible_text(node: etree._Element) -> str:
         return _compact(" ".join(node.itertext()))
 
+    def add_heading_or_paragraph(text: str, *, real_heading: bool = False) -> None:
+        if not text:
+            return
+        words = text.split()
+        short_heading = len(text) <= 80 and len(words) <= 12 and not text.endswith(".")
+        if (real_heading and len(text) <= 120) or (not real_heading and short_heading):
+            add(f"## {text}", blank=True)
+        else:
+            add(text, blank=True)
+
     def walk(node: etree._Element) -> None:
         tag = str(node.tag).lower() if isinstance(node.tag, str) else ""
         if tag in DROP_TAGS:
             return
         if tag in HEADING_TAGS:
-            add(f"## {visible_text(node)}", blank=True)
+            add_heading_or_paragraph(visible_text(node), real_heading=True)
             return
         if tag == "li":
             add(f"- {visible_text(node)}")
@@ -64,7 +77,7 @@ def html_to_text(value: str | None) -> str:
             ) and not _compact(node.text or "")
             text = visible_text(node)
             if strong_only and text:
-                add(f"## {text}", blank=True)
+                add_heading_or_paragraph(text)
                 return
             has_block_children = tag == "div" and any(
                 str(child.tag).lower() in BLOCK_TAGS | HEADING_TAGS | {"ul", "ol", "li"}
@@ -113,6 +126,8 @@ def source_description_html(source: str, raw: dict[str, Any]) -> str:
             if raw.get(key):
                 parts.append(f"<h2>{heading}</h2><p>{raw[key]}</p>")
         return _clean_fragment("\n".join(parts))
+    if source == "workday":
+        return _clean_fragment(raw.get("jobDescription") or raw.get("description"))
     return _clean_fragment(raw.get("descriptionHtml") or raw.get("description") or raw.get("descriptionPlain"))
 
 
@@ -141,6 +156,10 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 
 def external_id(source: str, raw: dict[str, Any]) -> str:
+    if source == "workday":
+        tenant = raw.get("_workday_tenant") or "unknown"
+        raw_id = raw.get("jobReqId") or raw.get("jobRequisitionId") or raw.get("externalPath")
+        return f"workday_{tenant}_{raw_id}"
     raw_id = raw.get("id_icims") if source == "amazon" else raw.get("id")
     raw_id = raw_id or raw.get("id") or raw.get("jobId")
     return f"{source}_{raw_id}"
@@ -163,13 +182,25 @@ def normalize_job(source: str, slug: str, raw: dict[str, Any], *, pending: bool 
         location = raw_location if isinstance(raw_location, str) else (raw_location or {}).get("name")
         url = raw.get("jobUrl") or raw.get("applyUrl")
         posted = raw.get("publishedAt")
-    else:
+    elif source == "amazon":
         title = raw.get("title") or ""
         location = raw.get("normalized_location") or raw.get("location")
         url = raw.get("url_next_step") or raw.get("job_path")
         if url and str(url).startswith("/"):
             url = f"https://www.amazon.jobs{url}"
         posted = raw.get("posted_date")
+    else:
+        title = raw.get("title") or ""
+        extra_locations = raw.get("additionalLocations") or []
+        if isinstance(extra_locations, list):
+            extras = [item.get("location") if isinstance(item, dict) else str(item) for item in extra_locations]
+        else:
+            extras = []
+        location = "; ".join(filter(None, [raw.get("locationsText"), *extras])) or None
+        path = raw.get("externalPath")
+        host, site = raw.get("_workday_host"), raw.get("_workday_site")
+        url = f"https://{host}/{site}{path}" if host and site and path else None
+        posted = None
 
     description_html = None if pending else source_description_html(source, raw)
     description_text = "" if pending else html_to_text(description_html)

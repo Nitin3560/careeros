@@ -74,8 +74,10 @@ def _retry_after(response: httpx.Response) -> float | None:
 
 
 class AsyncBoardFetcher:
-    def __init__(self, concurrency: int = 64, user_agent: str = "CareerOS-Collector/1.0"):
+    def __init__(self, concurrency: int = 64, user_agent: str = "CareerOS-Collector/1.0", workday_max_pages: int = 150):
         self.global_sem = asyncio.Semaphore(concurrency)
+        self.workday_global_sem = asyncio.Semaphore(16)
+        self.workday_max_pages = workday_max_pages
         self.host_sems = {key: asyncio.Semaphore(value) for key, value in HOST_LIMITS.items()}
         self.buckets = {key: TokenBucket(HOST_RATES[key]) for key in HOST_LIMITS}
         self.breakers = {key: CircuitBreaker() for key in HOST_LIMITS}
@@ -91,14 +93,26 @@ class AsyncBoardFetcher:
     async def __aexit__(self, *_args) -> None:
         await self.client.aclose()
 
-    async def request(self, host: str, url: str, **kwargs) -> httpx.Response:
+    def _ensure_workday_host(self, host: str) -> None:
+        if host not in self.host_sems:
+            self.host_sems[host] = asyncio.Semaphore(2)
+            self.buckets[host] = TokenBucket(2.0)
+            self.breakers[host] = CircuitBreaker()
+
+    async def request(self, host: str, url: str, *, method: str = "GET", **kwargs) -> httpx.Response:
+        if host.startswith("workday:"):
+            self._ensure_workday_host(host)
         await self.breakers[host].wait()
         last_error: Exception | None = None
         for attempt in range(4):
             await self.buckets[host].acquire()
             try:
                 async with self.global_sem, self.host_sems[host]:
-                    response = await self.client.get(url, **kwargs)
+                    if host.startswith("workday:"):
+                        async with self.workday_global_sem:
+                            response = await self.client.post(url, **kwargs) if method == "POST" else await self.client.get(url, **kwargs)
+                    else:
+                        response = await self.client.post(url, **kwargs) if method == "POST" else await self.client.get(url, **kwargs)
                 retryable = response.status_code == 429 or response.status_code >= 500
                 if not retryable:
                     self._record_circuit(host, True)
@@ -133,8 +147,12 @@ class AsyncBoardFetcher:
         if board.last_modified:
             headers["If-Modified-Since"] = board.last_modified
         try:
+            complete = True
+            fetch_error = None
             if board.ats == "amazon":
                 response, jobs, display = await self._fetch_amazon(board.slug, amazon_pages)
+            elif board.ats == "workday":
+                response, jobs, display, complete, fetch_error = await self._fetch_workday(board)
             else:
                 response = await self.request(board.ats, self._list_url(board), headers=headers)
                 if response.status_code == 304:
@@ -146,19 +164,28 @@ class AsyncBoardFetcher:
                     )
                 response.raise_for_status()
                 payload = response.json()
-                jobs = payload if board.ats == "lever" else payload.get("jobs", [])
+                if board.ats == "lever":
+                    if not isinstance(payload, list):
+                        raise ValueError("Lever response is not a top-level array")
+                    jobs = payload
+                    display = None
+                else:
+                    if not isinstance(payload, dict):
+                        raise ValueError(f"{board.ats} response is not an object")
+                    jobs = payload.get("jobs", [])
+                    display = payload.get("organizationName") or payload.get("name")
                 if not isinstance(jobs, list):
                     raise ValueError("job list is not an array")
-                display = payload.get("organizationName") or payload.get("name")
             return FetchResult(
                 board=board,
-                complete=True,
+                complete=complete,
                 status_code=response.status_code,
                 jobs=jobs,
                 etag=response.headers.get("etag"),
                 last_modified=response.headers.get("last-modified"),
                 company_display=display,
                 latency_ms=(time.perf_counter() - started) * 1000,
+                error=fetch_error,
             )
         except httpx.HTTPStatusError as exc:
             return FetchResult(
@@ -181,6 +208,22 @@ class AsyncBoardFetcher:
             )
             response.raise_for_status()
             return response.json(), True
+        except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError):
+            return raw, False
+
+    async def fetch_workday_detail(self, board: BoardSpec, raw: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+        try:
+            host, tenant, site = board.slug.split("|", 2)
+            path = raw["externalPath"]
+            response = await self.request(
+                f"workday:{host}", f"https://{host}/wday/cxs/{tenant}/{site}{path}",
+            )
+            response.raise_for_status()
+            payload = response.json()
+            detail = payload.get("jobPostingInfo", payload)
+            if not isinstance(detail, dict):
+                raise ValueError("Workday detail is not an object")
+            return {**raw, **detail, "_workday_host": host, "_workday_tenant": tenant, "_workday_site": site}, True
         except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError):
             return raw, False
 
@@ -217,6 +260,8 @@ class AsyncBoardFetcher:
             )
             last_response.raise_for_status()
             payload = last_response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("Amazon response is not an object")
             page = payload.get("jobs") or []
             if not isinstance(page, list):
                 raise ValueError("Amazon jobs page is not an array")
@@ -230,3 +275,41 @@ class AsyncBoardFetcher:
         if last_response is None:
             raise ValueError("Amazon returned no response")
         return last_response, jobs, "Amazon"
+
+    async def _fetch_workday(self, board: BoardSpec) -> tuple[httpx.Response, list[dict], str, bool, str | None]:
+        host, tenant, site = board.slug.split("|", 2)
+        url = f"https://{host}/wday/cxs/{tenant}/{site}/jobs"
+        jobs: list[dict] = []
+        offset = 0
+        total: int | None = None
+        last_response: httpx.Response | None = None
+        hit_cap = False
+        for _page in range(self.workday_max_pages):
+            last_response = await self.request(
+                f"workday:{host}", url, method="POST",
+                json={"appliedFacets": {}, "limit": 20, "offset": offset, "searchText": ""},
+            )
+            last_response.raise_for_status()
+            payload = last_response.json()
+            if not isinstance(payload, dict) or not isinstance(payload.get("jobPostings"), list):
+                raise ValueError("Workday response has no jobPostings array")
+            page = payload["jobPostings"]
+            if total is None:
+                total = int(payload.get("total") or 0)
+            for raw in page:
+                jobs.append({**raw, "_workday_host": host, "_workday_tenant": tenant, "_workday_site": site})
+            if not page or len(jobs) >= total:
+                break
+            offset += len(page)
+        else:
+            hit_cap = True
+        if last_response is None:
+            raise ValueError("Workday returned no response")
+        mismatch = total is None or len(jobs) != total
+        complete = not hit_cap and not mismatch
+        error = None
+        if hit_cap:
+            error = f"Workday page cap reached ({self.workday_max_pages})"
+        elif mismatch:
+            error = f"Workday count mismatch collected={len(jobs)} total={total}"
+        return last_response, jobs, tenant, complete, error

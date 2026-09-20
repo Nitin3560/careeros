@@ -258,7 +258,7 @@ Run these steps in order from the repository root. The poller collects raw jobs 
 # 1. Schema and legacy board links
 cd apps/api && alembic upgrade head && cd ../..
 python scripts/backfill_job_board_ids.py
-python scripts/backfill_job_descriptions.py
+python scripts/backfill_job_descriptions.py --batch-size 500 --sleep-between-batches 1.0
 python scripts/assign_board_tiers.py
 
 # 2. Capacity and real-source quality checks
@@ -270,6 +270,24 @@ POLLER_EXPIRY_ENABLED=false python scripts/run_poller.py
 
 # 4. In another terminal, inspect coverage and quality
 python scripts/coverage_report.py
+```
+
+Run either the Docker `poller` service or the manual command, never both. The
+poller holds a PostgreSQL advisory lock and exits non-zero if another instance
+is active. It claims due boards in batches of 300 by default
+(`POLLER_BATCH_SIZE`) and caps Greenhouse detail requests at 200 per board
+(`POLLER_DETAIL_CAP_PER_BOARD`).
+
+Never run the description backfill during the first full poller sweep. Both
+jobs write to the `jobs` table, and running them together can saturate
+PostgreSQL WAL and Docker disk I/O. Finish the initial sweep first, then run
+the resumable backfill by itself, preferably overnight.
+
+Legacy Greenhouse rows are deliberately skipped by the normal sweep. Refresh
+their descriptions separately with a resumable, rate-limited command:
+
+```bash
+python scripts/refresh_legacy_greenhouse.py --rate 5 --batch-size 500
 ```
 
 `POLLER_CONCURRENCY` defaults to `64`. Use `POLLER_BOARD_LIMIT` and `POLLER_ATS` for bounded tests. After reviewing a clean full sweep, restart with `POLLER_EXPIRY_ENABLED=true`. Enable the daily cleanup only after that by setting `POLLER_RETENTION_ENABLED=true` and running `scripts/retain_expired_jobs.py`. The coverage report writes `reports/coverage_report.json`; focus on schedule lag, p50/p95 latency, source-level description quality, and first-seen freshness.

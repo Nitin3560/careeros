@@ -13,6 +13,8 @@ from app.ingestion.poller import PollerConfig, PollScheduler  # noqa: E402
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     scheduler = PollScheduler(PollerConfig.from_env())
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):

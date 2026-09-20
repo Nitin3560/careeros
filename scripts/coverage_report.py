@@ -19,6 +19,27 @@ def rows_as_dicts(db, sql: str) -> list[dict]:
 def build_report(db) -> dict:
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "registry": dict(db.execute(text("""
+            SELECT count(*) AS total_companies,
+              count(*) FILTER (WHERE detection_status='detected') AS detected,
+              count(*) FILTER (WHERE detection_status='detected' AND detection_confidence='high') AS verified,
+              count(*) FILTER (WHERE detection_confidence='low') AS low_confidence,
+              count(*) FILTER (WHERE detection_status='not_found') AS not_found,
+              count(*) FILTER (WHERE detection_status='error') AS error,
+              count(*) FILTER (WHERE board_id IS NOT NULL) AS linked_to_board
+            FROM company_registry
+        """)).mappings().one()),
+        "registry_by_ats": rows_as_dicts(db, """
+            SELECT coalesce(detected_ats,'none') AS ats, detection_status,
+                   count(*) AS companies
+            FROM company_registry GROUP BY detected_ats, detection_status
+            ORDER BY detected_ats, detection_status
+        """),
+        "unsupported_ats": rows_as_dicts(db, """
+            SELECT detected_ats AS ats, count(*) AS companies
+            FROM company_registry WHERE detection_status='unsupported'
+            GROUP BY detected_ats ORDER BY companies DESC, detected_ats
+        """),
         "boards": rows_as_dicts(db, """
             SELECT ats, status, tier, count(*) AS boards
             FROM ats_boards GROUP BY ats, status, tier ORDER BY ats, tier, status

@@ -5,7 +5,10 @@ from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import logging
+import random
 import time
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from .config import PollerConfig
 from .fetcher import AsyncBoardFetcher
@@ -28,28 +31,73 @@ class PollScheduler:
         self.stop_event = asyncio.Event()
 
     async def run_forever(self) -> None:
+        acquired = await self._acquire_instance_lock_with_retry()
+        if acquired is None:
+            await self.repository.close()
+            return
+        if not acquired:
+            log_event("poller_instance_lock_unavailable", severity="error")
+            await self.repository.close()
+            raise RuntimeError("another CareerOS poller is already running")
         try:
-            async with AsyncBoardFetcher(self.config.concurrency, self.config.user_agent) as fetcher:
-                while not self.stop_event.is_set():
-                    polled = await self.run_cycle(fetcher)
-                    if not polled:
-                        try:
-                            await asyncio.wait_for(self.stop_event.wait(), timeout=15)
-                        except asyncio.TimeoutError:
-                            pass
+            async with AsyncBoardFetcher(
+                self.config.concurrency, self.config.user_agent, self.config.workday_max_pages
+            ) as fetcher:
+                await asyncio.gather(*(
+                    self._worker_loop(fetcher, worker_id)
+                    for worker_id in range(self.config.batch_workers)
+                ))
         finally:
             await self.repository.close()
+
+    async def _acquire_instance_lock_with_retry(self) -> bool | None:
+        error_backoff = 5.0
+        while not self.stop_event.is_set():
+            try:
+                return await self.repository.acquire_instance_lock()
+            except (SQLAlchemyError, OSError, ConnectionError) as exc:
+                log_event(
+                    "poller_database_retry", severity="error", worker="instance_lock",
+                    error=f"{type(exc).__name__}: {exc}"[:500], retry_seconds=error_backoff,
+                )
+                await self._wait_or_stop(error_backoff)
+                error_backoff = min(60.0, error_backoff * 2)
+        return None
+
+    async def _wait_or_stop(self, delay: float) -> None:
+        try:
+            await asyncio.wait_for(self.stop_event.wait(), timeout=delay)
+        except asyncio.TimeoutError:
+            pass
+
+    async def _worker_loop(self, fetcher: AsyncBoardFetcher, worker_id: int) -> None:
+        error_backoff = 5.0
+        while not self.stop_event.is_set():
+            try:
+                polled = await self.run_cycle(fetcher)
+            except (SQLAlchemyError, OSError, ConnectionError) as exc:
+                log_event(
+                    "poller_database_retry", severity="error", worker=worker_id,
+                    error=f"{type(exc).__name__}: {exc}"[:500], retry_seconds=error_backoff,
+                )
+                await self._wait_or_stop(error_backoff)
+                error_backoff = min(60.0, error_backoff * 2)
+                continue
+            error_backoff = 5.0
+            if polled == 0:
+                await self._wait_or_stop(random.uniform(5.0, 15.0))
 
     async def run_cycle(self, fetcher: AsyncBoardFetcher | None = None) -> int:
         owns_fetcher = fetcher is None
         if owns_fetcher:
-            fetcher = AsyncBoardFetcher(self.config.concurrency, self.config.user_agent)
+            fetcher = AsyncBoardFetcher(
+                self.config.concurrency, self.config.user_agent, self.config.workday_max_pages
+            )
         assert fetcher is not None
         if owns_fetcher:
             await fetcher.__aenter__()
         run_id, boards_due, boards = await self.repository.start_run_and_claim()
         if not boards:
-            await self.repository.finish_run(run_id, [])
             if owns_fetcher:
                 await fetcher.__aexit__(None, None, None)
             return 0
@@ -119,7 +167,10 @@ class PollScheduler:
                     "list_hash", "consecutive_failures", "not_found_count", "empty_since",
                 )
             })
-            detail, ok = await fetcher.fetch_greenhouse_detail(board, row["raw_payload"] or {})
+            if board.ats == "workday":
+                detail, ok = await fetcher.fetch_workday_detail(board, row["raw_payload"] or {})
+            else:
+                detail, ok = await fetcher.fetch_greenhouse_detail(board, row["raw_payload"] or {})
             normalized = normalize_job("greenhouse", board.slug, detail, pending=not ok)
             await self.repository.finish_pending_detail(
                 row["job_id"], normalized, success=ok,
@@ -144,17 +195,34 @@ class PollScheduler:
         fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
         normalized = []
         detail_fetches = 0
-        if board.ats == "greenhouse":
+        if board.ats in {"greenhouse", "workday"}:
             state = await self.repository.board_job_state(board.id)
+            details: list[dict] = []
+            pending: list[dict] = []
             for raw in result.jobs:
                 job_id = external_id(board.ats, raw)
                 previous = state.get(job_id)
-                needs_detail = previous is None or previous[0] or previous[1] != raw.get("updated_at")
+                needs_detail = previous is None or previous[0]
+                if board.ats == "greenhouse":
+                    needs_detail = needs_detail or (previous[2] and previous[1] != raw.get("updated_at"))
                 if not needs_detail:
                     continue
-                detail_fetches += 1
-                detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)
-                normalized.append(normalize_job(board.ats, board.slug, detail, pending=not ok))
+                if len(details) < self.config.detail_cap_per_board:
+                    details.append(raw)
+                else:
+                    pending.append(raw)
+
+            async def fetch_detail(raw: dict):
+                if board.ats == "workday":
+                    detail, ok = await fetcher.fetch_workday_detail(board, raw)
+                else:
+                    detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)
+                return normalize_job(board.ats, board.slug, detail, pending=not ok)
+
+            detail_fetches = len(details)
+            if details:
+                normalized.extend(await asyncio.gather(*(fetch_detail(raw) for raw in details)))
+            normalized.extend(normalize_job(board.ats, board.slug, raw, pending=True) for raw in pending)
         else:
             normalized = [normalize_job(board.ats, board.slug, raw) for raw in result.jobs]
         result = replace(result, detail_fetches=detail_fetches)

@@ -55,6 +55,28 @@ def test_nested_wrapper_preserves_sections_and_bullets():
     assert text == "## Requirements\n\nBuild systems.\n\n- Python\n- SQL"
 
 
+def test_empty_headings_and_bold_whitespace_are_dropped():
+    assert html_to_text("<h2> </h2><p><strong>&nbsp;</strong></p>") == ""
+
+
+def test_long_bold_paragraph_is_not_a_heading():
+    value = " ".join(["word"] * 60)
+    assert html_to_text(f"<p><strong>{value}</strong></p>") == value
+
+
+def test_short_bold_paragraph_is_a_heading():
+    assert html_to_text("<p><strong>Requirements</strong></p>") == "## Requirements"
+
+
+def test_unicode_spaces_are_collapsed():
+    assert html_to_text("<p>Dark Wolf&nbsp; constructs</p>") == "Dark Wolf constructs"
+
+
+def test_long_real_heading_is_a_paragraph():
+    value = " ".join(["heading"] * 25)
+    assert html_to_text(f"<h2>{value}</h2>") == value
+
+
 def test_stable_list_hash_ignores_order_but_detects_visible_change():
     first = [{"id": 1, "title": "A", "location": {"name": "US"}}, {"id": 2, "title": "B"}]
     assert stable_list_hash("greenhouse", first) == stable_list_hash("greenhouse", list(reversed(first)))
@@ -123,6 +145,50 @@ def test_conditional_request_treats_304_as_complete_unchanged():
         assert result.complete and result.not_modified
         assert seen["if-none-match"] == '"abc"'
         assert seen["if-modified-since"] == "yesterday"
+    asyncio.run(scenario())
+
+
+def test_fetcher_handles_real_top_level_shape_for_every_ats():
+    async def scenario():
+        payloads = {
+            "greenhouse": {"jobs": [load("greenhouse_detail.json")], "meta": {}},
+            "lever": load("lever_list.json"),
+            "ashby": load("ashby_list.json"),
+            "amazon": {
+                "hits": 1,
+                "jobs": [{"id_icims": "1", "title": "Software Development Engineer"}],
+            },
+        }
+
+        def handler(request):
+            if "greenhouse.io" in request.url.host:
+                payload = payloads["greenhouse"]
+            elif "lever.co" in request.url.host:
+                payload = payloads["lever"]
+            elif "ashbyhq.com" in request.url.host:
+                payload = payloads["ashby"]
+            else:
+                payload = payloads["amazon"]
+            return httpx.Response(200, request=request, json=payload)
+
+        fetcher = AsyncBoardFetcher(concurrency=4)
+        await fetcher.client.aclose()
+        fetcher.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            results = {
+                ats: await fetcher.fetch_board(
+                    board(ats=ats, slug="software-development-engineer" if ats == "amazon" else "example"),
+                    amazon_pages=1 if ats == "amazon" else None,
+                )
+                for ats in ("greenhouse", "lever", "ashby", "amazon")
+            }
+        finally:
+            await fetcher.client.aclose()
+
+        assert all(result.complete for result in results.values())
+        assert all(len(result.jobs) == 1 for result in results.values())
+        assert results["lever"].company_display is None
+
     asyncio.run(scenario())
 
 
