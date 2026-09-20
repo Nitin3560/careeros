@@ -126,6 +126,8 @@ def source_description_html(source: str, raw: dict[str, Any]) -> str:
             if raw.get(key):
                 parts.append(f"<h2>{heading}</h2><p>{raw[key]}</p>")
         return _clean_fragment("\n".join(parts))
+    if source == "workday":
+        return _clean_fragment(raw.get("jobDescription") or raw.get("description"))
     return _clean_fragment(raw.get("descriptionHtml") or raw.get("description") or raw.get("descriptionPlain"))
 
 
@@ -154,6 +156,10 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 
 def external_id(source: str, raw: dict[str, Any]) -> str:
+    if source == "workday":
+        tenant = raw.get("_workday_tenant") or "unknown"
+        raw_id = raw.get("jobReqId") or raw.get("jobRequisitionId") or raw.get("externalPath")
+        return f"workday_{tenant}_{raw_id}"
     raw_id = raw.get("id_icims") if source == "amazon" else raw.get("id")
     raw_id = raw_id or raw.get("id") or raw.get("jobId")
     return f"{source}_{raw_id}"
@@ -176,13 +182,25 @@ def normalize_job(source: str, slug: str, raw: dict[str, Any], *, pending: bool 
         location = raw_location if isinstance(raw_location, str) else (raw_location or {}).get("name")
         url = raw.get("jobUrl") or raw.get("applyUrl")
         posted = raw.get("publishedAt")
-    else:
+    elif source == "amazon":
         title = raw.get("title") or ""
         location = raw.get("normalized_location") or raw.get("location")
         url = raw.get("url_next_step") or raw.get("job_path")
         if url and str(url).startswith("/"):
             url = f"https://www.amazon.jobs{url}"
         posted = raw.get("posted_date")
+    else:
+        title = raw.get("title") or ""
+        extra_locations = raw.get("additionalLocations") or []
+        if isinstance(extra_locations, list):
+            extras = [item.get("location") if isinstance(item, dict) else str(item) for item in extra_locations]
+        else:
+            extras = []
+        location = "; ".join(filter(None, [raw.get("locationsText"), *extras])) or None
+        path = raw.get("externalPath")
+        host, site = raw.get("_workday_host"), raw.get("_workday_site")
+        url = f"https://{host}/{site}{path}" if host and site and path else None
+        posted = None
 
     description_html = None if pending else source_description_html(source, raw)
     description_text = "" if pending else html_to_text(description_html)

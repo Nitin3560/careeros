@@ -406,7 +406,7 @@ class PollRepository:
                        b.last_modified, b.list_hash, b.consecutive_failures,
                        b.not_found_count, b.empty_since
                 FROM jobs j JOIN ats_boards b ON b.id=j.board_id
-                WHERE j.description_status='pending' AND j.source='greenhouse'
+                WHERE j.description_status='pending' AND j.source IN ('greenhouse','workday')
                   AND coalesce(j.description_next_attempt_at, now()) <= now()
                 ORDER BY j.description_next_attempt_at NULLS FIRST LIMIT :limit
                 FOR UPDATE OF j SKIP LOCKED

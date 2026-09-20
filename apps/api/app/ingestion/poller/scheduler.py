@@ -40,7 +40,9 @@ class PollScheduler:
             await self.repository.close()
             raise RuntimeError("another CareerOS poller is already running")
         try:
-            async with AsyncBoardFetcher(self.config.concurrency, self.config.user_agent) as fetcher:
+            async with AsyncBoardFetcher(
+                self.config.concurrency, self.config.user_agent, self.config.workday_max_pages
+            ) as fetcher:
                 await asyncio.gather(*(
                     self._worker_loop(fetcher, worker_id)
                     for worker_id in range(self.config.batch_workers)
@@ -88,7 +90,9 @@ class PollScheduler:
     async def run_cycle(self, fetcher: AsyncBoardFetcher | None = None) -> int:
         owns_fetcher = fetcher is None
         if owns_fetcher:
-            fetcher = AsyncBoardFetcher(self.config.concurrency, self.config.user_agent)
+            fetcher = AsyncBoardFetcher(
+                self.config.concurrency, self.config.user_agent, self.config.workday_max_pages
+            )
         assert fetcher is not None
         if owns_fetcher:
             await fetcher.__aenter__()
@@ -163,7 +167,10 @@ class PollScheduler:
                     "list_hash", "consecutive_failures", "not_found_count", "empty_since",
                 )
             })
-            detail, ok = await fetcher.fetch_greenhouse_detail(board, row["raw_payload"] or {})
+            if board.ats == "workday":
+                detail, ok = await fetcher.fetch_workday_detail(board, row["raw_payload"] or {})
+            else:
+                detail, ok = await fetcher.fetch_greenhouse_detail(board, row["raw_payload"] or {})
             normalized = normalize_job("greenhouse", board.slug, detail, pending=not ok)
             await self.repository.finish_pending_detail(
                 row["job_id"], normalized, success=ok,
@@ -188,18 +195,16 @@ class PollScheduler:
         fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
         normalized = []
         detail_fetches = 0
-        if board.ats == "greenhouse":
+        if board.ats in {"greenhouse", "workday"}:
             state = await self.repository.board_job_state(board.id)
             details: list[dict] = []
             pending: list[dict] = []
             for raw in result.jobs:
                 job_id = external_id(board.ats, raw)
                 previous = state.get(job_id)
-                needs_detail = (
-                    previous is None
-                    or previous[0]
-                    or (previous[2] and previous[1] != raw.get("updated_at"))
-                )
+                needs_detail = previous is None or previous[0]
+                if board.ats == "greenhouse":
+                    needs_detail = needs_detail or (previous[2] and previous[1] != raw.get("updated_at"))
                 if not needs_detail:
                     continue
                 if len(details) < self.config.detail_cap_per_board:
@@ -208,7 +213,10 @@ class PollScheduler:
                     pending.append(raw)
 
             async def fetch_detail(raw: dict):
-                detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)
+                if board.ats == "workday":
+                    detail, ok = await fetcher.fetch_workday_detail(board, raw)
+                else:
+                    detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)
                 return normalize_job(board.ats, board.slug, detail, pending=not ok)
 
             detail_fetches = len(details)

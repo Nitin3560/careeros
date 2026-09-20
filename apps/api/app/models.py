@@ -220,6 +220,35 @@ class AtsBoard(Base):
     not_found_count: Mapped[int] = mapped_column(server_default="0", nullable=False, deferred=True)
 
 
+class CompanyRegistry(Base):
+    __tablename__ = "company_registry"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_name: Mapped[str] = mapped_column(String, nullable=False)
+    domain: Mapped[str | None] = mapped_column(String, nullable=True)
+    careers_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_tags: Mapped[list[str]] = mapped_column(
+        JSON().with_variant(ARRAY(Text), "postgresql"), nullable=False, default=list
+    )
+    priority: Mapped[int] = mapped_column(nullable=False, default=3)
+    detected_ats: Mapped[str | None] = mapped_column(String, nullable=True)
+    detected_slug: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workday_host: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workday_tenant: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workday_site: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detection_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    detection_confidence: Mapped[str | None] = mapped_column(String, nullable=True)
+    detection_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    board_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ats_boards.id"), nullable=True
+    )
+    last_detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 class PollRun(Base):
     __tablename__ = "poll_runs"
 

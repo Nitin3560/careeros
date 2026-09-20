@@ -73,6 +73,33 @@ def test_detail_cap_stores_overflow_as_pending():
     assert sum(job.description_status == "pending" for job in write.jobs) == 2
 
 
+def test_workday_detail_cap_stores_overflow_as_pending():
+    class WorkdayFetcher(Fetcher):
+        async def fetch_workday_detail(self, _board, raw):
+            self.details.append(raw["jobReqId"])
+            return {**raw, "jobDescription": "<p>detail</p>"}, True
+
+    async def scenario():
+        selected = BoardSpec(
+            id=uuid.uuid4(), ats="workday",
+            slug="acme.wd5.myworkdayjobs.com|acme|External",
+        )
+        jobs = [{
+            "jobReqId": f"R{value}", "externalPath": f"/job/{value}",
+            "title": f"Job {value}", "_workday_tenant": "acme",
+            "_workday_host": "acme.wd5.myworkdayjobs.com", "_workday_site": "External",
+        } for value in range(3)]
+        scheduler = PollScheduler(config(detail_cap_per_board=1), Repo({}))
+        fetcher = WorkdayFetcher(jobs)
+        queue = asyncio.Queue()
+        await scheduler._poll_one(selected, fetcher, queue)
+        return fetcher, await queue.get()
+
+    fetcher, write = asyncio.run(scenario())
+    assert len(fetcher.details) == 1
+    assert sum(job.description_status == "pending" for job in write.jobs) == 2
+
+
 def test_empty_claim_worker_keeps_running_and_later_claims_due_boards(monkeypatch):
     async def scenario():
         scheduler = PollScheduler(config(batch_workers=1), Repo({}))
