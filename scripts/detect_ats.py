@@ -19,6 +19,34 @@ from app.ingestion.registry_detection import find_ats, verify_match  # noqa: E40
 USER_AGENT = "CareerOS-Registry-Detector/1.0 (+https://github.com/Nitin3560/careeros)"
 
 
+def careers_candidates(domain: str) -> list[str]:
+    domain = domain.strip().lower().strip("/")
+    return [
+        f"https://{domain}/careers",
+        f"https://{domain}/jobs",
+        f"https://careers.{domain}",
+        f"https://jobs.{domain}",
+        f"https://www.{domain}/careers",
+        f"https://www.{domain}/jobs",
+        f"https://{domain}",
+    ]
+
+
+async def resolve_careers_url(client, global_semaphore, domain_semaphores, domain):
+    attempted = []
+    domain_semaphore = domain_semaphores.setdefault(domain, asyncio.Semaphore(3))
+    for candidate in careers_candidates(domain):
+        attempted.append(candidate)
+        try:
+            async with global_semaphore, domain_semaphore:
+                response = await client.get(candidate)
+        except httpx.HTTPError:
+            continue
+        if response.is_success:
+            return response, candidate, attempted
+    return None, None, attempted
+
+
 async def playwright_urls(url: str) -> list[str]:
     from playwright.async_api import async_playwright
     captured = []
@@ -32,13 +60,26 @@ async def playwright_urls(url: str) -> list[str]:
     return captured
 
 
-async def detect_one(client, semaphore, row, use_playwright=False):
-    if not row["careers_url"]:
-        return row, None, "not_found", "low", "missing careers_url"
+async def detect_one(client, semaphore, domain_semaphores, row, use_playwright=False):
+    row["_attempted_urls"] = []
     try:
-        async with semaphore:
-            response = await client.get(row["careers_url"])
-        response.raise_for_status()
+        discovery_note = ""
+        if not row["careers_url"]:
+            if not row.get("domain"):
+                return row, None, "not_found", "low", "missing careers_url and domain"
+            response, candidate, attempted = await resolve_careers_url(
+                client, semaphore, domain_semaphores, row["domain"]
+            )
+            row["_attempted_urls"] = attempted
+            if response is None:
+                return row, None, "not_found", "low", "no careers URL candidate returned 2xx"
+            row["careers_url"] = str(response.url)
+            discovery_note = f"discovered_careers_url={row['careers_url']} via {candidate}; "
+        else:
+            row["_attempted_urls"] = [row["careers_url"]]
+            async with semaphore:
+                response = await client.get(row["careers_url"])
+            response.raise_for_status()
         chain = [str(item.url) for item in response.history]
         redirect_chain = " -> ".join([*chain, str(response.url)])
         match = find_ats(chain, str(response.url), response.text)
@@ -48,7 +89,7 @@ async def detect_one(client, semaphore, row, use_playwright=False):
             match = find_ats(chain, str(response.url), response.text, network_urls)
         if match is None:
             return row, None, "not_found", "low", redirect_chain
-        evidence = f"{match.evidence}; redirect_chain={redirect_chain}"
+        evidence = f"{discovery_note}{match.evidence}; redirect_chain={redirect_chain}"
         if not match.supported:
             return row, match, "unsupported", "high", evidence
         async with semaphore:
@@ -81,7 +122,7 @@ def persist_result(db, row, match, status, confidence, evidence):
         UPDATE company_registry SET detected_ats=:ats, detected_slug=:slug,
             workday_host=:host, workday_tenant=:tenant, workday_site=:site,
             detection_status=:status, detection_confidence=:confidence,
-            detection_evidence=:evidence, board_id=:board_id,
+            detection_evidence=:evidence, board_id=:board_id, careers_url=:careers_url,
             last_detected_at=now(), updated_at=now() WHERE id=:id
     """), {
         "ats": match.ats if match else None, "slug": match.slug if match else None,
@@ -89,7 +130,7 @@ def persist_result(db, row, match, status, confidence, evidence):
         "tenant": match.workday_tenant if match else None,
         "site": match.workday_site if match else None,
         "status": status, "confidence": confidence, "evidence": evidence,
-        "board_id": board_id, "id": row["id"],
+        "board_id": board_id, "careers_url": row.get("careers_url"), "id": row["id"],
     })
 
 
@@ -97,17 +138,21 @@ async def run(args):
     db = SessionLocal()
     try:
         rows = [dict(row) for row in db.execute(text("""
-            SELECT id, company_name, careers_url, priority FROM company_registry
+            SELECT id, company_name, domain, careers_url, priority FROM company_registry
             WHERE detection_status IN ('pending','error')
                OR last_detected_at < now()-interval '30 days'
             ORDER BY priority, company_name LIMIT :limit
         """), {"limit": args.limit}).mappings().all()]
         semaphore = asyncio.Semaphore(8)
+        domain_semaphores = {}
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=15,
             headers={"User-Agent": USER_AGENT},
         ) as client:
-            results = await asyncio.gather(*(detect_one(client, semaphore, row, args.playwright) for row in rows))
+            results = await asyncio.gather(*(
+                detect_one(client, semaphore, domain_semaphores, row, args.playwright)
+                for row in rows
+            ))
         for result in results:
             persist_result(db, *result)
         db.commit()
@@ -121,10 +166,14 @@ async def run(args):
         review.parent.mkdir(parents=True, exist_ok=True)
         with review.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
-            writer.writerow(("company_name", "careers_url", "status", "detected_ats", "evidence"))
+            writer.writerow(("company_name", "careers_url", "status", "detected_ats", "evidence", "attempted_urls"))
             for row, match, status, _confidence, evidence in results:
                 if status in {"not_found", "unsupported"}:
-                    writer.writerow((row["company_name"], row["careers_url"], status, match.ats if match else "", evidence))
+                    writer.writerow((
+                        row["company_name"], row["careers_url"], status,
+                        match.ats if match else "", evidence,
+                        " | ".join(row.get("_attempted_urls", [])),
+                    ))
         print(f"review_csv={review}")
     except Exception:
         db.rollback()

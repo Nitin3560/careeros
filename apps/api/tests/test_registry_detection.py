@@ -9,7 +9,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from app.ingestion.registry_detection import find_ats, verify_match
-from scripts.detect_ats import persist_result
+from scripts.detect_ats import (
+    careers_candidates,
+    detect_one,
+    persist_result,
+    resolve_careers_url,
+)
 
 
 @pytest.mark.parametrize(("markup", "ats", "slug"), [
@@ -87,3 +92,83 @@ def test_detection_persistence_is_idempotent_and_failure_inserts_nothing():
     persist_result(db, row, match, "detected", "high", match.evidence)
     persist_result(db, row, match, "detected", "high", match.evidence)
     assert db.board_inserts == 1
+
+
+def test_careers_candidates_follow_required_order():
+    assert careers_candidates("example.com") == [
+        "https://example.com/careers",
+        "https://example.com/jobs",
+        "https://careers.example.com",
+        "https://jobs.example.com",
+        "https://www.example.com/careers",
+        "https://www.example.com/jobs",
+        "https://example.com",
+    ]
+
+
+def test_blank_careers_url_is_discovered_persisted_and_verified():
+    async def scenario():
+        def handler(request):
+            url = str(request.url)
+            if "api.ashbyhq.com" in url:
+                return httpx.Response(200, request=request, json={"jobs": []})
+            if url == "https://careers.example.com":
+                return httpx.Response(
+                    200, request=request,
+                    text='<iframe src="https://jobs.ashbyhq.com/example"></iframe>',
+                )
+            return httpx.Response(404, request=request)
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=True,
+        ) as client:
+            row = {
+                "id": uuid.uuid4(), "company_name": "Example", "domain": "example.com",
+                "careers_url": None, "priority": 2,
+            }
+            result = await detect_one(client, asyncio.Semaphore(8), {}, row)
+        returned_row, match, status, confidence, evidence = result
+        assert (match.ats, status, confidence) == ("ashby", "detected", "high")
+        assert returned_row["careers_url"] == "https://careers.example.com"
+        assert returned_row["_attempted_urls"] == careers_candidates("example.com")[:3]
+        assert "discovered_careers_url=https://careers.example.com" in evidence
+
+    asyncio.run(scenario())
+
+
+def test_discovery_limits_concurrent_requests_per_domain_to_three():
+    async def scenario():
+        active = 0
+        maximum = 0
+
+        async def handler(request):
+            nonlocal active, maximum
+            active += 1
+            maximum = max(maximum, active)
+            await asyncio.sleep(0.01)
+            active -= 1
+            return httpx.Response(200, request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            domain_semaphores = {}
+            await asyncio.gather(*(
+                resolve_careers_url(client, asyncio.Semaphore(20), domain_semaphores, "example.com")
+                for _ in range(8)
+            ))
+        assert maximum == 3
+
+    asyncio.run(scenario())
+
+
+def test_not_found_discovery_retains_every_attempted_url():
+    async def scenario():
+        def handler(request):
+            return httpx.Response(404, request=request)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            response, candidate, attempted = await resolve_careers_url(
+                client, asyncio.Semaphore(8), {}, "missing.example"
+            )
+        assert response is None and candidate is None
+        assert attempted == careers_candidates("missing.example")
+
+    asyncio.run(scenario())
