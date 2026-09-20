@@ -16,6 +16,8 @@ from .types import NormalizedJob
 BLOCK_TAGS = {"p", "div", "section", "article", "br", "hr", "table", "tr"}
 HEADING_TAGS = {f"h{level}" for level in range(1, 7)}
 DROP_TAGS = {"script", "style", "noscript", "svg"}
+NORMALIZER_VERSION = 2
+NORMALIZER_VERSION = 2
 
 
 def _clean_fragment(value: str | None) -> str:
@@ -23,7 +25,9 @@ def _clean_fragment(value: str | None) -> str:
 
 
 def _compact(value: str) -> str:
-    return re.sub(r"[ \t\f\v]+", " ", value).strip()
+    # ``\s`` includes NBSP and the other Unicode space separators. Normalize
+    # them before collapsing so source HTML cannot create invisible artifacts.
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def html_to_text(value: str | None) -> str:
@@ -47,12 +51,22 @@ def html_to_text(value: str | None) -> str:
     def visible_text(node: etree._Element) -> str:
         return _compact(" ".join(node.itertext()))
 
+    def add_heading_or_paragraph(text: str, *, real_heading: bool = False) -> None:
+        if not text:
+            return
+        words = text.split()
+        short_heading = len(text) <= 80 and len(words) <= 12 and not text.endswith(".")
+        if (real_heading and len(text) <= 120) or (not real_heading and short_heading):
+            add(f"## {text}", blank=True)
+        else:
+            add(text, blank=True)
+
     def walk(node: etree._Element) -> None:
         tag = str(node.tag).lower() if isinstance(node.tag, str) else ""
         if tag in DROP_TAGS:
             return
         if tag in HEADING_TAGS:
-            add(f"## {visible_text(node)}", blank=True)
+            add_heading_or_paragraph(visible_text(node), real_heading=True)
             return
         if tag == "li":
             add(f"- {visible_text(node)}")
@@ -64,7 +78,7 @@ def html_to_text(value: str | None) -> str:
             ) and not _compact(node.text or "")
             text = visible_text(node)
             if strong_only and text:
-                add(f"## {text}", blank=True)
+                add_heading_or_paragraph(text)
                 return
             has_block_children = tag == "div" and any(
                 str(child.tag).lower() in BLOCK_TAGS | HEADING_TAGS | {"ul", "ol", "li"}

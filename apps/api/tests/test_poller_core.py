@@ -55,6 +55,28 @@ def test_nested_wrapper_preserves_sections_and_bullets():
     assert text == "## Requirements\n\nBuild systems.\n\n- Python\n- SQL"
 
 
+def test_empty_headings_and_bold_whitespace_are_dropped():
+    assert html_to_text("<h2> </h2><p><strong>&nbsp;</strong></p>") == ""
+
+
+def test_long_bold_paragraph_is_not_a_heading():
+    value = " ".join(["word"] * 60)
+    assert html_to_text(f"<p><strong>{value}</strong></p>") == value
+
+
+def test_short_bold_paragraph_is_a_heading():
+    assert html_to_text("<p><strong>Requirements</strong></p>") == "## Requirements"
+
+
+def test_unicode_spaces_are_collapsed():
+    assert html_to_text("<p>Dark Wolf&nbsp; constructs</p>") == "Dark Wolf constructs"
+
+
+def test_long_real_heading_is_a_paragraph():
+    value = " ".join(["heading"] * 25)
+    assert html_to_text(f"<h2>{value}</h2>") == value
+
+
 def test_stable_list_hash_ignores_order_but_detects_visible_change():
     first = [{"id": 1, "title": "A", "location": {"name": "US"}}, {"id": 2, "title": "B"}]
     assert stable_list_hash("greenhouse", first) == stable_list_hash("greenhouse", list(reversed(first)))

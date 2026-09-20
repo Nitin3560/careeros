@@ -28,10 +28,14 @@ class PollScheduler:
         self.stop_event = asyncio.Event()
 
     async def run_forever(self) -> None:
+        if not await self.repository.acquire_instance_lock():
+            log_event("poller_instance_lock_unavailable", severity="error")
+            await self.repository.close()
+            raise RuntimeError("another CareerOS poller is already running")
         try:
             async with AsyncBoardFetcher(self.config.concurrency, self.config.user_agent) as fetcher:
                 while not self.stop_event.is_set():
-                    polled = await self.run_cycle(fetcher)
+                    polled = await self._drain_due_batches(fetcher)
                     if not polled:
                         try:
                             await asyncio.wait_for(self.stop_event.wait(), timeout=15)
@@ -39,6 +43,20 @@ class PollScheduler:
                             pass
         finally:
             await self.repository.close()
+
+    async def _drain_due_batches(self, fetcher: AsyncBoardFetcher) -> int:
+        async def worker() -> int:
+            count = 0
+            while not self.stop_event.is_set():
+                polled = await self.run_cycle(fetcher)
+                count += polled
+                if not polled:
+                    return count
+            return count
+
+        return sum(await asyncio.gather(
+            *(worker() for _ in range(self.config.batch_workers))
+        ))
 
     async def run_cycle(self, fetcher: AsyncBoardFetcher | None = None) -> int:
         owns_fetcher = fetcher is None
@@ -146,15 +164,31 @@ class PollScheduler:
         detail_fetches = 0
         if board.ats == "greenhouse":
             state = await self.repository.board_job_state(board.id)
+            details: list[dict] = []
+            pending: list[dict] = []
             for raw in result.jobs:
                 job_id = external_id(board.ats, raw)
                 previous = state.get(job_id)
-                needs_detail = previous is None or previous[0] or previous[1] != raw.get("updated_at")
+                needs_detail = (
+                    previous is None
+                    or previous[0]
+                    or (previous[2] and previous[1] != raw.get("updated_at"))
+                )
                 if not needs_detail:
                     continue
-                detail_fetches += 1
+                if len(details) < self.config.detail_cap_per_board:
+                    details.append(raw)
+                else:
+                    pending.append(raw)
+
+            async def fetch_detail(raw: dict):
                 detail, ok = await fetcher.fetch_greenhouse_detail(board, raw)
-                normalized.append(normalize_job(board.ats, board.slug, detail, pending=not ok))
+                return normalize_job(board.ats, board.slug, detail, pending=not ok)
+
+            detail_fetches = len(details)
+            if details:
+                normalized.extend(await asyncio.gather(*(fetch_detail(raw) for raw in details)))
+            normalized.extend(normalize_job(board.ats, board.slug, raw, pending=True) for raw in pending)
         else:
             normalized = [normalize_job(board.ats, board.slug, raw) for raw in result.jobs]
         result = replace(result, detail_fetches=detail_fetches)

@@ -154,6 +154,9 @@ class Job(Base):
         String, nullable=False, server_default="pending", deferred=True
     )
     description_html: Mapped[str | None] = mapped_column(Text, nullable=True, deferred=True)
+    description_normalizer_version: Mapped[int] = mapped_column(
+        server_default="1", nullable=False, deferred=True
+    )
     description_attempts: Mapped[int] = mapped_column(server_default="0", nullable=False, deferred=True)
     description_next_attempt_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, deferred=True

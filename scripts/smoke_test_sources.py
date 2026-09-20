@@ -80,7 +80,10 @@ async def main_async(args) -> int:
                     list_hash=stable_list_hash(board.ats, result.jobs),
                 ))
                 nonempty = sum(bool(job.description_text) for job in normalized)
-                headings = sum("## " in job.description_text for job in normalized)
+                headings = sum(any(
+                    line.startswith("## ") and bool(line[3:].strip())
+                    for line in job.description_text.splitlines()
+                ) for job in normalized)
                 leftovers = sum(bool(re.search(r"<[^>]+>|&(?:[A-Za-z]+|#[0-9]+);", job.description_text)) for job in normalized)
                 count = max(len(normalized), 1)
                 print(

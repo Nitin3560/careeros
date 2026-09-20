@@ -272,6 +272,19 @@ POLLER_EXPIRY_ENABLED=false python scripts/run_poller.py
 python scripts/coverage_report.py
 ```
 
+Run either the Docker `poller` service or the manual command, never both. The
+poller holds a PostgreSQL advisory lock and exits non-zero if another instance
+is active. It claims due boards in batches of 300 by default
+(`POLLER_BATCH_SIZE`) and caps Greenhouse detail requests at 200 per board
+(`POLLER_DETAIL_CAP_PER_BOARD`).
+
+Legacy Greenhouse rows are deliberately skipped by the normal sweep. Refresh
+their descriptions separately with a resumable, rate-limited command:
+
+```bash
+python scripts/refresh_legacy_greenhouse.py --rate 5 --batch-size 500
+```
+
 `POLLER_CONCURRENCY` defaults to `64`. Use `POLLER_BOARD_LIMIT` and `POLLER_ATS` for bounded tests. After reviewing a clean full sweep, restart with `POLLER_EXPIRY_ENABLED=true`. Enable the daily cleanup only after that by setting `POLLER_RETENTION_ENABLED=true` and running `scripts/retain_expired_jobs.py`. The coverage report writes `reports/coverage_report.json`; focus on schedule lag, p50/p95 latency, source-level description quality, and first-seen freshness.
 
 ---

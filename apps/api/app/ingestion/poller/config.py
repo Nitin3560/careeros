@@ -21,6 +21,9 @@ class PollerConfig:
     ats_filter: str | None = None
     writer_count: int = 4
     queue_size: int = 256
+    batch_size: int = 300
+    batch_workers: int = 3
+    detail_cap_per_board: int = 200
     user_agent: str = "CareerOS-Collector/1.0 (+https://github.com/Nitin3560/careeros)"
 
     @classmethod
@@ -40,6 +43,9 @@ class PollerConfig:
             ats_filter=os.getenv("POLLER_ATS") or None,
             writer_count=max(1, int(os.getenv("POLLER_WRITERS", "4"))),
             queue_size=max(8, int(os.getenv("POLLER_QUEUE_SIZE", "256"))),
+            batch_size=max(1, int(os.getenv("POLLER_BATCH_SIZE", "300"))),
+            batch_workers=max(1, int(os.getenv("POLLER_BATCH_WORKERS", "3"))),
+            detail_cap_per_board=max(0, int(os.getenv("POLLER_DETAIL_CAP_PER_BOARD", "200"))),
             user_agent=os.getenv(
                 "POLLER_USER_AGENT",
                 "CareerOS-Collector/1.0 (+https://github.com/Nitin3560/careeros)",
