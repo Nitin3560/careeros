@@ -5,7 +5,10 @@ from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import logging
+import random
 import time
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from .config import PollerConfig
 from .fetcher import AsyncBoardFetcher
@@ -28,35 +31,59 @@ class PollScheduler:
         self.stop_event = asyncio.Event()
 
     async def run_forever(self) -> None:
-        if not await self.repository.acquire_instance_lock():
+        acquired = await self._acquire_instance_lock_with_retry()
+        if acquired is None:
+            await self.repository.close()
+            return
+        if not acquired:
             log_event("poller_instance_lock_unavailable", severity="error")
             await self.repository.close()
             raise RuntimeError("another CareerOS poller is already running")
         try:
             async with AsyncBoardFetcher(self.config.concurrency, self.config.user_agent) as fetcher:
-                while not self.stop_event.is_set():
-                    polled = await self._drain_due_batches(fetcher)
-                    if not polled:
-                        try:
-                            await asyncio.wait_for(self.stop_event.wait(), timeout=15)
-                        except asyncio.TimeoutError:
-                            pass
+                await asyncio.gather(*(
+                    self._worker_loop(fetcher, worker_id)
+                    for worker_id in range(self.config.batch_workers)
+                ))
         finally:
             await self.repository.close()
 
-    async def _drain_due_batches(self, fetcher: AsyncBoardFetcher) -> int:
-        async def worker() -> int:
-            count = 0
-            while not self.stop_event.is_set():
-                polled = await self.run_cycle(fetcher)
-                count += polled
-                if not polled:
-                    return count
-            return count
+    async def _acquire_instance_lock_with_retry(self) -> bool | None:
+        error_backoff = 5.0
+        while not self.stop_event.is_set():
+            try:
+                return await self.repository.acquire_instance_lock()
+            except (SQLAlchemyError, OSError, ConnectionError) as exc:
+                log_event(
+                    "poller_database_retry", severity="error", worker="instance_lock",
+                    error=f"{type(exc).__name__}: {exc}"[:500], retry_seconds=error_backoff,
+                )
+                await self._wait_or_stop(error_backoff)
+                error_backoff = min(60.0, error_backoff * 2)
+        return None
 
-        return sum(await asyncio.gather(
-            *(worker() for _ in range(self.config.batch_workers))
-        ))
+    async def _wait_or_stop(self, delay: float) -> None:
+        try:
+            await asyncio.wait_for(self.stop_event.wait(), timeout=delay)
+        except asyncio.TimeoutError:
+            pass
+
+    async def _worker_loop(self, fetcher: AsyncBoardFetcher, worker_id: int) -> None:
+        error_backoff = 5.0
+        while not self.stop_event.is_set():
+            try:
+                polled = await self.run_cycle(fetcher)
+            except (SQLAlchemyError, OSError, ConnectionError) as exc:
+                log_event(
+                    "poller_database_retry", severity="error", worker=worker_id,
+                    error=f"{type(exc).__name__}: {exc}"[:500], retry_seconds=error_backoff,
+                )
+                await self._wait_or_stop(error_backoff)
+                error_backoff = min(60.0, error_backoff * 2)
+                continue
+            error_backoff = 5.0
+            if polled == 0:
+                await self._wait_or_stop(random.uniform(5.0, 15.0))
 
     async def run_cycle(self, fetcher: AsyncBoardFetcher | None = None) -> int:
         owns_fetcher = fetcher is None
@@ -67,7 +94,6 @@ class PollScheduler:
             await fetcher.__aenter__()
         run_id, boards_due, boards = await self.repository.start_run_and_claim()
         if not boards:
-            await self.repository.finish_run(run_id, [])
             if owns_fetcher:
                 await fetcher.__aexit__(None, None, None)
             return 0

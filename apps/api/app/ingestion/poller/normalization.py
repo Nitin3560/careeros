@@ -17,7 +17,6 @@ BLOCK_TAGS = {"p", "div", "section", "article", "br", "hr", "table", "tr"}
 HEADING_TAGS = {f"h{level}" for level in range(1, 7)}
 DROP_TAGS = {"script", "style", "noscript", "svg"}
 NORMALIZER_VERSION = 2
-NORMALIZER_VERSION = 2
 
 
 def _clean_fragment(value: str | None) -> str:

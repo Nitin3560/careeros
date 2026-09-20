@@ -73,27 +73,115 @@ def test_detail_cap_stores_overflow_as_pending():
     assert sum(job.description_status == "pending" for job in write.jobs) == 2
 
 
-def test_slow_batch_does_not_block_next_claim_worker():
+def test_empty_claim_worker_keeps_running_and_later_claims_due_boards(monkeypatch):
     async def scenario():
-        scheduler = PollScheduler(config(batch_workers=2), Repo({}))
-        fast_claimed = asyncio.Event()
+        scheduler = PollScheduler(config(batch_workers=1), Repo({}))
+        results = iter((0, 1))
+        waits = []
+
+        async def cycle(_fetcher):
+            result = next(results)
+            if result:
+                scheduler.stop_event.set()
+            return result
+
+        async def wait(delay):
+            waits.append(delay)
+            await asyncio.sleep(0)
+
+        scheduler.run_cycle = cycle
+        scheduler._wait_or_stop = wait
+        monkeypatch.setattr("app.ingestion.poller.scheduler.random.uniform", lambda low, high: 7.5)
+        await scheduler._worker_loop(object(), 0)
+        assert waits == [7.5]
+
+    asyncio.run(scenario())
+
+
+def test_three_workers_resume_after_all_initial_claims_are_empty():
+    async def scenario():
+        scheduler = PollScheduler(config(batch_workers=3), Repo({}))
         calls = 0
+        claimed = 0
+        lock = asyncio.Lock()
+
+        async def cycle(_fetcher):
+            nonlocal calls, claimed
+            async with lock:
+                calls += 1
+                if calls <= 3:
+                    return 0
+                claimed += 1
+                if claimed == 3:
+                    scheduler.stop_event.set()
+                return 1
+
+        async def wait(_delay):
+            await asyncio.sleep(0)
+
+        scheduler.run_cycle = cycle
+        scheduler._wait_or_stop = wait
+        await asyncio.gather(*(
+            scheduler._worker_loop(object(), worker_id) for worker_id in range(3)
+        ))
+        assert calls >= 6
+        assert claimed == 3
+
+    asyncio.run(scenario())
+
+
+def test_database_connection_errors_back_off_and_retry_without_exit():
+    async def scenario():
+        scheduler = PollScheduler(config(batch_workers=1), Repo({}))
+        calls = 0
+        waits = []
 
         async def cycle(_fetcher):
             nonlocal calls
             calls += 1
-            current = calls
-            if current == 1:
-                await asyncio.wait_for(fast_claimed.wait(), 0.5)
-                return 1
-            if current == 2:
-                fast_claimed.set()
-                return 1
-            return 0
+            if calls <= 2:
+                raise OSError("database unavailable")
+            scheduler.stop_event.set()
+            return 1
+
+        async def wait(delay):
+            waits.append(delay)
+            await asyncio.sleep(0)
 
         scheduler.run_cycle = cycle
-        assert await scheduler._drain_due_batches(object()) == 2
-        assert calls >= 3
+        scheduler._wait_or_stop = wait
+        await scheduler._worker_loop(object(), 0)
+        assert calls == 3
+        assert waits == [5.0, 10.0]
+
+    asyncio.run(scenario())
+
+
+def test_instance_lock_database_error_retries_before_startup():
+    class FlakyLockRepo(Repo):
+        def __init__(self):
+            super().__init__({})
+            self.calls = 0
+
+        async def acquire_instance_lock(self):
+            self.calls += 1
+            if self.calls == 1:
+                raise OSError("database unavailable")
+            return True
+
+    async def scenario():
+        repo = FlakyLockRepo()
+        scheduler = PollScheduler(config(), repo)
+        waits = []
+
+        async def wait(delay):
+            waits.append(delay)
+            await asyncio.sleep(0)
+
+        scheduler._wait_or_stop = wait
+        assert await scheduler._acquire_instance_lock_with_retry() is True
+        assert repo.calls == 2
+        assert waits == [5.0]
 
     asyncio.run(scenario())
 

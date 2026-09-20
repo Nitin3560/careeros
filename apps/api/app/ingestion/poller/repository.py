@@ -100,10 +100,11 @@ class PollRepository:
                     ),
                     {"lease": lease, "ids": ids},
                 )
-            await session.execute(
-                text("INSERT INTO poll_runs (id, started_at, boards_due) VALUES (:id, :started, :due)"),
-                {"id": run_id, "started": now, "due": due},
-            )
+            if ids:
+                await session.execute(
+                    text("INSERT INTO poll_runs (id, started_at, boards_due) VALUES (:id, :started, :due)"),
+                    {"id": run_id, "started": now, "due": due},
+                )
         return run_id, due, [BoardSpec(**dict(row)) for row in rows]
 
     async def board_job_ids(self, board_id: uuid.UUID) -> tuple[set[str], set[str]]:
@@ -213,8 +214,7 @@ class PollRepository:
                 await session.execute(
                     text(
                         """
-                        UPDATE jobs SET last_seen_at=:now, last_verified_at=:now,
-                                        seen_count=seen_count + 1
+                        UPDATE jobs SET last_seen_at=:now, seen_count=seen_count + 1
                         WHERE board_id=:board_id AND external_id IN :ids
                         """
                     ).bindparams(bindparam("ids", expanding=True)),
@@ -386,7 +386,7 @@ class PollRepository:
         return {
             "id": uuid.uuid4(), "external_id": job.external_id, "source": job.source,
             "company": job.company, "title": job.title, "location": job.location,
-            "description_text": job.description_text, "description_html": job.description_html,
+            "description_text": job.description_text, "description_html": None,
             "description_status": job.description_status, "raw_payload": json.dumps(job.raw_payload),
             "description_normalizer_version": NORMALIZER_VERSION,
             "content_hash": job.content_hash, "application_url": application_url,
@@ -423,13 +423,13 @@ class PollRepository:
         async with self.sessions.begin() as session:
             if success:
                 await session.execute(text("""
-                    UPDATE jobs SET description_text=:text, description_html=:html,
+                    UPDATE jobs SET description_text=:text, description_html=NULL,
                         description_status='ok', raw_payload=CAST(:raw AS jsonb), content_hash=:hash,
                         description_normalizer_version=:normalizer_version,
                         description_attempts=:attempts, description_next_attempt_at=NULL
                     WHERE id=:id
                 """), {
-                    "text": job.description_text, "html": job.description_html,
+                    "text": job.description_text,
                     "raw": json.dumps(job.raw_payload), "hash": job.content_hash,
                     "normalizer_version": NORMALIZER_VERSION,
                     "attempts": attempts, "id": job_id,
