@@ -366,3 +366,10 @@ Startups, early-stage companies, and smaller technology businesses.
 | relativity | Software Engineer I<br><sub>Long Beach, California, United States</sub> | 1 year | 2026-09-19 | 3 hours ago |  | [Apply](https://boards.greenhouse.io/relativity/jobs/8747134002?gh_jid=8747134002) |
 
 <!-- ENTRY_JOBS:END -->
+### Classifier evaluation
+
+```bash
+python scripts/export_label_sample.py --sample-size 300 --seed 42
+# fill data/label_sample.csv
+python scripts/score_classifier.py --input data/label_sample.csv
+```
