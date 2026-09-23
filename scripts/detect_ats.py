@@ -108,7 +108,7 @@ def _diagnostic(url, response=None, exc=None, *, playwright=False):
     }
 
 
-async def probe_url(client, global_semaphore, domain_semaphores, domain, url, playwright_loader=playwright_page):
+async def probe_url(client, global_semaphore, domain_semaphores, domain, url, playwright_loader=playwright_page, playwright_budget=None):
     domain_semaphore = domain_semaphores.setdefault(domain, asyncio.Semaphore(3))
     try:
         async with global_semaphore, domain_semaphore:
@@ -124,6 +124,10 @@ async def probe_url(client, global_semaphore, domain_semaphores, domain, url, pl
         response = None
         trigger = exc
         diagnostic = _diagnostic(url, exc=exc)
+    if playwright_budget is not None and playwright_budget[0] >= 3:
+        return None, [diagnostic]
+    if playwright_budget is not None:
+        playwright_budget[0] += 1
     try:
         async with global_semaphore, domain_semaphore:
             rendered = await playwright_loader(url)
@@ -173,6 +177,8 @@ async def detect_one(
     playwright_loader=playwright_page, known_boards=None,
 ):
     row["_attempt_diagnostics"] = []
+    row["_company_started_at"] = time.monotonic()
+    playwright_budget = [0]
     try:
         domain = (row.get("domain") or urlparse(row.get("careers_url") or "").hostname or "").lower()
         if not domain:
@@ -190,7 +196,8 @@ async def detect_one(
                 return None, None
             seen.add(candidate)
             page, diagnostics = await probe_url(
-                client, semaphore, domain_semaphores, domain, candidate, playwright_loader
+                client, semaphore, domain_semaphores, domain, candidate, playwright_loader,
+                playwright_budget=playwright_budget,
             )
             row["_attempt_diagnostics"].extend(diagnostics)
             if candidate.rstrip("/") == f"https://{domain}".rstrip("/") and page:
@@ -199,8 +206,13 @@ async def detect_one(
                 return None, None
             chain = diagnostics[-1]["redirect_chain"]
             found = find_ats(chain[:-1], page["url"], page["html"], page["network_urls"])
+            if found:
+                row["_partial_match"] = found
             if found or not use_playwright or diagnostics[-1].get("playwright"):
                 return found, page
+            if playwright_budget[0] >= 3:
+                return None, page
+            playwright_budget[0] += 1
             try:
                 async with semaphore, domain_semaphores.setdefault(domain, asyncio.Semaphore(3)):
                     rendered = await playwright_loader(page["url"])
@@ -231,6 +243,17 @@ async def detect_one(
             if link:
                 match, chosen_page = await inspect(link)
                 chosen_candidate = link if match else None
+
+        if match is not None:
+            # Verify immediately; this avoids probing remaining candidates.
+            async with semaphore:
+                verified = await verify_match(client, match)
+            diagnostics_json = json.dumps(row.get("_attempt_diagnostics", []), separators=(",", ":"))
+            evidence = f"discovered_careers_url={chosen_page['url'] if chosen_page else row.get('careers_url')}; {match.evidence}; diagnostics={diagnostics_json}"
+            if not verified:
+                return row, match, "error", "low", f"verification failed: {evidence}"
+            row["careers_url"] = chosen_page["url"] if chosen_page else row.get("careers_url")
+            return row, match, "detected", "high", evidence
 
         # Some companies expose no ATS fingerprint on their marketing site,
         # but already have a verified board (for example greenhouse/anthropic).
@@ -338,13 +361,13 @@ def write_review_csv(path: Path, results) -> None:
         writer = csv.writer(handle)
         writer.writerow((
             "company_name", "careers_url", "status", "detected_ats",
-            "evidence", "attempt_diagnostics",
+            "elapsed_seconds", "evidence", "attempt_diagnostics",
         ))
         for row, match, status, _confidence, evidence in results:
             if status in {"not_found", "unsupported", "error"}:
                 writer.writerow((
                     row["company_name"], row.get("careers_url"), status,
-                    match.ats if match else "", evidence,
+                    match.ats if match else "", row.get("elapsed_seconds", ""), evidence,
                     json.dumps(row.get("_attempt_diagnostics", []), separators=(",", ":")),
                 ))
 
@@ -394,6 +417,7 @@ async def run(args):
             browser = await pw.chromium.launch(headless=True)
 
         async def one(index, row):
+            company_started = time.monotonic()
             load = playwright_page
             close = None
             if browser:
@@ -405,7 +429,8 @@ async def run(args):
                     timeout=args.timeout,
                 )
             except asyncio.TimeoutError:
-                result = (row, None, "error", "low", f"TimeoutError: exceeded {args.timeout}s")
+                partial = row.get("_partial_match")
+                result = (row, partial, "error", "low", f"TimeoutError: exceeded {args.timeout}s; partial_diagnostics={len(row.get('_attempt_diagnostics', []))}")
             except Exception as exc:
                 result = (row, None, "error", "low", f"{type(exc).__name__}: {exc}")
             finally:
@@ -413,7 +438,8 @@ async def run(args):
                     await close()
             row_result, match, status, _confidence, _evidence = result
             tally[status] = tally.get(status, 0) + 1
-            elapsed = time.monotonic() - started
+            elapsed = time.monotonic() - company_started
+            row_result["elapsed_seconds"] = round(elapsed, 3)
             ats = match.ats if match else "none"
             print(f"[{index}/{total}] {row['company_name']} -> {status} ({ats}) in {elapsed:.1f}s", flush=True)
             if index % 25 == 0:
@@ -470,7 +496,7 @@ def main():
     parser.add_argument("--limit", type=int, default=1000000)
     parser.add_argument("--playwright", action="store_true")
     parser.add_argument("--concurrency", type=int, default=8)
-    parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--companies", help="Comma-separated company names")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--retry-errors", action="store_true")
