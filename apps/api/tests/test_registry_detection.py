@@ -82,6 +82,21 @@ def test_verification_failure_is_false_and_cannot_be_accepted():
     asyncio.run(scenario())
 
 
+def test_verification_ignores_html_json_decode_error():
+    async def scenario():
+        def handler(request):
+            return httpx.Response(200, request=request, text="<html>not json</html>")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            match = find_ats([], "https://jobs.ashbyhq.com/acme", "")
+            assert await verify_match(client, match) is False
+    asyncio.run(scenario())
+
+
+def test_template_urls_are_not_fingerprinted():
+    markup = '<a href="https://aexp.eightfold.ai/careers?query=${Title}`">roles</a>'
+    assert find_ats([], "https://example.com/careers", markup) is None
+
+
 @pytest.mark.parametrize("url,payload", [
     ("https://careers.acme.com/api/phenom/jobapi/searchjobs", {"data": {"jobs": []}}),
     ("https://acme.eightfold.ai/careers", {"positions": []}),
@@ -278,6 +293,19 @@ def test_homepage_link_discovery_finds_greenhouse_board():
             return await detect_one(client, asyncio.Semaphore(8), {}, row)
     _row, match, status, _confidence, _evidence = asyncio.run(scenario())
     assert (match.ats, status) == ("greenhouse", "detected")
+
+
+def test_homepage_press_link_is_not_followed():
+    async def scenario():
+        def handler(request):
+            if str(request.url) == "https://acme.com":
+                return httpx.Response(200, request=request, text='<a href="/press/jobs-platform">Engineer</a>')
+            return httpx.Response(404, request=request)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            row = {"id": uuid.uuid4(), "company_name": "Acme", "domain": "acme.com", "careers_url": None, "priority": 1}
+            return await detect_one(client, asyncio.Semaphore(8), {}, row)
+    _row, match, status, _confidence, _evidence = asyncio.run(scenario())
+    assert match is None and status == "not_found"
 
 
 def test_sitemap_fallback_finds_greenhouse_board():

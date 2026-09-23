@@ -17,7 +17,7 @@ from sqlalchemy import text
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
 from app.database import SessionLocal  # noqa: E402
-from app.ingestion.registry_detection import find_ats, verify_match  # noqa: E402
+from app.ingestion.registry_detection import ATSMatch, find_ats, verify_match  # noqa: E402
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -32,6 +32,8 @@ DISCOVERY_HEADERS = {
 }
 BLOCKED_STATUSES = {403, 429, 503}
 CAREER_LINK = re.compile(r"careers|jobs|join|work\s*with\s*us|open\s*roles", re.I)
+CAREER_PATH = re.compile(r"/(?:[^/?#]*(?:careers|jobs|join|open(?:ings|[-_ ]?roles?))[^/?#]*)", re.I)
+EXCLUDED_PATH = re.compile(r"/(?:press|news|blog|about|investor)(?:/|$)", re.I)
 KNOWN_ATS_HOSTS = (
     "greenhouse.io", "lever.co", "ashbyhq.com", "myworkdayjobs.com",
     "smartrecruiters.com", "icims.com", "workable.com", "bamboohr.com",
@@ -142,10 +144,12 @@ def first_career_link(markup: str, base_url: str, domain: str) -> str | None:
         return None
     for anchor in root.xpath("//a[@href]"):
         href = anchor.get("href") or ""
-        text_value = " ".join(anchor.itertext())
-        if not CAREER_LINK.search(f"{text_value} {href}"):
-            continue
         target = urljoin(base_url, href)
+        parsed = urlparse(target)
+        path = parsed.path or "/"
+        # Use the URL path as the signal. Anchor text alone can be a job title.
+        if not CAREER_PATH.search(path) or EXCLUDED_PATH.search(path):
+            continue
         host = (urlparse(target).hostname or "").lower()
         if host == domain or host.endswith(f".{domain}") or any(host.endswith(ats) for ats in KNOWN_ATS_HOSTS):
             return target
@@ -159,7 +163,7 @@ def sitemap_career_urls(markup: str) -> list[str]:
 
 async def detect_one(
     client, semaphore, domain_semaphores, row, use_playwright=False,
-    playwright_loader=playwright_page,
+    playwright_loader=playwright_page, known_boards=None,
 ):
     row["_attempt_diagnostics"] = []
     try:
@@ -220,6 +224,29 @@ async def detect_one(
             if link:
                 match, chosen_page = await inspect(link)
                 chosen_candidate = link if match else None
+
+        # Some companies expose no ATS fingerprint on their marketing site,
+        # but already have a verified board (for example greenhouse/anthropic).
+        # Re-verify a slug that matches the domain or company name before
+        # declaring the registry row missing.
+        if match is None and known_boards:
+            tokens = {re.sub(r"[^a-z0-9]", "", value.lower()) for value in (
+                domain.split(".")[0], row.get("company_name", ""),
+            ) if value}
+            for board in known_boards:
+                slug_token = re.sub(r"[^a-z0-9]", "", str(board["slug"]).split("|")[0].lower())
+                company_token = re.sub(r"[^a-z0-9]", "", str(board.get("company_name") or "").lower())
+                if not ({slug_token, company_token} & tokens):
+                    continue
+                candidate = ATSMatch(
+                    board["ats"], board["slug"], "existing ats_boards fallback",
+                    endpoint_params=board.get("adapter_config") or {},
+                )
+                if await verify_match(client, candidate):
+                    match = candidate
+                    chosen_candidate = f"ats_boards:{board['ats']}/{board['slug']}"
+                    chosen_page = {"url": row.get("careers_url") or f"https://{domain}", "html": "", "network_urls": []}
+                    break
 
         if match is None:
             sitemap_url = f"https://{domain}/sitemap.xml"
@@ -324,6 +351,9 @@ async def run(args):
             WHERE {where}
             ORDER BY priority, company_name LIMIT :limit
         """), {"limit": args.limit}).mappings().all()]
+        known_boards = [dict(row) for row in db.execute(text(
+            "SELECT ats, slug, company_name, adapter_config FROM ats_boards WHERE status <> 'dead'"
+        )).mappings().all()]
         semaphore = asyncio.Semaphore(8)
         domain_semaphores = {}
         async with httpx.AsyncClient(
@@ -331,7 +361,8 @@ async def run(args):
             headers=DISCOVERY_HEADERS,
         ) as client:
             results = await asyncio.gather(*(
-                detect_one(client, semaphore, domain_semaphores, row, args.playwright)
+                detect_one(client, semaphore, domain_semaphores, row, args.playwright,
+                           known_boards=known_boards)
                 for row in rows
             ))
         for result in results:

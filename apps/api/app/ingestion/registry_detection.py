@@ -6,6 +6,7 @@ from typing import Iterable
 
 import httpx
 from lxml import html as lxml_html
+from urllib.parse import urlsplit, urlunsplit
 
 
 @dataclass(frozen=True)
@@ -56,13 +57,31 @@ def html_urls(markup: str) -> list[str]:
         return []
     values = []
     for node in root.xpath("//*[@href or @src]"):
-        values.extend(value for value in (node.get("href"), node.get("src")) if value)
+        values.extend(_clean_url(value) for value in (node.get("href"), node.get("src")) if value)
     return values
 
 
+def _clean_url(value: str) -> str:
+    """Keep only usable absolute URLs; reject template/code fragments."""
+    value = (value or "").replace("&amp;", "&").strip().rstrip("`};.,")
+    if any(token in value for token in ("${", "\\`", "&#")):
+        return ""
+    parts = urlsplit(value)
+    if parts.scheme not in {"http", "https"} or not parts.netloc:
+        return ""
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ""))
+
+
+def _sanitize_markup(markup: str) -> str:
+    # Template literals in scripts are not real endpoints.
+    return re.sub(r"https?://[^\"'\s]*\$\{[^\"'\s]*", "", markup or "")
+
+
 def find_ats(redirect_urls: Iterable[str], final_url: str, markup: str, network_urls: Iterable[str] = ()) -> ATSMatch | None:
-    urls = [*redirect_urls, final_url, *html_urls(markup), *network_urls]
-    searchable = [*urls, markup]
+    clean_markup = _sanitize_markup(markup)
+    urls = [_clean_url(value) for value in [*redirect_urls, final_url, *html_urls(clean_markup), *network_urls]]
+    urls = [value for value in urls if value]
+    searchable = [*urls, clean_markup]
     candidates: list[tuple[int, ATSMatch]] = []
     for value in searchable:
         for ats, pattern in SUPPORTED:
@@ -122,32 +141,40 @@ def find_ats(redirect_urls: Iterable[str], final_url: str, markup: str, network_
 
 
 async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
+    def parse_payload(response):
+        if not response.is_success:
+            return None
+        try:
+            return response.json()
+        except (ValueError, TypeError):
+            return None
+
     if match.ats == "greenhouse":
         response = await client.get(f"https://boards-api.greenhouse.io/v1/boards/{match.slug}/jobs")
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("jobs"), list)
     if match.ats == "lever":
         response = await client.get(f"https://api.lever.co/v0/postings/{match.slug}?mode=json")
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, list)
     if match.ats == "ashby":
         response = await client.get(f"https://api.ashbyhq.com/posting-api/job-board/{match.slug}")
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("jobs"), list)
     if match.ats == "workday":
         response = await client.post(
             f"https://{match.workday_host}/wday/cxs/{match.workday_tenant}/{match.workday_site}/jobs",
             json={"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""},
         )
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("jobPostings"), list)
     if match.ats == "smartrecruiters":
         response = await client.get(f"https://api.smartrecruiters.com/v1/companies/{match.slug}/postings", params={"limit": 1})
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("content"), list)
     if match.ats == "workable":
         response = await client.get(f"https://apply.workable.com/api/v1/widget/accounts/{match.slug}", params={"details": "true"})
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("jobs"), list)
     if match.ats == "phenom":
         host, tenant = match.slug.split("|", 1)
@@ -155,7 +182,7 @@ async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
             f"https://{host}/api/phenom/jobapi/searchjobs",
             json={"refNum": tenant, "pageSize": 1, "pageNo": 1},
         )
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         data = payload.get("data") if isinstance(payload, dict) else None
         return response.is_success and isinstance(data, dict) and isinstance(data.get("jobs"), list)
     if match.ats == "eightfold":
@@ -164,7 +191,7 @@ async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
             f"https://{host}/api/pcsx/search",
             params={"domain": tenant, "start": 0, "num": 1},
         )
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("positions"), list)
     if match.ats == "oracle":
         host, site = match.slug.split("|", 1)
@@ -173,7 +200,7 @@ async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
             params={"onlyData": "true", "limit": 1, "offset": 0,
                     "finder": f"findReqs;siteNumber={site}"},
         )
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("items"), list)
     if match.ats == "icims":
         response = await client.get(
@@ -181,6 +208,6 @@ async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
             params={"in_iframe": 1, "mode": "job", "pr": 1,
                     "searchRelation": "keyword_all", "format": "json"},
         )
-        payload = response.json() if response.is_success else None
+        payload = parse_payload(response)
         return response.is_success and isinstance(payload, dict) and isinstance(payload.get("jobs"), list)
     return False
