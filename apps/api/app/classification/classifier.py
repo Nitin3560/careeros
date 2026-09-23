@@ -6,9 +6,10 @@ from dataclasses import dataclass, asdict
 
 VERSION = 1
 US_STATES = set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC".split())
-NON_US = re.compile(r"\b(?:Canada|India|United Kingdom|UK|Germany|France|Ireland|Singapore|Australia|Brazil|Mexico|Switzerland|Israel|Japan|China|Bangalore|Hyderabad|Mumbai|Pune|Chennai|London|Berlin|Toronto|Vancouver|Remote\s*[-–]\s*(?:EMEA|APAC|LATAM|Europe|Canada|India))\b", re.I)
+NON_US = re.compile(r"\b(?:Afghanistan|Albania|Algeria|Argentina|Australia|Austria|Bangladesh|Belgium|Brazil|Bulgaria|Cambodia|Cameroon|Canada|Chile|China|Colombia|Croatia|Czech Republic|Denmark|Egypt|Estonia|Finland|France|Georgia|Germany|Ghana|Greece|Hungary|Iceland|India|Indonesia|Ireland|Israel|Italy|Japan|Kenya|Latvia|Lebanon|Lithuania|Luxembourg|Malaysia|Mexico|Morocco|Nepal|Netherlands|New Zealand|Nigeria|Norway|Pakistan|Peru|Philippines|Poland|Portugal|Romania|Russia|Saudi Arabia|Serbia|Singapore|Slovakia|Slovenia|South Africa|South Korea|Spain|Sri Lanka|Sweden|Switzerland|Taiwan|Thailand|Turkey|Ukraine|United Kingdom|UK|Uruguay|Venezuela|Vietnam|Zambia|Zimbabwe|Barcelona|Paris|Amsterdam|Milan|Sao Paulo|São Paulo|Taguig|Noida|Nairobi|Americas|Cambridge\s*,?\s*(?:UK|United Kingdom)|Remote\s*[-–]\s*(?:EMEA|APAC|LATAM|Europe|Canada|India))\b", re.I)
 TECH = re.compile(r"\b(?:software|developer|programmer|backend|back[- ]?end|front[- ]?end|full[- ]?stack|web developer|mobile|ios|android|machine learning|ml|ai|data engineer|data scientist|devops|sre|site reliability|cloud engineer|platform engineer|infrastructure engineer|security engineer|systems engineer|computer vision|nlp|robotics software|embedded software|firmware|qa engineer|sdet|test engineer)\b", re.I)
 NONTECH = re.compile(r"\b(?:mechanical|electrical|chemical|civil|industrial|process|manufacturing|quality|packaging|rf|hvac|technician|laboratory|drug|clinical|biological|nurse|physician|patient care|curriculum|business development|land developer|sales engineer|solutions engineer|developer advocate|technical account manager|customer engineer)\b", re.I)
+NONTECH = re.compile(NONTECH.pattern[:-3] + r"|machinist|\bcnc\b|trainer|ai trainer|business analyst|statistical (?:programmer|analyst)|power user|annotator|labeler|manual tester|\boperator\b|ai workflows engineer)", re.I)
 SENIOR = re.compile(r"\b(?:senior|sr|snr|staff|principal|advisor|lead|manager|mgr|director|architect|head of|vp|distinguished|fellow|prin|iii|iv|l[5-9]|e[5-9]|ic[3-9])\b|(?:engineer|developer|scientist|architect)\s+[3-9]\b", re.I)
 SENIOR_FALSE_POSITIVE = re.compile(r"\b(?:lead generation|package manager|staffing|principal financial|headless|director of photography)\b", re.I)
 EXEMPT = re.compile(r"\b(?:new grad(?:uate)?|junior|jr|entry[- ]level|associate|university|campus|i level|graduate program|rotational)\b", re.I)
@@ -25,6 +26,7 @@ def normalize_title(value: str | None) -> str:
 def classify_location(value: str | None) -> tuple[str, str]:
     text = re.sub(r"\s+", " ", value or "").strip()
     if not text: return "unknown", "missing"
+    if re.search(r"cambridge.*\b(?:uk|united kingdom)\b", text, re.I): return "non_us", "foreign city/country signal"
     if NON_US.search(text): return "non_us", "foreign country/city signal"
     parts = re.split(r"\s*(?:;|\||/|\bor\b|\band\b|\n)\s*", text, flags=re.I)
     for part in parts:
@@ -52,7 +54,9 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     reasons = []
     tech = bool(TECH.search(title_n)) and not bool(NONTECH.search(title_n))
     if not tech: reasons.append("ambiguous_title" if not NONTECH.search(title_n) else "non_tech_title")
-    senior = bool(SENIOR.search(title_n)) and not bool(EXEMPT.search(title_n)) and not bool(SENIOR_FALSE_POSITIVE.search(title_n))
+    strong_senior = re.search(r"\b(?:senior|staff|principal|distinguished|director|vp|head of)\b", title_n, re.I)
+    weak_senior = re.search(r"\b(?:sr|snr|advisor|lead|manager|mgr|architect|fellow|prin|iii|iv|l[5-9]|e[5-9]|ic[3-9])\b|(?:engineer|developer|scientist|researcher|architect)\s+[3-9]\b", title_n, re.I)
+    senior = bool(strong_senior or (weak_senior and not EXEMPT.search(title_n))) and not bool(SENIOR_FALSE_POSITIVE.search(title_n))
     grad = bool(NEW_GRAD.search(title_n))
     loc, loc_reason = classify_location(location)
     text = description or ""

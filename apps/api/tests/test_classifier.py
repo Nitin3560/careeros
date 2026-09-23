@@ -35,3 +35,11 @@ def test_sponsorship_false_positives_and_true_positives():
     for text, rule in cases:
         result = classify_job("Software Engineer", text)
         assert result["sponsorship_block"] and result["sponsorship_rule"] == rule
+
+def test_real_data_location_and_title_regressions():
+    for location in ["Nairobi, Nairobi City", "Barcelona", "Paris", "Amsterdam", "Milan", "Sao Paulo", "São Paulo", "Romania", "Spain", "Philippines", "Taguig", "Noida", "Nairobi", "Kenya", "Italy", "South Africa", "Cambridge (UK context)", "Spain (Remote)", "Amsterdam HQ", "Americas"]:
+        assert classify_job("Software Engineer", location=location)["location_class"] == "non_us"
+    for title in ["CNC Machinist Programmer", "AI Trainer - Advanced Hindi Fluency", "AI Business Analyst", "Junior Statistical Programmer Analyst", "SMB AI Power User - Competitive Evaluations", "AI Workflows Engineer"]:
+        assert classify_job(title)["is_tech_title"] is False
+    assert classify_job("Principal Associate, Data Scientist")["is_senior_title"]
+    assert classify_job("Applied Researcher 4")["is_senior_title"]
