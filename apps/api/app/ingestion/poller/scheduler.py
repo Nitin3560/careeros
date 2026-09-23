@@ -191,8 +191,12 @@ class PollScheduler:
             return
         list_hash = stable_list_hash(board.ats, result.jobs)
         if board.list_hash and list_hash == board.list_hash:
-            await queue.put(BoardWrite(result=result, list_hash=list_hash, unchanged_hash=True))
-            return
+            unresolved_missing = False
+            if self.config.expiry_enabled:
+                unresolved_missing = await self.repository.board_has_unresolved_missing(board.id)
+            if not unresolved_missing:
+                await queue.put(BoardWrite(result=result, list_hash=list_hash, unchanged_hash=True))
+                return
 
         fetched_ids = {external_id(board.ats, raw) for raw in result.jobs}
         normalized = []

@@ -139,6 +139,7 @@ class Job(Base):
     expired_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ingestion_status: Mapped[str] = mapped_column(String, nullable=False, default="new")
     seen_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    missing_count: Mapped[int] = mapped_column(default=0, nullable=False)
     eligible: Mapped[bool | None] = mapped_column(nullable=True)
     skip_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     matched_pattern: Mapped[str | None] = mapped_column(String, nullable=True)

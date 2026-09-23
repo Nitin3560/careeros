@@ -25,6 +25,7 @@ class PollerConfig:
     batch_workers: int = 3
     detail_cap_per_board: int = 200
     workday_max_pages: int = 150
+    seen_touch_interval_seconds: int = 21600
     user_agent: str = "CareerOS-Collector/1.0 (+https://github.com/Nitin3560/careeros)"
 
     @classmethod
@@ -48,6 +49,9 @@ class PollerConfig:
             batch_workers=max(1, int(os.getenv("POLLER_BATCH_WORKERS", "3"))),
             detail_cap_per_board=max(0, int(os.getenv("POLLER_DETAIL_CAP_PER_BOARD", "200"))),
             workday_max_pages=max(1, int(os.getenv("POLLER_WORKDAY_MAX_PAGES", "150"))),
+            seen_touch_interval_seconds=max(
+                0, int(os.getenv("POLLER_SEEN_TOUCH_INTERVAL", "21600"))
+            ),
             user_agent=os.getenv(
                 "POLLER_USER_AGENT",
                 "CareerOS-Collector/1.0 (+https://github.com/Nitin3560/careeros)",

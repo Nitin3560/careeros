@@ -9,6 +9,7 @@ import httpx
 
 from app.ingestion.poller.diff import build_diff
 from app.ingestion.poller.fetcher import AsyncBoardFetcher
+from app.ingestion.poller.repository import missing_count_expires, seen_touch_due
 from app.ingestion.poller.normalization import (
     html_to_text,
     normalize_job,
@@ -127,6 +128,28 @@ def test_incomplete_fetch_policy_is_explicitly_non_expiring():
     incomplete = False
     expired = plan.missing if incomplete else set()
     assert expired == set()
+
+
+def test_recently_seen_job_is_not_touched_before_six_hours():
+    now = datetime(2026, 9, 23, 12, 0, 0)
+    assert seen_touch_due(now - timedelta(hours=1), now, 6 * 60 * 60) is False
+
+
+def test_job_older_than_six_hours_is_touched():
+    now = datetime(2026, 9, 23, 12, 0, 0)
+    assert seen_touch_due(now - timedelta(hours=7), now, 6 * 60 * 60) is True
+
+
+def test_missing_count_alone_drives_expiry():
+    now = datetime(2026, 9, 23, 12, 0, 0)
+    recent = now - timedelta(minutes=5)
+    stale = now - timedelta(days=30)
+    assert missing_count_expires(1) is False
+    assert missing_count_expires(2) is True
+    # last_seen_at does not participate in the expiry decision.
+    for _last_seen_at in (recent, stale):
+        assert missing_count_expires(2) is True
+        assert missing_count_expires(1) is False
 
 
 def test_conditional_request_treats_304_as_complete_unchanged():

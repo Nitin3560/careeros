@@ -17,6 +17,18 @@ from .normalization import NORMALIZER_VERSION
 from .state import next_board_state, next_interval_seconds
 from .types import BoardSpec, BoardWrite, WriteStats
 
+MISSING_POLLS_BEFORE_EXPIRY = 2
+
+
+def seen_touch_due(last_seen_at: datetime, now: datetime, interval_seconds: int) -> bool:
+    """Mirror the SQL touch predicate for deterministic unit coverage."""
+    return last_seen_at < now - timedelta(seconds=interval_seconds)
+
+
+def missing_count_expires(missing_count: int) -> bool:
+    """Expiry is based only on consecutive complete-fetch misses."""
+    return missing_count >= MISSING_POLLS_BEFORE_EXPIRY
+
 
 class PollRepository:
     ADVISORY_LOCK_KEY = 0x4341524545524F53
@@ -132,6 +144,15 @@ class PollRepository:
             for row in rows
         }
 
+    async def board_has_unresolved_missing(self, board_id: uuid.UUID) -> bool:
+        async with self.sessions() as session:
+            return bool((await session.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM jobs
+                    WHERE board_id=:board_id AND expired_at IS NULL AND missing_count > 0
+                )
+            """), {"board_id": board_id})).scalar_one())
+
     async def write_board(self, write: BoardWrite, *, update_board_state: bool = True) -> WriteStats:
         result = write.result
         now = datetime.now(timezone.utc)
@@ -169,7 +190,7 @@ class PollRepository:
                              description_attempts, description_next_attempt_at,
                              application_url, canonical_url, identity_key, queue_key, date_posted,
                              board_id, retrieved_at, first_seen_at, last_seen_at, last_verified_at,
-                             ingestion_status, seen_count)
+                             ingestion_status, seen_count, missing_count)
                         VALUES
                             (:id, :external_id, :source, :company, :title, :location, :description_text,
                              :description_html, :description_status, :description_normalizer_version,
@@ -177,7 +198,7 @@ class PollRepository:
                              :description_attempts, :description_next_attempt_at,
                              :application_url, :canonical_url, :identity_key, :queue_key, :date_posted,
                              :board_id, :retrieved_at, :first_seen_at, :last_seen_at, :last_verified_at,
-                             'new', 1)
+                             'new', 1, 0)
                         """
                     ),
                     new_rows,
@@ -203,7 +224,8 @@ class PollRepository:
                             identity_key=:identity_key, queue_key=:queue_key, date_posted=:date_posted,
                             retrieved_at=:retrieved_at, last_seen_at=:last_seen_at,
                             last_verified_at=:last_verified_at, expired_at=NULL,
-                            ingestion_status='active', seen_count=seen_count + 1
+                            ingestion_status='active', seen_count=seen_count + 1,
+                            missing_count=0
                         WHERE external_id=:external_id AND board_id=:board_id
                         """
                     ),
@@ -211,25 +233,56 @@ class PollRepository:
                 )
             unchanged_present = set(plan.present) - {row["external_id"] for row in changed}
             if unchanged_present:
+                present_params = {
+                    "now": job_now,
+                    "touch_before": job_now - timedelta(seconds=self.config.seen_touch_interval_seconds),
+                    "board_id": result.board.id,
+                    "ids": list(unchanged_present),
+                }
+                await session.execute(
+                    text(
+                        """
+                        UPDATE jobs SET missing_count=0
+                        WHERE board_id=:board_id AND external_id IN :ids
+                          AND missing_count <> 0
+                        """
+                    ).bindparams(bindparam("ids", expanding=True)),
+                    present_params,
+                )
                 await session.execute(
                     text(
                         """
                         UPDATE jobs SET last_seen_at=:now, seen_count=seen_count + 1
                         WHERE board_id=:board_id AND external_id IN :ids
+                          AND last_seen_at < :touch_before
                         """
                     ).bindparams(bindparam("ids", expanding=True)),
-                    {"now": job_now, "board_id": result.board.id, "ids": list(unchanged_present)},
+                    present_params,
                 )
             expired_count = 0
-            if self.config.expiry_enabled and plan.missing:
+            if plan.missing:
+                missing_params = {
+                    "now": job_now, "board_id": result.board.id,
+                    "ids": list(plan.missing),
+                    "expiry_enabled": self.config.expiry_enabled,
+                    "expiry_threshold": MISSING_POLLS_BEFORE_EXPIRY,
+                }
                 update = await session.execute(
                     text(
                         """
-                        UPDATE jobs SET expired_at=:now, ingestion_status='expired'
-                        WHERE board_id=:board_id AND expired_at IS NULL AND external_id IN :ids
+                        WITH missed AS (
+                            UPDATE jobs SET missing_count=missing_count + 1
+                            WHERE board_id=:board_id AND expired_at IS NULL
+                              AND external_id IN :ids
+                            RETURNING id, missing_count
+                        )
+                        UPDATE jobs AS j SET expired_at=:now, ingestion_status='expired'
+                        FROM missed
+                        WHERE j.id=missed.id AND :expiry_enabled
+                          AND missed.missing_count >= :expiry_threshold
                         """
                     ).bindparams(bindparam("ids", expanding=True)),
-                    {"now": job_now, "board_id": result.board.id, "ids": list(plan.missing)},
+                    missing_params,
                 )
                 expired_count = update.rowcount or 0
 

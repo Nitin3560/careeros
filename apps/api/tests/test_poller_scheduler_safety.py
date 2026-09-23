@@ -5,6 +5,7 @@ import pytest
 
 from app.ingestion.poller.config import PollerConfig
 from app.ingestion.poller.repository import PollRepository
+from app.ingestion.poller.normalization import stable_list_hash
 from app.ingestion.poller.scheduler import PollScheduler
 from app.ingestion.poller.types import BoardSpec, FetchResult
 
@@ -20,11 +21,15 @@ def board():
 
 
 class Repo:
-    def __init__(self, state):
+    def __init__(self, state, unresolved_missing=False):
         self.state = state
+        self.unresolved_missing = unresolved_missing
 
     async def board_job_state(self, _board_id):
         return self.state
+
+    async def board_has_unresolved_missing(self, _board_id):
+        return self.unresolved_missing
 
 
 class Fetcher:
@@ -98,6 +103,25 @@ def test_workday_detail_cap_stores_overflow_as_pending():
     fetcher, write = asyncio.run(scenario())
     assert len(fetcher.details) == 1
     assert sum(job.description_status == "pending" for job in write.jobs) == 2
+
+
+def test_unchanged_list_does_not_skip_unresolved_missing_count_progress():
+    async def scenario():
+        jobs = [{"id": "present", "title": "Engineer", "descriptionHtml": "<p>Role</p>"}]
+        selected = BoardSpec(
+            id=uuid.uuid4(), ats="ashby", slug="example",
+            list_hash=stable_list_hash("ashby", jobs),
+        )
+        scheduler = PollScheduler(
+            config(expiry_enabled=True), Repo({}, unresolved_missing=True)
+        )
+        queue = asyncio.Queue()
+        await scheduler._poll_one(selected, Fetcher(jobs), queue)
+        return await queue.get()
+
+    write = asyncio.run(scenario())
+    assert write.unchanged_hash is False
+    assert write.fetched_ids == {"ashby_present"}
 
 
 def test_empty_claim_worker_keeps_running_and_later_claims_due_boards(monkeypatch):

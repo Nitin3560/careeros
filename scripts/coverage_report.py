@@ -48,6 +48,23 @@ def build_report(db) -> dict:
             SELECT source, count(*) AS active_jobs
             FROM jobs WHERE expired_at IS NULL GROUP BY source ORDER BY source
         """),
+        "jobs_storage": dict(db.execute(text("""
+            SELECT s.n_live_tup, s.n_dead_tup,
+              round(100.0*s.n_dead_tup/greatest(s.n_live_tup+s.n_dead_tup,1),2) AS dead_ratio_pct,
+              s.last_autovacuum,
+              pg_relation_size(c.oid) AS table_bytes,
+              pg_size_pretty(pg_relation_size(c.oid)) AS table_size,
+              pg_indexes_size(c.oid) AS index_bytes,
+              pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+              coalesce(pg_total_relation_size(c.reltoastrelid),0) AS toast_bytes,
+              pg_size_pretty(coalesce(pg_total_relation_size(c.reltoastrelid),0)) AS toast_size,
+              pg_total_relation_size(c.oid) AS total_bytes,
+              pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size
+            FROM pg_stat_user_tables s
+            JOIN pg_class c ON c.relname=s.relname
+            JOIN pg_namespace n ON n.oid=c.relnamespace AND n.nspname=s.schemaname
+            WHERE s.relname='jobs'
+        """)).mappings().one_or_none() or {}),
         "expired_jobs": dict(db.execute(text("""
             SELECT count(*) FILTER (WHERE expired_at >= now()-interval '24 hours') AS last_24h,
                    count(*) FILTER (WHERE expired_at >= now()-interval '7 days') AS last_7d
