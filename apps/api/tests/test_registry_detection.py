@@ -92,6 +92,18 @@ def test_verification_ignores_html_json_decode_error():
     asyncio.run(scenario())
 
 
+def test_ashby_and_lever_verification_can_use_poller_fetcher():
+    class FakeFetcher:
+        async def fetch_board(self, board):
+            from app.ingestion.poller.types import FetchResult
+            return FetchResult(board=board, complete=True, status_code=200, jobs=[])
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(500, request=request))) as client:
+            assert await verify_match(client, find_ats([], "https://jobs.ashbyhq.com/acme", ""), FakeFetcher())
+            assert await verify_match(client, find_ats([], "https://jobs.lever.co/acme", ""), FakeFetcher())
+    asyncio.run(scenario())
+
+
 def test_template_urls_are_not_fingerprinted():
     markup = '<a href="https://aexp.eightfold.ai/careers?query=${Title}`">roles</a>'
     assert find_ats([], "https://example.com/careers", markup) is None

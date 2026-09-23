@@ -149,7 +149,12 @@ def find_ats(redirect_urls: Iterable[str], final_url: str, markup: str, network_
     return None
 
 
-async def verify_match(client: httpx.AsyncClient, match: ATSMatch) -> bool:
+async def verify_match(client: httpx.AsyncClient, match: ATSMatch, poller_fetcher=None) -> bool:
+    if poller_fetcher is not None and match.ats in {"ashby", "lever"}:
+        from uuid import uuid4
+        from app.ingestion.poller.types import BoardSpec
+        result = await poller_fetcher.fetch_board(BoardSpec(id=uuid4(), ats=match.ats, slug=match.slug))
+        return result.complete and result.status_code is not None and bool(result.jobs or result.status_code == 200)
     def parse_payload(response):
         if not response.is_success:
             return None

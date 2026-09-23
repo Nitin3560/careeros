@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
 from app.database import SessionLocal  # noqa: E402
 from app.ingestion.registry_detection import ATSMatch, find_ats, verify_match  # noqa: E402
+from app.ingestion.poller.fetcher import AsyncBoardFetcher  # noqa: E402
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -174,7 +175,7 @@ def sitemap_career_urls(markup: str) -> list[str]:
 
 async def detect_one(
     client, semaphore, domain_semaphores, row, use_playwright=False,
-    playwright_loader=playwright_page, known_boards=None,
+    playwright_loader=playwright_page, known_boards=None, poller_fetcher=None,
 ):
     row["_attempt_diagnostics"] = []
     row["_company_started_at"] = time.monotonic()
@@ -247,7 +248,7 @@ async def detect_one(
         if match is not None:
             # Verify immediately; this avoids probing remaining candidates.
             async with semaphore:
-                verified = await verify_match(client, match)
+                verified = await verify_match(client, match, poller_fetcher)
             diagnostics_json = json.dumps(row.get("_attempt_diagnostics", []), separators=(",", ":"))
             evidence = f"discovered_careers_url={chosen_page['url'] if chosen_page else row.get('careers_url')}; {match.evidence}; diagnostics={diagnostics_json}"
             if not verified:
@@ -272,7 +273,7 @@ async def detect_one(
                     board["ats"], board["slug"], "existing ats_boards fallback",
                     endpoint_params=board.get("adapter_config") or {},
                 )
-                if await verify_match(client, candidate):
+                if await verify_match(client, candidate, poller_fetcher):
                     match = candidate
                     chosen_candidate = f"ats_boards:{board['ats']}/{board['slug']}"
                     chosen_page = {"url": row.get("careers_url") or f"https://{domain}", "html": "", "network_urls": []}
@@ -302,7 +303,7 @@ async def detect_one(
         if not match.supported:
             return row, match, "unsupported", "high", evidence
         async with semaphore:
-            verified = await verify_match(client, match)
+            verified = await verify_match(client, match, poller_fetcher)
         if not verified:
             return row, match, "error", "low", f"verification failed: {evidence}"
         return row, match, "detected", "high", evidence
@@ -376,6 +377,7 @@ async def run(args):
     db = SessionLocal()
     browser = None
     playwright_cm = None
+    poller_fetcher = None
     try:
         where = "TRUE" if args.companies else selection_where(args.retry_errors)
         rows = [dict(row) for row in db.execute(text(f"""
@@ -415,6 +417,7 @@ async def run(args):
             playwright_cm = async_playwright()
             pw = await playwright_cm.start()
             browser = await pw.chromium.launch(headless=True)
+        poller_fetcher = AsyncBoardFetcher(concurrency=args.concurrency, user_agent=BROWSER_USER_AGENT)
 
         async def one(index, row):
             company_started = time.monotonic()
@@ -425,7 +428,8 @@ async def run(args):
             try:
                 result = await asyncio.wait_for(
                     detect_one(client, semaphore, domain_semaphores, row, args.playwright,
-                               playwright_loader=load, known_boards=known_boards),
+                               playwright_loader=load, known_boards=known_boards,
+                               poller_fetcher=poller_fetcher),
                     timeout=args.timeout,
                 )
             except asyncio.TimeoutError:
@@ -486,6 +490,8 @@ async def run(args):
     finally:
         if browser:
             await browser.close()
+        if poller_fetcher:
+            await poller_fetcher.__aexit__(None, None, None)
         if playwright_cm:
             await playwright_cm.__aexit__(None, None, None)
         db.close()
