@@ -351,6 +351,8 @@ def write_review_csv(path: Path, results) -> None:
 
 async def run(args):
     db = SessionLocal()
+    browser = None
+    playwright_cm = None
     try:
         where = "TRUE" if args.companies else selection_where(args.retry_errors)
         rows = [dict(row) for row in db.execute(text(f"""
@@ -385,8 +387,6 @@ async def run(args):
                 await context.close()
             return load, close
 
-        browser = None
-        playwright_cm = None
         if args.playwright:
             from playwright.async_api import async_playwright
             playwright_cm = async_playwright()
@@ -445,9 +445,6 @@ async def run(args):
             headers=DISCOVERY_HEADERS,
         ) as client:
             results = await asyncio.gather(*(one(index, row) for index, row in enumerate(rows, 1)))
-        if browser:
-            await browser.close()
-            await playwright_cm.stop()
         summary = {}
         for _row, match, status, _confidence, _evidence in results:
             key = (match.ats if match else "none", status)
@@ -461,6 +458,10 @@ async def run(args):
         db.rollback()
         raise
     finally:
+        if browser:
+            await browser.close()
+        if playwright_cm:
+            await playwright_cm.__aexit__(None, None, None)
         db.close()
 
 

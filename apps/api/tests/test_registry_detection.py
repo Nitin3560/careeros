@@ -97,6 +97,16 @@ def test_template_urls_are_not_fingerprinted():
     assert find_ats([], "https://example.com/careers", markup) is None
 
 
+def test_conflicting_fingerprints_are_preserved_in_evidence():
+    markup = (
+        '<script src="https://aexp.eightfold.ai/careers"></script>'
+        '<script src="https://aexp.fa.us2.oraclecloud.com/hcmUI/CandidateExperience?siteNumber=External"></script>'
+    )
+    match = find_ats([], "https://example.com/careers", markup)
+    assert "all_fingerprints" in match.evidence
+    assert "eightfold" in match.evidence and "oracle" in match.evidence
+
+
 @pytest.mark.parametrize("url,payload", [
     ("https://careers.acme.com/api/phenom/jobapi/searchjobs", {"data": {"jobs": []}}),
     ("https://acme.eightfold.ai/careers", {"positions": []}),

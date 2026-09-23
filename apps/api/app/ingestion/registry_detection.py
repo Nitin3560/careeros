@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import re
 from typing import Iterable
 
@@ -131,7 +131,12 @@ def find_ats(redirect_urls: Iterable[str], final_url: str, markup: str, network_
                     ats, slug, endpoint.group(0), endpoint_params=params,
                 )))
     if candidates:
-        return max(candidates, key=lambda item: item[0])[1]
+        winner = max(candidates, key=lambda item: item[0])[1]
+        fingerprints = [
+            {"ats": item.ats, "slug": item.slug, "evidence": item.evidence}
+            for _score, item in candidates
+        ]
+        return replace(winner, evidence=f"winner={winner.evidence}; all_fingerprints={fingerprints}")
     combined = "\n".join(searchable).lower()
     for ats, needles in UNSUPPORTED.items():
         evidence = next((needle for needle in needles if needle in combined), None)
