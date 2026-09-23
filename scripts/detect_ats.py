@@ -391,6 +391,7 @@ async def run(args):
             rows = [row for row in rows if row["company_name"].casefold() in wanted]
         total = len(rows)
         semaphore = asyncio.Semaphore(args.concurrency)
+        worker_semaphore = asyncio.Semaphore(args.concurrency)
         domain_semaphores = {}
         started = time.monotonic()
         tally = {key: 0 for key in ("detected", "unsupported", "not_found", "error")}
@@ -420,26 +421,27 @@ async def run(args):
         poller_fetcher = AsyncBoardFetcher(concurrency=args.concurrency, user_agent=BROWSER_USER_AGENT)
 
         async def one(index, row):
-            company_started = time.monotonic()
-            load = playwright_page
-            close = None
-            if browser:
-                load, close = await loader_for(browser)
-            try:
-                result = await asyncio.wait_for(
-                    detect_one(client, semaphore, domain_semaphores, row, args.playwright,
-                               playwright_loader=load, known_boards=known_boards,
-                               poller_fetcher=poller_fetcher),
-                    timeout=args.timeout,
-                )
-            except asyncio.TimeoutError:
-                partial = row.get("_partial_match")
-                result = (row, partial, "error", "low", f"TimeoutError: exceeded {args.timeout}s; partial_diagnostics={len(row.get('_attempt_diagnostics', []))}")
-            except Exception as exc:
-                result = (row, None, "error", "low", f"{type(exc).__name__}: {exc}")
-            finally:
-                if close:
-                    await close()
+            async with worker_semaphore:
+                company_started = time.monotonic()
+                load = playwright_page
+                close = None
+                if browser:
+                    load, close = await loader_for(browser)
+                try:
+                    result = await asyncio.wait_for(
+                        detect_one(client, semaphore, domain_semaphores, row, args.playwright,
+                                   playwright_loader=load, known_boards=known_boards,
+                                   poller_fetcher=poller_fetcher),
+                        timeout=args.timeout,
+                    )
+                except asyncio.TimeoutError:
+                    partial = row.get("_partial_match")
+                    result = (row, partial, "error", "low", f"TimeoutError: exceeded {args.timeout}s; partial_diagnostics={len(row.get('_attempt_diagnostics', []))}")
+                except Exception as exc:
+                    result = (row, None, "error", "low", f"{type(exc).__name__}: {exc}")
+                finally:
+                    if close:
+                        await close()
             row_result, match, status, _confidence, _evidence = result
             tally[status] = tally.get(status, 0) + 1
             elapsed = time.monotonic() - company_started
