@@ -19,7 +19,7 @@ def test_present_touch_updates_only_hot_friendly_columns():
 
 def test_missing_expiry_query_does_not_reference_last_seen_at():
     source = inspect.getsource(PollRepository.write_board)
-    expiry = source.split("WITH missed AS (", 1)[1].split("if update_board_state", 1)[0]
+    expiry = source.split("if plan.missing:", 1)[1].split("if update_board_state", 1)[0]
     assert "missing_count=missing_count + 1" in expiry
-    assert "missed.missing_count >= :expiry_threshold" in expiry
+    assert "missing_count >= :expiry_threshold" in expiry
     assert "last_seen_at" not in expiry

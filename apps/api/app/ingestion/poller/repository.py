@@ -264,27 +264,31 @@ class PollRepository:
                 missing_params = {
                     "now": job_now, "board_id": result.board.id,
                     "ids": list(plan.missing),
-                    "expiry_enabled": self.config.expiry_enabled,
                     "expiry_threshold": MISSING_POLLS_BEFORE_EXPIRY,
                 }
-                update = await session.execute(
+                await session.execute(
                     text(
                         """
-                        WITH missed AS (
-                            UPDATE jobs SET missing_count=missing_count + 1
-                            WHERE board_id=:board_id AND expired_at IS NULL
-                              AND external_id IN :ids
-                            RETURNING id, missing_count
-                        )
-                        UPDATE jobs AS j SET expired_at=:now, ingestion_status='expired'
-                        FROM missed
-                        WHERE j.id=missed.id AND :expiry_enabled
-                          AND missed.missing_count >= :expiry_threshold
+                        UPDATE jobs SET missing_count=missing_count + 1
+                        WHERE board_id=:board_id AND expired_at IS NULL
+                          AND external_id IN :ids
                         """
                     ).bindparams(bindparam("ids", expanding=True)),
                     missing_params,
                 )
-                expired_count = update.rowcount or 0
+                if self.config.expiry_enabled:
+                    update = await session.execute(
+                        text(
+                            """
+                            UPDATE jobs SET expired_at=:now, ingestion_status='expired'
+                            WHERE board_id=:board_id AND expired_at IS NULL
+                              AND external_id IN :ids
+                              AND missing_count >= :expiry_threshold
+                            """
+                        ).bindparams(bindparam("ids", expanding=True)),
+                        missing_params,
+                    )
+                    expired_count = update.rowcount or 0
 
             if update_board_state:
                 status, tier, failures, not_found, empty_since = next_board_state(
