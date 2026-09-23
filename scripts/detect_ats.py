@@ -31,6 +31,12 @@ DISCOVERY_HEADERS = {
     "From": "https://github.com/Nitin3560/careeros",
 }
 BLOCKED_STATUSES = {403, 429, 503}
+KNOWN_BOARDS_SQL = """
+    SELECT b.ats, b.slug, b.company_name, r.adapter_config
+    FROM ats_boards AS b
+    LEFT JOIN company_registry AS r ON r.board_id = b.id
+    WHERE b.status <> 'dead'
+"""
 CAREER_LINK = re.compile(r"careers|jobs|join|work\s*with\s*us|open\s*roles", re.I)
 CAREER_PATH = re.compile(r"/(?:[^/?#]*(?:careers|jobs|join|open(?:ings|[-_ ]?roles?))[^/?#]*)", re.I)
 EXCLUDED_PATH = re.compile(r"/(?:press|news|blog|about|investor)(?:/|$)", re.I)
@@ -351,9 +357,7 @@ async def run(args):
             WHERE {where}
             ORDER BY priority, company_name LIMIT :limit
         """), {"limit": args.limit}).mappings().all()]
-        known_boards = [dict(row) for row in db.execute(text(
-            "SELECT ats, slug, company_name, adapter_config FROM ats_boards WHERE status <> 'dead'"
-        )).mappings().all()]
+        known_boards = [dict(row) for row in db.execute(text(KNOWN_BOARDS_SQL)).mappings().all()]
         semaphore = asyncio.Semaphore(8)
         domain_semaphores = {}
         async with httpx.AsyncClient(
