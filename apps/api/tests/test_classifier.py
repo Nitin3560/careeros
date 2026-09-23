@@ -17,3 +17,21 @@ def test_sponsorship_and_required_years():
     assert blocked["sponsorship_block"] and blocked["sponsorship_evidence"]
     assert blocked["min_years_required"] == 3
     assert classify_job("Software Engineer", "## Preferred Qualifications\n5+ years preferred")["min_years_required"] is None
+
+def test_sponsorship_false_positives_and_true_positives():
+    false_positive = [
+        "We do not discriminate against any applicant based on military status, or other protected status.",
+        "All qualified applicants will receive consideration for employment without regard to race, color, religion, marital status, citizenship.",
+        "Military fellows and part-time employees are not eligible for benefits.",
+        "We develop allied military capabilities with advanced technology.",
+        "Program specifics are detailed in company policies and employee benefit guides, including our 401(k) program.",
+    ]
+    assert all(not classify_job("Software Engineer", text)["sponsorship_block"] for text in false_positive)
+    cases = [
+        ("We are unable to sponsor or take over sponsorship of an employment Visa at this time.", "no_sponsorship"),
+        ("Active TS/SCI security clearance with agency appropriate polygraph.", "clearance"),
+        ("To conform to U.S. export control regulations (ITAR), this position requires access to export controlled information.", "itar"),
+    ]
+    for text, rule in cases:
+        result = classify_job("Software Engineer", text)
+        assert result["sponsorship_block"] and result["sponsorship_rule"] == rule

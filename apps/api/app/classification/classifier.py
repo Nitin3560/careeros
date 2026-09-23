@@ -36,6 +36,17 @@ def classify_location(value: str | None) -> tuple[str, str]:
         if any(re.search(rf"\b{re.escape(city)}\b", part, re.I) for city in US_CITIES): return "us", "US city"
     return "unknown", "multiple locations" if re.search(r"\b\d+\s+locations?\b", text, re.I) else "no parseable US signal"
 
+EEO = re.compile(r"equal opportunity|do not discriminate|does not discriminate|without regard to|regardless of race|protected status|protected characteristics|\bEEO\b", re.I)
+BENEFITS = re.compile(r"benefit|401\s*\(k\)|insurance|paid time off|compensation package", re.I)
+
+def _sponsorship_signal(sentence: str) -> tuple[str, str] | None:
+    if EEO.search(sentence) or BENEFITS.search(sentence): return None
+    if re.search(r"(?:unable to|cannot|will not|do not|does not|no)\b[^.]{0,80}\b(?:sponsor|sponsorship|visa sponsorship)\b|without\s+sponsorship|(?:now|at this time)\s+or\s+in\s+the\s+future[^.]{0,40}sponsor", sentence, re.I): return "no_sponsorship", sentence[:300].strip()
+    if re.search(r"(?:u\.s\.?|us)\s+citizen(?:ship)?\s+(?:is\s+)?required|must be a\s+(?:u\.s\.?|us)\s+citizen|(?:u\.s\.?|us)\s+citizens\s+only|must be a\s+(?:u\.s\.?|us)\s+person", sentence, re.I): return "citizenship", sentence[:300].strip()
+    if re.search(r"active\s+security\s+clearance|must\s+(?:have|possess).*clearance|ts/sci|top secret|polygraph", sentence, re.I) and not re.search(r"no\s+clearance\s+required", sentence, re.I): return "clearance", sentence[:300].strip()
+    if re.search(r"must be a\s+(?:u\.s\.?|us)\s+person.*itar|requires?\s+access\s+to\s+export[- ]controlled", sentence, re.I): return "itar", sentence[:300].strip()
+    return None
+
 def classify_job(title: str | None, description: str | None = "", location: str | None = None) -> dict:
     title_n = normalize_title(title)
     reasons = []
@@ -45,11 +56,12 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     grad = bool(NEW_GRAD.search(title_n))
     loc, loc_reason = classify_location(location)
     text = description or ""
-    sponsorship = None
+    sponsorship = None; sponsorship_rule = None
     for sentence in re.split(r"(?<=[.!?])\s+", text):
-        if re.search(r"(?:unable to|cannot|will not|do not|no visa)\s+(?:sponsor|provide sponsorship)|without sponsorship|us citizens only|citizenship is required|us person|ts/sci|itar|export control|polygraph", sentence, re.I) and not re.search(r"we sponsor|sponsorship is available|welcome candidates requiring sponsorship|no clearance required|sponsor a conference|citizenship status", sentence, re.I):
-            sponsorship = sentence[:300].strip(); break
-    if re.search(r"\b(?:cleared|security clearance|ts/sci|itar)\b", title_n, re.I): sponsorship = title_n
+        signal = _sponsorship_signal(sentence)
+        if signal: sponsorship_rule, sponsorship = signal; break
+    title_signal = _sponsorship_signal(title_n)
+    if title_signal: sponsorship_rule, sponsorship = title_signal
     required_chunks = []
     headings = list(re.finditer(r"^##\s+(.+)$", text, flags=re.M))
     for index, heading in enumerate(headings):
@@ -68,4 +80,4 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     elif re.search(r"\bcontract(?:or)?\b", title_n, re.I): employment = "contract"
     elif re.search(r"\bpart[- ]?time\b", title_n, re.I): employment = "part_time"
     alternatives = re.findall(r"(?:BS|MS|PhD)\s*\+?\s*\d+\s*years?", required_text, re.I) or None
-    return {"title_normalized": title_n, "is_tech_title": tech, "tech_subfield": subfield, "is_senior_title": senior, "seniority_level": "senior" if senior else None, "is_new_grad_title": grad, "employment_type": employment, "location_class": loc, "location_reason": loc_reason, "sponsorship_block": sponsorship is not None, "sponsorship_evidence": sponsorship, "min_years_required": min(years) if years else None, "min_years_alternatives": alternatives, "years_source": "required_section" if years else "none", "parse_tier": 1 if headings else 3, "exclusion_reasons": reasons, "classifier_version": VERSION}
+    return {"title_normalized": title_n, "is_tech_title": tech, "tech_subfield": subfield, "is_senior_title": senior, "seniority_level": "senior" if senior else None, "is_new_grad_title": grad, "employment_type": employment, "location_class": loc, "location_reason": loc_reason, "sponsorship_block": sponsorship is not None, "sponsorship_evidence": sponsorship, "sponsorship_rule": sponsorship_rule, "min_years_required": min(years) if years else None, "min_years_alternatives": alternatives, "years_source": "required_section" if years else "none", "parse_tier": 1 if headings else 3, "exclusion_reasons": reasons, "classifier_version": VERSION}
