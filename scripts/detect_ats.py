@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import time
 from urllib.parse import urljoin, urlparse
 import uuid
 
@@ -351,27 +352,102 @@ def write_review_csv(path: Path, results) -> None:
 async def run(args):
     db = SessionLocal()
     try:
-        where = selection_where(args.retry_errors)
+        where = "TRUE" if args.companies else selection_where(args.retry_errors)
         rows = [dict(row) for row in db.execute(text(f"""
             SELECT id, company_name, domain, careers_url, priority FROM company_registry
             WHERE {where}
             ORDER BY priority, company_name LIMIT :limit
         """), {"limit": args.limit}).mappings().all()]
         known_boards = [dict(row) for row in db.execute(text(KNOWN_BOARDS_SQL)).mappings().all()]
-        semaphore = asyncio.Semaphore(8)
+        if args.companies:
+            wanted = {name.strip().casefold() for name in args.companies.split(",") if name.strip()}
+            rows = [row for row in rows if row["company_name"].casefold() in wanted]
+        total = len(rows)
+        semaphore = asyncio.Semaphore(args.concurrency)
         domain_semaphores = {}
+        started = time.monotonic()
+        tally = {key: 0 for key in ("detected", "unsupported", "not_found", "error")}
+
+        async def loader_for(browser):
+            context = await browser.new_context(
+                user_agent=BROWSER_USER_AGENT, viewport={"width": 1440, "height": 1000}, locale="en-US"
+            )
+            page = await context.new_page()
+            captured = []
+            page.on("request", lambda request: captured.append(request.url))
+            async def load(url):
+                captured.clear()
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                await page.wait_for_timeout(1000)
+                return {"url": page.url, "html": await page.content(), "network_urls": list(captured),
+                        "status_code": response.status if response else None}
+            async def close():
+                await context.close()
+            return load, close
+
+        browser = None
+        playwright_cm = None
+        if args.playwright:
+            from playwright.async_api import async_playwright
+            playwright_cm = async_playwright()
+            pw = await playwright_cm.start()
+            browser = await pw.chromium.launch(headless=True)
+
+        async def one(index, row):
+            load = playwright_page
+            close = None
+            if browser:
+                load, close = await loader_for(browser)
+            try:
+                result = await asyncio.wait_for(
+                    detect_one(client, semaphore, domain_semaphores, row, args.playwright,
+                               playwright_loader=load, known_boards=known_boards),
+                    timeout=args.timeout,
+                )
+            except asyncio.TimeoutError:
+                result = (row, None, "error", "low", f"TimeoutError: exceeded {args.timeout}s")
+            except Exception as exc:
+                result = (row, None, "error", "low", f"{type(exc).__name__}: {exc}")
+            finally:
+                if close:
+                    await close()
+            row_result, match, status, _confidence, _evidence = result
+            tally[status] = tally.get(status, 0) + 1
+            elapsed = time.monotonic() - started
+            ats = match.ats if match else "none"
+            print(f"[{index}/{total}] {row['company_name']} -> {status} ({ats}) in {elapsed:.1f}s", flush=True)
+            if index % 25 == 0:
+                rate = elapsed / index if index else 0
+                remaining = max(0, rate * (total - index))
+                print(f"tally detected={tally['detected']} unsupported={tally['unsupported']} "
+                      f"not_found={tally['not_found']} error={tally['error']} elapsed={elapsed:.1f}s "
+                      f"eta={remaining:.1f}s", flush=True)
+            if not args.dry_run:
+                def persist():
+                    session = SessionLocal()
+                    try:
+                        persist_result(session, *result)
+                        session.commit()
+                    except Exception:
+                        session.rollback()
+                        raise
+                    finally:
+                        session.close()
+                try:
+                    await asyncio.to_thread(persist)
+                except Exception as exc:
+                    # A database failure for one company must not cancel the run.
+                    result = (row_result, match, "error", "low", f"{type(exc).__name__}: {exc}")
+            return result
+
         async with httpx.AsyncClient(
             follow_redirects=True, timeout=20, verify=True, http2=True,
             headers=DISCOVERY_HEADERS,
         ) as client:
-            results = await asyncio.gather(*(
-                detect_one(client, semaphore, domain_semaphores, row, args.playwright,
-                           known_boards=known_boards)
-                for row in rows
-            ))
-        for result in results:
-            persist_result(db, *result)
-        db.commit()
+            results = await asyncio.gather(*(one(index, row) for index, row in enumerate(rows, 1)))
+        if browser:
+            await browser.close()
+            await playwright_cm.stop()
         summary = {}
         for _row, match, status, _confidence, _evidence in results:
             key = (match.ats if match else "none", status)
@@ -380,7 +456,7 @@ async def run(args):
             print(f"ats={ats} status={status} count={count}")
         review = Path(args.review_csv)
         write_review_csv(review, results)
-        print(f"review_csv={review}")
+        print(f"review_csv={review}", flush=True)
     except Exception:
         db.rollback()
         raise
@@ -392,6 +468,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=1000000)
     parser.add_argument("--playwright", action="store_true")
+    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--companies", help="Comma-separated company names")
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--retry-errors", action="store_true")
     parser.add_argument("--review-csv", default=str(ROOT / "reports" / "ats_detection_review.csv"))
     args = parser.parse_args()
