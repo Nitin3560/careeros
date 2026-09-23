@@ -90,6 +90,10 @@ def find_ats(redirect_urls: Iterable[str], final_url: str, markup: str, network_
                 score = 30 if value == markup else 20
                 if "api." in match.group(0) or "grnhse" in match.group(0).lower() or "embed/job_board" in match.group(0).lower():
                     score += 5
+                # A company-specific Eightfold host is a stronger board
+                # fingerprint than generic Oracle links often embedded nearby.
+                if ats == "eightfold" and "eightfold.ai" in match.group(0).lower():
+                    score += 4
                 slug = match.group(1)
                 endpoint_params = {}
                 if ats in {"smartrecruiters", "workable"}:
