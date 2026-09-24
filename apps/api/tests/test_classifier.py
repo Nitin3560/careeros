@@ -38,7 +38,7 @@ def test_sponsorship_false_positives_and_true_positives():
         assert result["sponsorship_block"] and result["sponsorship_rule"] == rule
 
 def test_real_data_location_and_title_regressions():
-    for location in ["Nairobi, Nairobi City", "Barcelona", "Paris", "Amsterdam", "Milan", "Sao Paulo", "São Paulo", "Romania", "Spain", "Philippines", "Taguig", "Noida", "Nairobi", "Kenya", "Italy", "South Africa", "Cambridge (UK context)", "Spain (Remote)", "Amsterdam HQ", "Americas"]:
+    for location in ["Nairobi, Nairobi City", "Barcelona", "Paris", "Amsterdam", "Milan", "Sao Paulo", "São Paulo", "Romania", "Spain", "Philippines", "Taguig", "Noida", "Nairobi", "Kenya", "Italy", "South Africa", "Cambridge (UK context)", "Spain (Remote)", "Amsterdam HQ"]:
         assert classify_job("Software Engineer", location=location)["location_class"] == "non_us"
     for title in ["CNC Machinist Programmer", "AI Trainer - Advanced Hindi Fluency", "AI Business Analyst", "Junior Statistical Programmer Analyst", "SMB AI Power User - Competitive Evaluations", "AI Workflows Engineer"]:
         assert classify_job(title)["is_tech_title"] is False
@@ -79,7 +79,9 @@ def test_required_non_tech_titles(title):
     ("Remote in Berlin", "non_us"), ("2 Locations", "unknown"), ("Remote", "unknown"),
     ("Columbus, OH; Fort Belvoir, VA", "us"), (None, "unknown"),
     ("Lausanne, Vaud, Switzerland", "non_us"), ("Nairobi, Nairobi City", "non_us"),
-    ("Spain (Remote)", "non_us"), ("Amsterdam HQ", "non_us"), ("Americas", "non_us"),
+    ("Spain (Remote)", "non_us"), ("Amsterdam HQ", "non_us"), ("Americas", "unknown"),
+    ("Home Based - Americas", "unknown"), ("Birmingham, England", "non_us"),
+    ("Cambridge, United Kingdom", "non_us"), ("Portland, Maine", "unknown"),
 ])
 def test_location_acceptance_cases(location, expected):
     assert classify_job("Software Engineer", location=location)["location_class"] == expected
@@ -188,3 +190,59 @@ def test_degree_alternatives_keep_the_minimum_and_both_alternatives():
     result=classify_job("Software Engineer", "## Basic Qualifications\nBS + 3 years or MS + 1 year")
     assert result["min_years_required"] == 1
     assert result["min_years_alternatives"] == ["BS + 3 years", "MS + 1 year"]
+
+
+@pytest.mark.parametrize(("heading", "years"), [
+    ("Basic Qualifications:", 3),
+    ("What You'll Bring", 2),
+    ("What You’ll Bring:", 2),
+    ("Minimum Qualifications", 1),
+])
+def test_heading_variants_are_normalized_and_required(heading, years):
+    result = classify_job("Software Engineer", f"## {heading}\n{years}+ years of experience")
+    assert result["min_years_required"] == years
+    assert result["parse_tier"] == 1
+    assert result["years_source"] == "required_section"
+
+
+@pytest.mark.parametrize("description", [
+    "## Preferred Qualifications\n5+ years preferred",
+    "## Preferred Qualifications:\n5+ years preferred\n## About the role\n10 years total",
+])
+def test_preferred_experience_never_contributes(description):
+    result = classify_job("Software Engineer", description)
+    assert result["min_years_required"] is None
+    assert result["years_source"] == "none"
+
+
+@pytest.mark.parametrize(("description", "expected"), [
+    ("## Requirements\n- 3+ years professional software development\n- 2+ years design or architecture\n- 1+ years large-scale systems", 3),
+    ("## Requirements\n- 3+ years professional software development / - 2+ years design or architecture / - 1+ years large-scale systems", 3),
+    ("## Requirements\nBS + 3 years or MS + 1 year", 1),
+])
+def test_required_experience_uses_max_of_groups_and_min_of_alternatives(description, expected):
+    result = classify_job("Software Engineer", description)
+    assert result["min_years_required"] == expected
+    assert result["years_basis"] == "required_bullets_max_alternative_groups_min"
+
+
+@pytest.mark.parametrize(("title", "description", "expected_rule"), [
+    ("Software Engineer - CLEARED", "", "clearance"),
+    ("U.S. Citizenship Required Software Engineer", "", "citizenship"),
+    ("Software Engineer", "We do not discriminate against applicants with any protected status.", None),
+    ("Benefits Manager - Software Engineer", "Benefits include a 401(k).", None),
+])
+def test_title_sponsorship_uses_only_explicit_clearance_or_citizenship(title, description, expected_rule):
+    result = classify_job(title, description)
+    assert result["sponsorship_rule"] == expected_rule
+    assert result["sponsorship_block"] is (expected_rule is not None)
+
+
+@pytest.mark.parametrize(("title", "is_tech"), [
+    ("Mechanical Engineer", False),
+    ("Software Engineer", True),
+    ("AI Workflows Engineer", False),
+    ("AI Business Analyst", False),
+])
+def test_nontech_pattern_is_explicit_and_stable(title, is_tech):
+    assert classify_job(title)["is_tech_title"] is is_tech

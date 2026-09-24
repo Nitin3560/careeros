@@ -1,0 +1,566 @@
+company_name,careers_url,domain,source_tags,priority
+Google,,google.com,bigtech,1
+Microsoft,,microsoft.com,bigtech,1
+Apple,,apple.com,bigtech,1
+Amazon,,amazon.com,bigtech,1
+Meta,,meta.com,bigtech,1
+Nvidia,,nvidia.com,bigtech,1
+Netflix,,netflix.com,bigtech,1
+Salesforce,,salesforce.com,bigtech,1
+Adobe,,adobe.com,bigtech,1
+Oracle,,oracle.com,bigtech,1
+IBM,,ibm.com,bigtech,1
+Intel,,intel.com,bigtech,1
+Qualcomm,,qualcomm.com,bigtech,1
+AMD,,amd.com,bigtech,1
+Cisco,,cisco.com,bigtech,1
+Dell Technologies,,dell.com,bigtech,1
+HP,,hp.com,bigtech,1
+Hewlett Packard Enterprise,,hpe.com,bigtech,1
+Broadcom,,broadcom.com,bigtech,1
+SAP,,sap.com,bigtech,1
+Uber,,uber.com,bigtech,1
+Lyft,,lyft.com,bigtech,1
+Airbnb,,airbnb.com,bigtech,1
+Tesla,,tesla.com,bigtech,1
+Snap,,snap.com,bigtech,1
+Pinterest,,pinterest.com,bigtech,1
+Spotify,,spotify.com,bigtech,1
+PayPal,,paypal.com,bigtech,1
+Block,,block.xyz,bigtech,1
+Stripe,,stripe.com,bigtech,1
+Coinbase,,coinbase.com,bigtech,1
+Robinhood,,robinhood.com,bigtech,1
+Databricks,,databricks.com,bigtech,1
+Snowflake,,snowflake.com,bigtech,1
+Palantir,,palantir.com,bigtech,1
+ServiceNow,,servicenow.com,bigtech,1
+Workday,,workday.com,bigtech,1
+Atlassian,,atlassian.com,bigtech,1
+Twilio,,twilio.com,bigtech,1
+Zoom,,zoom.us,bigtech,1
+Dropbox,,dropbox.com,bigtech,1
+DocuSign,,docusign.com,bigtech,1
+Okta,,okta.com,bigtech,1
+Datadog,,datadoghq.com,bigtech,1
+MongoDB,,mongodb.com,bigtech,1
+Elastic,,elastic.co,bigtech,1
+Cloudflare,,cloudflare.com,bigtech,1
+GitLab,,gitlab.com,bigtech,1
+GitHub,,github.com,bigtech,1
+Figma,,figma.com,bigtech,1
+Notion,,notion.so,bigtech,1
+Reddit,,reddit.com,bigtech,1
+LinkedIn,,linkedin.com,bigtech,1
+X,,x.com,bigtech,1
+TikTok,,tiktok.com,bigtech,1
+ByteDance,,bytedance.com,bigtech,1
+Yahoo,,yahoo.com,bigtech,1
+eBay,,ebay.com,bigtech,1
+Shopify,,shopify.com,bigtech,1
+Squarespace,,squarespace.com,bigtech,1
+Wix,,wix.com,bigtech,1
+Automattic,,automattic.com,bigtech,1
+OpenAI,,openai.com,ai,1
+Anthropic,,anthropic.com,ai,1
+Scale AI,,scale.com,ai,1
+Perplexity,,perplexity.ai,ai,1
+Character AI,,character.ai,ai,1
+Runway,,runwayml.com,ai,1
+Stability AI,,stability.ai,ai,1
+xAI,,x.ai,ai,1
+Cohere,,cohere.com,ai,1
+Hugging Face,,huggingface.co,ai,1
+Sierra,,sierra.ai,ai,1
+Harvey,,harvey.ai,ai,1
+Glean,,glean.com,ai,1
+Abridge,,abridge.com,ai,1
+Cresta,,cresta.com,ai,1
+Writer,,writer.com,ai,1
+Jasper,,jasper.ai,ai,1
+Synthesia,,synthesia.io,ai,1
+ElevenLabs,,elevenlabs.io,ai,1
+LangChain,,langchain.com,ai,1
+Weights and Biases,,wandb.ai,ai,1
+Modal,,modal.com,ai,1
+Together AI,,together.ai,ai,1
+Fireworks AI,,fireworks.ai,ai,1
+Anyscale,,anyscale.com,ai,1
+Replicate,,replicate.com,ai,1
+Pinecone,,pinecone.io,ai,1
+Weaviate,,weaviate.io,ai,1
+Qdrant,,qdrant.tech,ai,1
+Chroma,,trychroma.com,ai,1
+Adept AI,,adept.ai,ai,1
+Mistral AI,,mistral.ai,ai,1
+Luma AI,,lumalabs.ai,ai,1
+Suno,,suno.com,ai,1
+Decagon,,decagon.ai,ai,1
+Clay,,clay.com,ai,1
+Codeium,,codeium.com,ai,1
+Cursor,,cursor.com,ai,1
+Poolside,,poolside.ai,ai,1
+Magic,,magic.dev,ai,1
+Imbue,,imbue.com,ai,1
+Contextual AI,,contextual.ai,ai,1
+Vellum,,vellum.ai,ai,1
+Baseten,,baseten.co,ai,1
+OctoAI,,octo.ai,ai,1
+Lambda Labs,,lambdalabs.com,ai,1
+CoreWeave,,coreweave.com,ai,1
+Cerebras,,cerebras.net,ai,1
+SambaNova,,sambanova.ai,ai,1
+Groq,,groq.com,ai,1
+HubSpot,,hubspot.com,saas,2
+Zendesk,,zendesk.com,saas,2
+Freshworks,,freshworks.com,saas,2
+Intercom,,intercom.com,saas,2
+Gong,,gong.io,saas,2
+Outreach,,outreach.io,saas,2
+Salesloft,,salesloft.com,saas,2
+ZoomInfo,,zoominfo.com,saas,2
+Apollo.io,,apollo.io,saas,2
+Clari,,clari.com,saas,2
+6sense,,6sense.com,saas,2
+Demandbase,,demandbase.com,saas,2
+Braze,,braze.com,saas,2
+Iterable,,iterable.com,saas,2
+Klaviyo,,klaviyo.com,saas,2
+Amplitude,,amplitude.com,saas,2
+Mixpanel,,mixpanel.com,saas,2
+Heap,,heap.io,saas,2
+Segment,,segment.com,saas,2
+Asana,,asana.com,saas,2
+Monday.com,,monday.com,saas,2
+ClickUp,,clickup.com,saas,2
+Airtable,,airtable.com,saas,2
+Miro,,miro.com,saas,2
+Zapier,,zapier.com,saas,2
+Smartsheet,,smartsheet.com,saas,2
+Box,,box.com,saas,2
+Egnyte,,egnyte.com,saas,2
+Confluent,,confluent.io,saas,2
+Redis,,redis.com,saas,2
+Neo4j,,neo4j.com,saas,2
+Couchbase,,couchbase.com,saas,2
+Cockroach Labs,,cockroachlabs.com,saas,2
+ClickHouse,,clickhouse.com,saas,2
+Grafana Labs,,grafana.com,saas,2
+New Relic,,newrelic.com,saas,2
+Dynatrace,,dynatrace.com,saas,2
+Splunk,,splunk.com,saas,2
+Sumo Logic,,sumologic.com,saas,2
+PagerDuty,,pagerduty.com,saas,2
+Sentry,,sentry.io,saas,2
+LaunchDarkly,,launchdarkly.com,saas,2
+CircleCI,,circleci.com,saas,2
+JFrog,,jfrog.com,saas,2
+Docker,,docker.com,saas,2
+Nutanix,,nutanix.com,saas,2
+Pure Storage,,purestorage.com,saas,2
+NetApp,,netapp.com,saas,2
+Rubrik,,rubrik.com,saas,2
+Cohesity,,cohesity.com,saas,2
+Veeam,,veeam.com,saas,2
+Commvault,,commvault.com,saas,2
+Vercel,,vercel.com,saas,2
+Netlify,,netlify.com,saas,2
+Supabase,,supabase.com,saas,2
+Neon,,neon.tech,saas,2
+PlanetScale,,planetscale.com,saas,2
+Prisma,,prisma.io,saas,2
+Temporal,,temporal.io,saas,2
+Airbyte,,airbyte.com,saas,2
+Fivetran,,fivetran.com,saas,2
+dbt Labs,,getdbt.com,saas,2
+Sigma Computing,,sigmacomputing.com,saas,2
+Hex,,hex.tech,saas,2
+Monte Carlo,,montecarlodata.com,saas,2
+Alation,,alation.com,saas,2
+Collibra,,collibra.com,saas,2
+Workiva,,workiva.com,saas,2
+Procore,,procore.com,saas,2
+Samsara,,samsara.com,saas,2
+Verkada,,verkada.com,saas,2
+Rippling,,rippling.com,saas,2
+Gusto,,gusto.com,saas,2
+Deel,,deel.com,saas,2
+Justworks,,justworks.com,saas,2
+Toast,,toasttab.com,saas,2
+Olo,,olo.com,saas,2
+Bill.com,,bill.com,saas,2
+Expensify,,expensify.com,saas,2
+Navan,,navan.com,saas,2
+Carta,,carta.com,saas,2
+AngelList,,angellist.com,saas,2
+Webflow,,webflow.com,saas,2
+Contentful,,contentful.com,saas,2
+Sanity,,sanity.io,saas,2
+Algolia,,algolia.com,saas,2
+Twingate,,twingate.com,saas,2
+CrowdStrike,,crowdstrike.com,security,2
+Palo Alto Networks,,paloaltonetworks.com,security,2
+Fortinet,,fortinet.com,security,2
+Zscaler,,zscaler.com,security,2
+SentinelOne,,sentinelone.com,security,2
+Tenable,,tenable.com,security,2
+Rapid7,,rapid7.com,security,2
+Qualys,,qualys.com,security,2
+Proofpoint,,proofpoint.com,security,2
+Abnormal Security,,abnormalsecurity.com,security,2
+Wiz,,wiz.io,security,2
+Orca Security,,orca.security,security,2
+Snyk,,snyk.io,security,2
+Veracode,,veracode.com,security,2
+Checkmarx,,checkmarx.com,security,2
+1Password,,1password.com,security,2
+Keeper Security,,keepersecurity.com,security,2
+JumpCloud,,jumpcloud.com,security,2
+Akamai,,akamai.com,security,2
+Fastly,,fastly.com,security,2
+Imperva,,imperva.com,security,2
+F5,,f5.com,security,2
+Netskope,,netskope.com,security,2
+Illumio,,illumio.com,security,2
+Arctic Wolf,,arcticwolf.com,security,2
+Huntress,,huntress.com,security,2
+Dragos,,dragos.com,security,2
+Claroty,,claroty.com,security,2
+Cybereason,,cybereason.com,security,2
+Trellix,,trellix.com,security,2
+Sophos,,sophos.com,security,2
+Bitdefender,,bitdefender.com,security,2
+Malwarebytes,,malwarebytes.com,security,2
+Socure,,socure.com,security,2
+Persona,,withpersona.com,security,2
+Visa,,visa.com,fintech,1
+Mastercard,,mastercard.com,fintech,1
+American Express,,americanexpress.com,fintech,1
+Discover,,discover.com,fintech,1
+Capital One,,capitalone.com,fintech,1
+JPMorgan Chase,,jpmorganchase.com,fintech,1
+Goldman Sachs,,goldmansachs.com,fintech,1
+Morgan Stanley,,morganstanley.com,fintech,1
+Bank of America,,bankofamerica.com,fintech,1
+Citi,,citi.com,fintech,1
+Wells Fargo,,wellsfargo.com,fintech,1
+Charles Schwab,,schwab.com,fintech,1
+Fidelity Investments,,fidelity.com,fintech,1
+Vanguard,,vanguard.com,fintech,1
+BlackRock,,blackrock.com,fintech,1
+State Street,,statestreet.com,fintech,1
+BNY,,bny.com,fintech,1
+Northern Trust,,northerntrust.com,fintech,1
+Intuit,,intuit.com,fintech,1
+Plaid,,plaid.com,fintech,1
+Chime,,chime.com,fintech,1
+Affirm,,affirm.com,fintech,1
+Brex,,brex.com,fintech,1
+Ramp,,ramp.com,fintech,1
+Marqeta,,marqeta.com,fintech,1
+SoFi,,sofi.com,fintech,1
+Betterment,,betterment.com,fintech,1
+Wealthfront,,wealthfront.com,fintech,1
+Addepar,,addepar.com,fintech,1
+Fiserv,,fiserv.com,fintech,1
+FIS,,fisglobal.com,fintech,1
+Global Payments,,globalpayments.com,fintech,1
+Adyen,,adyen.com,fintech,1
+Checkout.com,,checkout.com,fintech,1
+Nubank,,nubank.com.br,fintech,1
+Remitly,,remitly.com,fintech,1
+Wise,,wise.com,fintech,1
+Western Union,,westernunion.com,fintech,1
+Two Sigma,,twosigma.com,fintech,1
+Citadel,,citadel.com,fintech,1
+Citadel Securities,,citadelsecurities.com,fintech,1
+Jane Street,,janestreet.com,fintech,1
+Hudson River Trading,,hudsonrivertrading.com,fintech,1
+DE Shaw,,deshaw.com,fintech,1
+Jump Trading,,jumptrading.com,fintech,1
+IMC Trading,,imc.com,fintech,1
+Optiver,,optiver.com,fintech,1
+Akuna Capital,,akunacapital.com,fintech,1
+DRW,,drw.com,fintech,1
+Point72,,point72.com,fintech,1
+Millennium,,mlp.com,fintech,1
+Bridgewater Associates,,bridgewater.com,fintech,1
+AQR Capital,,aqr.com,fintech,1
+Susquehanna International Group,,sig.com,fintech,1
+Tower Research Capital,,tower-research.com,fintech,1
+Virtu Financial,,virtu.com,fintech,1
+Flow Traders,,flowtraders.com,fintech,1
+Old Mission Capital,,oldmissioncapital.com,fintech,1
+Belvedere Trading,,belvederetrading.com,fintech,1
+Five Rings,,fiverings.com,fintech,1
+Radix Trading,,radixtrading.co,fintech,1
+XTX Markets,,xtxmarkets.com,fintech,1
+Infosys,,infosys.com,itservices,1
+Tata Consultancy Services,,tcs.com,itservices,1
+Wipro,,wipro.com,itservices,1
+HCLTech,,hcltech.com,itservices,1
+Tech Mahindra,,techmahindra.com,itservices,1
+Cognizant,,cognizant.com,itservices,1
+Accenture,,accenture.com,itservices,1
+Capgemini,,capgemini.com,itservices,1
+Deloitte,,deloitte.com,itservices,1
+PwC,,pwc.com,itservices,1
+EY,,ey.com,itservices,1
+KPMG,,kpmg.com,itservices,1
+Genpact,,genpact.com,itservices,1
+LTIMindtree,,ltimindtree.com,itservices,1
+Mphasis,,mphasis.com,itservices,1
+Persistent Systems,,persistent.com,itservices,1
+Birlasoft,,birlasoft.com,itservices,1
+Virtusa,,virtusa.com,itservices,1
+UST,,ust.com,itservices,1
+NTT DATA,,nttdata.com,itservices,1
+DXC Technology,,dxc.com,itservices,1
+Kyndryl,,kyndryl.com,itservices,1
+EPAM Systems,,epam.com,itservices,1
+Globant,,globant.com,itservices,1
+Thoughtworks,,thoughtworks.com,itservices,1
+Slalom,,slalom.com,itservices,1
+Zensar,,zensar.com,itservices,1
+Atos,,atos.net,itservices,1
+Unisys,,unisys.com,itservices,1
+CGI,,cgi.com,itservices,1
+Booz Allen Hamilton,,boozallen.com,itservices,1
+McKinsey,,mckinsey.com,itservices,1
+Bain,,bain.com,itservices,1
+Boston Consulting Group,,bcg.com,itservices,1
+Texas Instruments,,ti.com,semiconductor,1
+Micron,,micron.com,semiconductor,1
+Analog Devices,,analog.com,semiconductor,1
+Marvell,,marvell.com,semiconductor,1
+Microchip Technology,,microchip.com,semiconductor,1
+NXP Semiconductors,,nxp.com,semiconductor,1
+Infineon,,infineon.com,semiconductor,1
+STMicroelectronics,,st.com,semiconductor,1
+onsemi,,onsemi.com,semiconductor,1
+GlobalFoundries,,gf.com,semiconductor,1
+TSMC Arizona,,tsmc.com,semiconductor,1
+Samsung Semiconductor,,samsung.com,semiconductor,1
+SK hynix,,skhynix.com,semiconductor,1
+Lam Research,,lamresearch.com,semiconductor,1
+Applied Materials,,appliedmaterials.com,semiconductor,1
+KLA,,kla.com,semiconductor,1
+ASML,,asml.com,semiconductor,1
+Synopsys,,synopsys.com,semiconductor,1
+Cadence Design Systems,,cadence.com,semiconductor,1
+Ansys,,ansys.com,semiconductor,1
+Arm,,arm.com,semiconductor,1
+Western Digital,,westerndigital.com,semiconductor,1
+Seagate,,seagate.com,semiconductor,1
+Teradyne,,teradyne.com,semiconductor,1
+Keysight,,keysight.com,semiconductor,1
+Skyworks,,skyworksinc.com,semiconductor,1
+Qorvo,,qorvo.com,semiconductor,1
+Renesas,,renesas.com,semiconductor,1
+Rambus,,rambus.com,semiconductor,1
+Astera Labs,,asteralabs.com,semiconductor,1
+SiFive,,sifive.com,semiconductor,1
+Ampere Computing,,amperecomputing.com,semiconductor,1
+Waymo,,waymo.com,auto_robotics_aero,2
+Zoox,,zoox.com,auto_robotics_aero,2
+Nuro,,nuro.ai,auto_robotics_aero,2
+Aurora,,aurora.tech,auto_robotics_aero,2
+Kodiak Robotics,,kodiak.ai,auto_robotics_aero,2
+Gatik,,gatik.ai,auto_robotics_aero,2
+Applied Intuition,,appliedintuition.com,auto_robotics_aero,2
+Rivian,,rivian.com,auto_robotics_aero,2
+Lucid Motors,,lucidmotors.com,auto_robotics_aero,2
+Ford,,ford.com,auto_robotics_aero,2
+General Motors,,gm.com,auto_robotics_aero,2
+Toyota North America,,toyota.com,auto_robotics_aero,2
+Honda,,honda.com,auto_robotics_aero,2
+Cummins,,cummins.com,auto_robotics_aero,2
+John Deere,,deere.com,auto_robotics_aero,2
+Caterpillar,,caterpillar.com,auto_robotics_aero,2
+Trimble,,trimble.com,auto_robotics_aero,2
+Boston Dynamics,,bostondynamics.com,auto_robotics_aero,2
+Agility Robotics,,agilityrobotics.com,auto_robotics_aero,2
+Figure AI,,figure.ai,auto_robotics_aero,2
+Apptronik,,apptronik.com,auto_robotics_aero,2
+Skydio,,skydio.com,auto_robotics_aero,2
+Zipline,,flyzipline.com,auto_robotics_aero,2
+Joby Aviation,,jobyaviation.com,auto_robotics_aero,2
+Archer Aviation,,archer.com,auto_robotics_aero,2
+Rocket Lab,,rocketlabusa.com,auto_robotics_aero,2
+Firefly Aerospace,,fireflyspace.com,auto_robotics_aero,2
+Planet Labs,,planet.com,auto_robotics_aero,2
+Astranis,,astranis.com,auto_robotics_aero,2
+Relativity Space,,relativityspace.com,auto_robotics_aero,2
+Sierra Space,,sierraspace.com,auto_robotics_aero,2
+Symbotic,,symbotic.com,auto_robotics_aero,2
+Locus Robotics,,locusrobotics.com,auto_robotics_aero,2
+Path Robotics,,path-robotics.com,auto_robotics_aero,2
+Carbon Robotics,,carbonrobotics.com,auto_robotics_aero,2
+Monarch Tractor,,monarchtractor.com,auto_robotics_aero,2
+Bright Machines,,brightmachines.com,auto_robotics_aero,2
+Machina Labs,,machinalabs.ai,auto_robotics_aero,2
+Lockheed Martin,,lockheedmartin.com,defense,3
+Northrop Grumman,,northropgrumman.com,defense,3
+RTX,,rtx.com,defense,3
+General Dynamics,,gd.com,defense,3
+L3Harris,,l3harris.com,defense,3
+Leidos,,leidos.com,defense,3
+SAIC,,saic.com,defense,3
+CACI,,caci.com,defense,3
+MITRE,,mitre.org,defense,3
+Anduril,,anduril.com,defense,3
+Boeing,,boeing.com,defense,3
+BAE Systems,,baesystems.com,defense,3
+Honeywell,,honeywell.com,defense,3
+GE Aerospace,,geaerospace.com,defense,3
+Textron,,textron.com,defense,3
+Parsons,,parsons.com,defense,3
+Peraton,,peraton.com,defense,3
+Shield AI,,shield.ai,defense,3
+UnitedHealth Group,,unitedhealthgroup.com,health,2
+Optum,,optum.com,health,2
+CVS Health,,cvshealth.com,health,2
+Cigna,,cigna.com,health,2
+Elevance Health,,elevancehealth.com,health,2
+Humana,,humana.com,health,2
+HCA Healthcare,,hcahealthcare.com,health,2
+Epic Systems,,epic.com,health,2
+Oracle Health,,oracle.com,health,2
+athenahealth,,athenahealth.com,health,2
+Veeva Systems,,veeva.com,health,2
+IQVIA,,iqvia.com,health,2
+Tempus,,tempus.com,health,2
+Flatiron Health,,flatiron.com,health,2
+Komodo Health,,komodohealth.com,health,2
+Moderna,,modernatx.com,health,2
+Pfizer,,pfizer.com,health,2
+Merck,,merck.com,health,2
+Amgen,,amgen.com,health,2
+Genentech,,gene.com,health,2
+Eli Lilly,,lilly.com,health,2
+AbbVie,,abbvie.com,health,2
+Johnson and Johnson,,jnj.com,health,2
+Bristol Myers Squibb,,bms.com,health,2
+Regeneron,,regeneron.com,health,2
+Vertex Pharmaceuticals,,vrtx.com,health,2
+Illumina,,illumina.com,health,2
+Guardant Health,,guardanthealth.com,health,2
+GE HealthCare,,gehealthcare.com,health,2
+Medtronic,,medtronic.com,health,2
+Abbott,,abbott.com,health,2
+Stryker,,stryker.com,health,2
+Boston Scientific,,bostonscientific.com,health,2
+Intuitive Surgical,,intuitive.com,health,2
+Danaher,,danaher.com,health,2
+Thermo Fisher Scientific,,thermofisher.com,health,2
+Recursion,,recursion.com,health,2
+Benchling,,benchling.com,health,2
+Oscar Health,,hioscar.com,health,2
+Included Health,,includedhealth.com,health,2
+Devoted Health,,devoted.com,health,2
+Walmart,,walmart.com,retail_logistics,2
+Target,,target.com,retail_logistics,2
+Costco,,costco.com,retail_logistics,2
+The Home Depot,,homedepot.com,retail_logistics,2
+Lowes,,lowes.com,retail_logistics,2
+Best Buy,,bestbuy.com,retail_logistics,2
+Kroger,,kroger.com,retail_logistics,2
+Albertsons,,albertsons.com,retail_logistics,2
+Wayfair,,wayfair.com,retail_logistics,2
+Chewy,,chewy.com,retail_logistics,2
+Etsy,,etsy.com,retail_logistics,2
+Instacart,,instacart.com,retail_logistics,2
+DoorDash,,doordash.com,retail_logistics,2
+Gopuff,,gopuff.com,retail_logistics,2
+FedEx,,fedex.com,retail_logistics,2
+UPS,,ups.com,retail_logistics,2
+XPO,,xpo.com,retail_logistics,2
+C.H. Robinson,,chrobinson.com,retail_logistics,2
+Flexport,,flexport.com,retail_logistics,2
+Nike,,nike.com,retail_logistics,2
+Lululemon,,lululemon.com,retail_logistics,2
+Starbucks,,starbucks.com,retail_logistics,2
+Chipotle,,chipotle.com,retail_logistics,2
+McDonalds,,mcdonalds.com,retail_logistics,2
+Yum Brands,,yum.com,retail_logistics,2
+PepsiCo,,pepsico.com,retail_logistics,2
+Procter and Gamble,,pg.com,retail_logistics,2
+Unilever,,unilever.com,retail_logistics,2
+General Mills,,generalmills.com,retail_logistics,2
+Kimberly-Clark,,kimberly-clark.com,retail_logistics,2
+Delta Air Lines,,delta.com,retail_logistics,2
+United Airlines,,united.com,retail_logistics,2
+American Airlines,,aa.com,retail_logistics,2
+Southwest Airlines,,southwest.com,retail_logistics,2
+JetBlue,,jetblue.com,retail_logistics,2
+Alaska Airlines,,alaskaair.com,retail_logistics,2
+Marriott,,marriott.com,retail_logistics,2
+Hilton,,hilton.com,retail_logistics,2
+Hyatt,,hyatt.com,retail_logistics,2
+Expedia Group,,expediagroup.com,retail_logistics,2
+Booking.com,,booking.com,retail_logistics,2
+Tripadvisor,,tripadvisor.com,retail_logistics,2
+Disney,,disney.com,media_telecom,2
+Warner Bros Discovery,,wbd.com,media_telecom,2
+Paramount,,paramount.com,media_telecom,2
+Comcast,,comcast.com,media_telecom,2
+NBCUniversal,,nbcuni.com,media_telecom,2
+Fox,,fox.com,media_telecom,2
+Sony Interactive Entertainment,,sie.com,media_telecom,2
+Electronic Arts,,ea.com,media_telecom,2
+Riot Games,,riotgames.com,media_telecom,2
+Epic Games,,epicgames.com,media_telecom,2
+Roblox,,roblox.com,media_telecom,2
+Unity,,unity.com,media_telecom,2
+Take-Two Interactive,,take2games.com,media_telecom,2
+Zynga,,zynga.com,media_telecom,2
+Niantic,,nianticlabs.com,media_telecom,2
+Discord,,discord.com,media_telecom,2
+Twitch,,twitch.tv,media_telecom,2
+SiriusXM,,siriusxm.com,media_telecom,2
+AT&T,,att.com,media_telecom,2
+Verizon,,verizon.com,media_telecom,2
+T-Mobile,,t-mobile.com,media_telecom,2
+Charter Communications,,charter.com,media_telecom,2
+EchoStar,,echostar.com,media_telecom,2
+Lumen Technologies,,lumen.com,media_telecom,2
+Vimeo,,vimeo.com,media_telecom,2
+Patreon,,patreon.com,media_telecom,2
+Substack,,substack.com,media_telecom,2
+Sabre,,sabre.com,dfw,3
+Match Group,,mtch.com,dfw,3
+Alkami Technology,,alkami.com,dfw,3
+Tyler Technologies,,tylertech.com,dfw,3
+Bottle Rocket,,bottlerocketstudios.com,dfw,3
+Improving,,improving.com,dfw,3
+Mr. Cooper,,mrcooper.com,dfw,3
+Santander Consumer USA,,santanderconsumerusa.com,dfw,3
+Comerica,,comerica.com,dfw,3
+Vistra,,vistracorp.com,dfw,3
+Energy Transfer,,energytransfer.com,dfw,3
+Jacobs,,jacobs.com,dfw,3
+Fluor,,fluor.com,dfw,3
+Keurig Dr Pepper,,keurigdrpepper.com,dfw,3
+USAA,,usaa.com,dfw,3
+First Rate,,firstrate.com,dfw,3
+Givelify,,givelify.com,dfw,3
+Gradient Cyber,,gradientcyber.com,dfw,3
+Leadr,,leadr.com,dfw,3
+OpenKey,,openkey.co,dfw,3
+Practice EHR,,practiceehr.com,dfw,3
+InsuredMine,,insuredmine.com,dfw,3
+mroads,,mroads.com,dfw,3
+EPSoft Technologies,,epsoftinc.com,dfw,3
+Thru,,thruinc.com,dfw,3
+OnBlick,,onblick.com,dfw,3
+Injala,,injala.com,dfw,3
+Aavenir,,aavenir.com,dfw,3
+Ascendix Technologies,,ascendix.com,dfw,3
+Clear C2,,clearc2.com,dfw,3
+Theatro,,theatro.com,dfw,3
+Allegro Development,,allegrodev.com,dfw,3
+Aperia Solutions,,aperia.com,dfw,3
+Lumel,,lumel.com,dfw,3
+Marquis,,gomarquis.com,dfw,3
+Optimal Blue,,optimalblue.com,dfw,3
+ResMan,,myresman.com,dfw,3

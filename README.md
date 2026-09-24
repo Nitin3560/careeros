@@ -373,3 +373,26 @@ python scripts/export_label_sample.py --sample-size 300 --seed 42
 # fill data/label_sample.csv
 python scripts/score_classifier.py --input data/label_sample.csv
 ```
+
+### Phase 3 feed quality and miss tracking
+
+Apply the Phase 3 workflow migration before publishing with the classified feed:
+
+```bash
+cd apps/api && alembic upgrade head && cd ../..
+python scripts/classify_jobs.py --batch-size 1000
+python scripts/generate_feed.py
+python scripts/audit_classified_feed.py
+```
+
+`generate_feed.py` writes the self-contained, offline-readable `reports/feed.html`; open that file each morning. It shows the last seven days, groups by first-seen date, collapses same-company/title/content duplicates, and marks jobs found since the previous generation. Change the window with `--days 14`. The company blocklist excludes known aggregators. To see why a posting did not qualify, run `python scripts/explain_feed_job.py --job-id <uuid>`.
+
+When reviewing LinkedIn alongside the feed, record both matches and misses so the weekly miss rate has a real denominator:
+
+```bash
+python scripts/log_miss.py --company "Example Co" --title "Backend Engineer" --url "https://example.com/job/123" --reason "found on LinkedIn"
+python scripts/log_miss.py --summary
+python scripts/report_feed_coverage.py --since-days 7
+```
+
+Misses are appended with a timestamp. `--summary` checks each logged company and title against stored jobs and reports whether it appears to be a coverage gap or a feed-filter gap. `reports/feed.state.json` stores the generator watermark for the NEW marker. Feed company controls are explicit and reversible: `python scripts/manage_feed_company.py --company "Company Name" --action block --reason "spam postings"`; use `aggregator` to label second-hand listings or `allow` to clear a rule. Review the labeled classifier scorecard before making classifier changes. The 15% miss-rate target is not claimed until a week of parallel checks has enough observations.

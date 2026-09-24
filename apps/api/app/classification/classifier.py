@@ -4,20 +4,19 @@ import re
 import unicodedata
 from dataclasses import dataclass, asdict
 
-VERSION = 2
+VERSION = 3
 US_STATES = set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC".split())
-NON_US = re.compile(r"\b(?:Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbuda|Armenia|Australia|Austria|Azerbaijan|Bahamas|Bahrain|Bangladesh|Barbados|Belarus|Belgium|Belize|Benin|Bhutan|Bolivia|Bosnia and Herzegovina|Botswana|Brazil|Brunei|Bulgaria|Burkina Faso|Burundi|Cambodia|Cameroon|Canada|Cape Verde|Central African Republic|Chad|Chile|China|Colombia|Comoros|Congo|Costa Rica|Croatia|Cuba|Cyprus|Czech Republic|Denmark|Djibouti|Dominica|Dominican Republic|Ecuador|Egypt|El Salvador|Equatorial Guinea|Eritrea|Estonia|Eswatini|Ethiopia|Fiji|Finland|France|Gabon|Gambia|Georgia|Germany|Ghana|Greece|Grenada|Guatemala|Guinea|Guyana|Haiti|Honduras|Hungary|Iceland|India|Indonesia|Iran|Iraq|Ireland|Israel|Italy|Ivory Coast|Jamaica|Japan|Jordan|Kazakhstan|Kenya|Kiribati|Kosovo|Kuwait|Kyrgyzstan|Laos|Latvia|Lebanon|Lesotho|Liberia|Libya|Liechtenstein|Lithuania|Luxembourg|Madagascar|Malawi|Malaysia|Maldives|Mali|Malta|Marshall Islands|Mauritania|Mauritius|Mexico|Micronesia|Moldova|Monaco|Mongolia|Montenegro|Morocco|Mozambique|Myanmar|Namibia|Nauru|Nepal|Netherlands|New Zealand|Nicaragua|Niger|Nigeria|North Korea|North Macedonia|Norway|Oman|Pakistan|Palau|Palestine|Panama|Papua New Guinea|Paraguay|Peru|Philippines|Poland|Portugal|Qatar|Romania|Russia|Rwanda|Saint Kitts and Nevis|Saint Lucia|Saint Vincent|Samoa|San Marino|Sao Tome|Saudi Arabia|Senegal|Serbia|Seychelles|Sierra Leone|Singapore|Slovakia|Slovenia|Solomon Islands|Somalia|South Africa|South Korea|South Sudan|Spain|Sri Lanka|Sudan|Suriname|Sweden|Switzerland|Syria|Taiwan|Tajikistan|Tanzania|Thailand|Timor-Leste|Togo|Tonga|Trinidad and Tobago|Tunisia|Turkey|Turkmenistan|Tuvalu|Uganda|Ukraine|United Arab Emirates|United Kingdom|UK|Uruguay|Uzbekistan|Vanuatu|Vatican City|Venezuela|Vietnam|Yemen|Zambia|Zimbabwe|Barcelona|Paris|Amsterdam|Milan|Sao Paulo|São Paulo|Taguig|Noida|Nairobi|Berlin|Munich|London|Dublin|Toronto|Vancouver|Montreal|Warsaw|Krakow|Madrid|Lisbon|Zurich|Stockholm|Tel Aviv|Singapore|Tokyo|Sydney|Melbourne|Shanghai|Beijing|Shenzhen|Bangalore|Hyderabad|Mumbai|Pune|Chennai|Delhi|Gurgaon|Bogota|Medellin|Buenos Aires|Belgrade|Manila|Jakarta|Americas|Cambridge\s*,?\s*(?:UK|United Kingdom)|Remote\s*[-–]\s*(?:EMEA|APAC|LATAM|Europe|Canada|India))\b", re.I)
+NON_US = re.compile(r"\b(?:Afghanistan|Albania|Algeria|Andorra|Angola|Antigua and Barbuda|Argentina|Armenia|Australia|Austria|Azerbaijan|Bahamas|Bahrain|Bangladesh|Barbados|Belarus|Belgium|Belize|Benin|Bhutan|Bolivia|Bosnia and Herzegovina|Botswana|Brazil|Brunei|Bulgaria|Burkina Faso|Burundi|Cambodia|Cameroon|Canada|Cape Verde|Central African Republic|Chad|Chile|China|Colombia|Comoros|Congo|Costa Rica|Croatia|Cuba|Cyprus|Czech Republic|Denmark|Djibouti|Dominica|Dominican Republic|Ecuador|Egypt|El Salvador|Equatorial Guinea|Eritrea|Estonia|Eswatini|Ethiopia|Fiji|Finland|France|Gabon|Gambia|Georgia|Germany|Ghana|Greece|Grenada|Guatemala|Guinea|Guyana|Haiti|Honduras|Hungary|Iceland|India|Indonesia|Iran|Iraq|Ireland|Israel|Italy|Ivory Coast|Jamaica|Japan|Jordan|Kazakhstan|Kenya|Kiribati|Kosovo|Kuwait|Kyrgyzstan|Laos|Latvia|Lebanon|Lesotho|Liberia|Libya|Liechtenstein|Lithuania|Luxembourg|Madagascar|Malawi|Malaysia|Maldives|Mali|Malta|Marshall Islands|Mauritania|Mauritius|Mexico|Micronesia|Moldova|Monaco|Mongolia|Montenegro|Morocco|Mozambique|Myanmar|Namibia|Nauru|Nepal|Netherlands|New Zealand|Nicaragua|Niger|Nigeria|North Korea|North Macedonia|Norway|Oman|Pakistan|Palau|Palestine|Panama|Papua New Guinea|Paraguay|Peru|Philippines|Poland|Portugal|Qatar|Romania|Russia|Rwanda|Saint Kitts and Nevis|Saint Lucia|Saint Vincent|Samoa|San Marino|Sao Tome|Saudi Arabia|Senegal|Serbia|Seychelles|Sierra Leone|Singapore|Slovakia|Slovenia|Solomon Islands|Somalia|South Africa|South Korea|South Sudan|Spain|Sri Lanka|Sudan|Suriname|Sweden|Switzerland|Syria|Taiwan|Tajikistan|Tanzania|Thailand|Timor-Leste|Togo|Tonga|Trinidad and Tobago|Tunisia|Turkey|Turkmenistan|Tuvalu|Uganda|Ukraine|United Arab Emirates|United Kingdom|UK|Uruguay|Uzbekistan|Vanuatu|Vatican City|Venezuela|Vietnam|Yemen|Zambia|Zimbabwe|England|Scotland|Wales|Barcelona|Paris|Amsterdam|Milan|Sao Paulo|São Paulo|Taguig|Noida|Nairobi|Berlin|Munich|London|Dublin|Toronto|Vancouver|Montreal|Warsaw|Krakow|Madrid|Lisbon|Zurich|Stockholm|Tel Aviv|Tokyo|Sydney|Melbourne|Shanghai|Beijing|Shenzhen|Bangalore|Hyderabad|Mumbai|Pune|Chennai|Delhi|Gurgaon|Bogota|Medellin|Buenos Aires|Belgrade|Manila|Jakarta|Remote\s*[-–]\s*(?:EMEA|APAC|LATAM|Europe|Canada|India))\b", re.I)
 TECH = re.compile(r"\b(?:software|developer|programmer|swe|sde|backend|back[- ]?end|front[- ]?end|full[- ]?stack|web developer|mobile|ios|android|machine learning|ml|ai|data engineer|data scientist|devops|sre|site reliability|cloud engineer|platform engineer|infrastructure engineer|security engineer|systems engineer|computer vision|nlp|robotics software|embedded software|firmware|qa engineer|sdet|test engineer)\b", re.I)
-NONTECH = re.compile(r"\b(?:mechanical|electrical|chemical|civil|industrial|process|manufacturing|quality|packaging|rf|hvac|technician|laboratory|drug|clinical|biological|nurse|physician|patient care|curriculum|business development|land developer|sales engineer|solutions engineer|developer advocate|technical account manager|customer engineer)\b", re.I)
-NONTECH = re.compile(NONTECH.pattern[:-3] + r"|machinist|\bcnc\b|trainer|ai trainer|business analyst|statistical (?:programmer|analyst)|power user|annotator|labeler|manual tester|\boperator\b|ai workflows engineer)", re.I)
+NONTECH = re.compile(r"\b(?:mechanical|electrical|chemical|civil|industrial|process|manufacturing|quality|packaging|rf|hvac|technician|laboratory|drug|clinical|biological|nurse|physician|patient care|curriculum|business development|land developer|sales engineer|solutions engineer|developer advocate|technical account manager|customer engineer|machinist|cnc|trainer|ai trainer|business analyst|statistical programmer|statistical analyst|power user|annotator|labeler|manual tester|operator|ai workflows engineer)\b", re.I)
 SENIOR = re.compile(r"\b(?:senior|sr|snr|staff|principal|advisor|lead|manager|mgr|director|architect|head of|vp|distinguished|fellow|prin|iii|iv|l[5-9]|e[5-9]|ic[3-9])\b|(?:engineer|developer|scientist|architect)\s+[3-9]\b", re.I)
 SENIOR_FALSE_POSITIVE = re.compile(r"\b(?:lead generation|package manager|staffing|principal financial|headless|director of photography)\b", re.I)
 EXEMPT = re.compile(r"\b(?:new grad(?:uate)?|junior|jr|entry[- ]level|associate|university|campus|i level|graduate program|rotational)\b", re.I)
 NEW_GRAD = re.compile(r"\b(?:new grad(?:uate)?|university grad|campus hire|entry[- ]level|junior|jr|associate engineer|engineer i|co-op|20\d{2} grad)\b", re.I)
 US_CITIES = """Abilene|Akron|Albany|Albuquerque|Alexandria|Allentown|Amarillo|Anaheim|Anchorage|Ann Arbor|Asheville|Atlanta|Augusta|Aurora|Austin|Bakersfield|Baltimore|Baton Rouge|Bellevue|Billings|Boise|Boston|Boulder|Bridgeport|Brownsville|Buffalo|Burbank|Canton|Cape Coral|Cary|Carrollton|Cedar Rapids|Chandler|Charleston|Charlotte|Chattanooga|Chesapeake|Chicago|Chula Vista|Cincinnati|Clarksville|Clearwater|Cleveland|Colorado Springs|Columbia|Concord|Coral Springs|Corona|Corpus Christi|Costa Mesa|Dallas|Dayton|Denton|Denver|Des Moines|Detroit|Durham|El Paso|Eugene|Evansville|Everett|Fairfield|Fayetteville|Flint|Fort Collins|Fort Lauderdale|Fort Myers|Fort Wayne|Fremont|Fresno|Frisco|Fullerton|Gainesville|Garden Grove|Garland|Gilbert|Glendale|Grand Prairie|Grand Rapids|Greensboro|Greeley|Green Bay|Hampton|Hartford|Hayward|Henderson|Hialeah|High Point|Hollywood|Honolulu|Houston|Huntsville|Indianapolis|Independence|Irvine|Irving|Jackson|Jacksonville|Jersey City|Joliet|Kalamazoo|Kansas City|Killeen|Knoxville|Lafayette|Lakeland|Lancaster|Lansing|Laredo|Las Vegas|Lexington|Lincoln|Little Rock|Long Beach|Los Angeles|Louisville|Lowell|Lubbock|Macon|Madison|Manchester|McAllen|McKinney|Memphis|Mesa|Mesquite|Miami|Milwaukee|Minneapolis|Miramar|Mobile|Modesto|Montgomery|Moreno Valley|Murfreesboro|Murrieta|Naperville|Nashville|New Haven|New Orleans|New York|Newark|Newport News|Norfolk|Norman|North Charleston|North Las Vegas|Oakland|Oceanside|Oklahoma City|Omaha|Ontario|Orlando|Overland Park|Oxnard|Palm Bay|Palmdale|Pasadena|Paterson|Pembroke Pines|Peoria|Philadelphia|Phoenix|Pittsburgh|Plano|Pomona|Pompano Beach|Portland|Providence|Provo|Raleigh|Rancho Cucamonga|Reno|Richmond|Riverside|Roanoke|Rochester|Rockford|Sacramento|Saint Louis|Saint Paul|Salem|Salinas|Salt Lake City|San Antonio|San Bernardino|San Diego|San Francisco|San Jose|Santa Ana|Santa Barbara|Santa Clara|Santa Clarita|Santa Rosa|Savannah|Scottsdale|Seattle|Shreveport|Simi Valley|Sioux Falls|Spokane|Springfield|Stamford|Stockton|Sunnyvale|Syracuse|Tacoma|Tallahassee|Tampa|Tempe|Thornton|Thousand Oaks|Toledo|Topeka|Torrance|Tucson|Tulsa|Tuscaloosa|Virginia Beach|Visalia|Vista|Waco|Washington|Waterbury|West Covina|Wichita|Wilmington|Winston-Salem|Worcester|Palo Alto|Mountain View|Menlo Park|Redwood City|Santa Monica|San Mateo|Cambridge|Arlington|Columbus|Portland|Birmingham""".split("|")
 AMBIGUOUS_CITIES = {"cambridge", "portland", "birmingham", "london", "arlington", "san jose", "columbus"}
-REQUIRED = re.compile(r"^(?:requirements?|qualifications?|minimum|basic qualifications?|required qualifications?|what we look for|what we're looking for|what you bring|what you have|who you are|about you|must have)$", re.I)
-PREFERRED = re.compile(r"^(?:preferred qualifications?|nice to have|bonus points?|a plus|ideally)$", re.I)
+REQUIRED = re.compile(r"^(?:requirements?|qualifications?|minimum(?: qualifications?)?|basic qualifications?|required qualifications?|what we look for|what we're looking for|what you'll bring|what you bring|what you'll have|what you have|who you are|about you|must have)(?:\b|\s*[:—-])", re.I)
+PREFERRED = re.compile(r"^(?:preferred(?: qualifications?| experience| requirements?)?|nice to have|bonus points?|a plus|ideally)(?:\b|\s*[:—-])", re.I)
 
 def normalize_title(value: str | None) -> str:
     value = unicodedata.normalize("NFKC", value or "")
@@ -27,21 +26,23 @@ def normalize_title(value: str | None) -> str:
 def classify_location(value: str | None) -> tuple[str, str]:
     text = re.sub(r"\s+", " ", value or "").strip()
     if not text: return "unknown", "missing"
-    if re.search(r"\bamericas\b", text, re.I): return "non_us", "non-US region signal"
     parts = re.split(r"\s*(?:;|\||/|\bor\b|\band\b|\n)\s*", text, flags=re.I)
     state_phrases = "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming|District of Columbia".split("|")
     foreign_found = False
     for part in parts:
         state_match = re.search(r",\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,?\s*(?:United States|USA))?\s*$", part)
         if state_match and state_match.group(1) in US_STATES: return "us", "state code"
-        if any(re.search(rf",\s*{re.escape(name)}(?:\s+\d{{5}})?\s*$", part, re.I) for name in state_phrases): return "us", "state name"
         if re.search(r"\b(?:United States|USA|US-Remote|Remote\s*-\s*US)\b", part, re.I): return "us", "US signal"
-        if re.search(r"cambridge.*\b(?:uk|united kingdom)\b", part, re.I) or NON_US.search(part):
+        if NON_US.search(part):
             foreign_found = True
             continue
-        if re.match(r"^\s*\d+\s+locations?\s*$", part, re.I): continue
         ambiguous_hit = next((city for city in AMBIGUOUS_CITIES if re.search(rf"\b{re.escape(city)}\b", part, re.I)), None)
-        if ambiguous_hit and not re.search(r",\s*[A-Z]{2}\b|\b(?:US|USA|United States)\b", part): continue
+        if ambiguous_hit:
+            # Ambiguous city names require an unambiguous USPS state abbreviation.
+            # Full state names are intentionally insufficient for this city set.
+            continue
+        if any(re.search(rf",\s*{re.escape(name)}(?:\s+\d{{5}})?\s*$", part, re.I) for name in state_phrases): return "us", "state name"
+        if re.match(r"^\s*\d+\s+locations?\s*$", part, re.I): continue
         if any(re.search(rf"\b{re.escape(city)}\b", part, re.I) for city in US_CITIES): return "us", "US city"
     if foreign_found: return "non_us", "foreign country/city signal"
     return "unknown", "multiple locations" if re.search(r"\b\d+\s+locations?\b", text, re.I) else "no parseable US signal"
@@ -56,6 +57,43 @@ def _sponsorship_signal(sentence: str) -> tuple[str, str] | None:
     if re.search(r"active\s+security\s+clearance|must\s+(?:have|possess).*clearance|ts/sci|top secret|polygraph", sentence, re.I) and not re.search(r"no\s+clearance\s+required", sentence, re.I): return "clearance", sentence[:300].strip()
     if re.search(r"must be a\s+(?:u\.s\.?|us)\s+person.*itar|requires?\s+access\s+to\s+export[- ]controlled", sentence, re.I): return "itar", sentence[:300].strip()
     return None
+
+def _title_sponsorship_signal(title: str) -> tuple[str, str] | None:
+    """Only explicit clearance/citizenship markers belong in a job title."""
+    if re.search(r"\b(?:TS\s*/\s*SCI|top secret|active security clearance|security clearance required|cleared)\b", title, re.I):
+        return "clearance", title[:300].strip()
+    if re.search(r"\b(?:U\.?S\.?|US)\s+citizen(?:ship)?\s+(?:is\s+)?required\b|\bmust be a\s+(?:U\.?S\.?|US)\s+(?:citizen|person)\b", title, re.I):
+        return "citizenship", title[:300].strip()
+    return None
+
+def _heading_kind(name: str) -> str | None:
+    normalized = unicodedata.normalize("NFKC", name).translate(str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"'})).strip().rstrip(":").strip().lower()
+    if REQUIRED.match(normalized):
+        return "required"
+    if PREFERRED.match(normalized):
+        return "preferred"
+    return None
+
+def _required_year_groups(text: str) -> list[tuple[int, list[str]]]:
+    """Return one minimum per requirement sentence/bullet, with alternatives grouped."""
+    groups: list[tuple[int, list[str]]] = []
+    for chunk in re.split(r"(?:\n\s*[-*•]\s*|/\s*(?=-\s)|(?<=[.!?;])\s+)", text):
+        matches = list(re.finditer(r"\b(\d+)\s*\+?\s+years?\b", chunk, re.I))
+        if not matches:
+            continue
+        years = [int(match.group(1)) for match in matches]
+        # Multiple values in one requirement are alternatives only when joined by "or".
+        is_alternative_group = len(years) > 1 and bool(re.search(r"\bor\b", chunk, re.I))
+        group_min = min(years) if is_alternative_group else max(years)
+        alternatives = []
+        if is_alternative_group:
+            for match in matches:
+                prefix = re.search(r"\b(BS|B\.?S\.?|MS|M\.?S\.?|PhD|Ph\.?D\.?)\s*\+?\s*$", chunk[:match.start()], re.I)
+                if prefix:
+                    unit = "year" if re.search(r"\byear\b", match.group(0), re.I) and not re.search(r"\byears\b", match.group(0), re.I) else "years"
+                    alternatives.append(f"{prefix.group(1)} + {match.group(1)} {unit}")
+        groups.append((group_min, alternatives))
+    return groups
 
 def classify_job(title: str | None, description: str | None = "", location: str | None = None) -> dict:
     title_n = normalize_title(title)
@@ -72,9 +110,8 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     for sentence in re.split(r"(?<![A-Z])(?<=[.!?])\s+", text):
         signal = _sponsorship_signal(sentence)
         if signal: sponsorship_rule, sponsorship = signal; break
-    title_signal = _sponsorship_signal(title_n)
+    title_signal = _title_sponsorship_signal(title_n)
     if title_signal: sponsorship_rule, sponsorship = title_signal
-    elif re.search(r"\bcleared\b", title_n, re.I): sponsorship_rule, sponsorship = "clearance", title_n[:300]
     if senior: reasons.append("senior_title")
     if loc == "non_us": reasons.append("non_us_location")
     if sponsorship is not None: reasons.append("sponsorship_restriction")
@@ -82,13 +119,15 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     headings = list(re.finditer(r"^##\s+(.+)$", text, flags=re.M))
     required_heading_found = False
     for index, heading in enumerate(headings):
-        name = heading.group(1).strip().rstrip(":").replace("’", "'")
-        if REQUIRED.match(name):
+        name = heading.group(1).strip()
+        kind = _heading_kind(name)
+        if kind == "required":
             required_heading_found = True
             end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
             required_chunks.append(text[heading.end():end])
     required_text = " ".join(required_chunks)
-    years = [int(x) for x in re.findall(r"\b(\d+)\s*\+?\s+years?", required_text, re.I)]
+    year_groups = [group for chunk in required_chunks for group in _required_year_groups(chunk)]
+    years = [group[0] for group in year_groups]
     subfield = "general"
     for pattern, name in ((r"backend|back[- ]?end", "backend"), (r"front[- ]?end|web", "frontend"), (r"full[- ]?stack", "fullstack"), (r"mobile|ios|android", "mobile"), (r"machine learning|\bml\b|\bai\b|nlp|computer vision", "ml_ai"), (r"data", "data"), (r"devops|sre|cloud|platform|infrastructure", "infra_devops"), (r"security", "security"), (r"embedded|firmware", "embedded"), (r"qa|sdet|test", "qa")):
         if re.search(pattern, title_n, re.I): subfield = name; break
@@ -98,5 +137,6 @@ def classify_job(title: str | None, description: str | None = "", location: str 
     elif re.search(r"\bcontract(?:or)?\b", title_n, re.I): employment = "contract"
     elif re.search(r"\bpart[- ]?time\b", title_n, re.I): employment = "part_time"
     if employment not in {"full_time", "unknown"}: reasons.append(f"employment_type_{employment}")
-    alternatives = re.findall(r"(?:BS|MS|PhD)\s*\+?\s*\d+\s*years?", required_text, re.I) or None
-    return {"title_normalized": title_n, "is_tech_title": tech, "tech_subfield": subfield, "is_senior_title": senior, "seniority_level": "senior" if senior else None, "is_new_grad_title": grad, "employment_type": employment, "location_class": loc, "location_reason": loc_reason, "sponsorship_block": sponsorship is not None, "sponsorship_evidence": sponsorship, "sponsorship_rule": sponsorship_rule, "min_years_required": min(years) if years else None, "min_years_alternatives": alternatives, "years_source": "required_section" if years else "none", "parse_tier": 1 if required_heading_found else (2 if headings else 3), "exclusion_reasons": reasons, "classifier_version": VERSION}
+    alternatives = [item for _, group_alternatives in year_groups for item in group_alternatives] or None
+    years_basis = "required_bullets_max_alternative_groups_min" if years else "none"
+    return {"title_normalized": title_n, "is_tech_title": tech, "tech_subfield": subfield, "is_senior_title": senior, "seniority_level": "senior" if senior else None, "is_new_grad_title": grad, "employment_type": employment, "location_class": loc, "location_reason": loc_reason, "sponsorship_block": sponsorship is not None, "sponsorship_evidence": sponsorship, "sponsorship_rule": sponsorship_rule, "min_years_required": max(years) if years else None, "min_years_alternatives": alternatives, "years_source": "required_section" if years else "none", "years_basis": years_basis, "parse_tier": 1 if required_heading_found else (2 if headings else 3), "exclusion_reasons": reasons, "classifier_version": VERSION}

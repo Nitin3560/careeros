@@ -27,7 +27,7 @@ try:
 finally:
     db.close()
 PY
-"$PYTHON_BIN" scripts/apply_title_filter.py --version v3 --new-only --since-minutes "$((SINCE_HOURS * 60))" --review-limit 10
+"$PYTHON_BIN" scripts/classify_jobs.py --batch-size 1000
 "$PYTHON_BIN" scripts/update_entry_jobs_readme.py --readme "$README_PATH" --since-hours "$SINCE_HOURS" --limit "$LIMIT"
 
 if git diff --quiet -- "$README_PATH"; then

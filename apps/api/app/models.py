@@ -481,3 +481,73 @@ class BackgroundJob(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class JobFeedCompanyRule(Base):
+    __tablename__ = "job_feed_company_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    company_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    company_name: Mapped[str] = mapped_column(Text, nullable=False)
+    rule: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class JobFeedMiss(Base):
+    __tablename__ = "job_feed_misses"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    dedupe_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    company: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    found_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cause: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurrence_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    first_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    last_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class JobFeedCoverageCheck(Base):
+    __tablename__ = "job_feed_coverage_checks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    company: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    found_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    was_in_feed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    cause: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class JobFeedState(Base):
+    __tablename__ = "job_feed_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    last_viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class CompanyBlocklist(Base):
+    __tablename__ = "company_blocklist"
+
+    slug: Mapped[str] = mapped_column(Text, primary_key=True)
+    ats: Mapped[str] = mapped_column(Text, nullable=False, default="*")
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class FeedMissLog(Base):
+    __tablename__ = "misses"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    company: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

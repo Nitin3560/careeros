@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 import sys
 from pathlib import Path
@@ -10,9 +11,14 @@ from update_entry_jobs_readme import (  # noqa: E402
     extract_entry_experience,
     extract_salary,
     format_time_ago,
+    collapse_duplicate_locations,
     is_eligible_tech_title,
+    has_required_experience_evidence,
+    has_explicit_non_us_location,
     is_entry_full_time_title,
     is_us_location,
+    markdown_apply_link,
+    render_tier_table,
     render_markdown,
     tier_for_job,
     update_readme,
@@ -43,6 +49,9 @@ def test_location_filter_requires_us_signal_first():
     assert not is_us_location("Toronto")
     assert not is_us_location("Ho Chi Minh City, Vietnam")
     assert not is_us_location("Prague, Czech Republic")
+    assert has_explicit_non_us_location("Seattle, WA; Amsterdam")
+    assert not has_explicit_non_us_location("Boston, MA; Portland, ME")
+    assert has_explicit_non_us_location("Boston, MA; London, UK")
 
 
 def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
@@ -138,7 +147,68 @@ def test_render_and_update_marked_readme_with_three_tiers(tmp_path):
     assert "### Tier 1" in content
     assert "### Tier 2" in content
     assert "### Tier 3" in content
-    assert "| Company | Role | Experience | Posted | Found | Salary | Apply |" in content
+    assert "| Company | Role | Location | Experience | Posted | Found | Salary | Apply |" in content
     assert "1 hour ago" in content
     assert "$120,000 - $155,000" in content
     assert "[Apply](https://example.com/stripe)" in content
+
+
+def test_duplicate_identity_collapses_locations_and_preserves_markers():
+    first = replace(make_job("Example Inc", "Software Engineer I"), dedupe_key="same-req", locations=("Austin, TX",), is_new=True)
+    second = replace(make_job("Example Inc", "Software Engineer I"), dedupe_key="same-req", locations=("Seattle, WA",), is_aggregator=True)
+    third = replace(make_job("Other Co", "Software Engineer I"), dedupe_key="same-req")  # collision across employers must not merge
+    collapsed = collapse_duplicate_locations([first, second, third])
+    assert len(collapsed) == 2
+    merged = next(job for job in collapsed if job.company == "Example Inc")
+    assert merged.locations == ("Austin, TX", "Seattle, WA")
+    assert merged.is_new and merged.is_aggregator
+
+
+def test_experience_parser_ignores_preferred_and_rejects_any_required_over_two():
+    assert extract_entry_experience("## Basic Qualifications\n1+ year of relevant experience\n## Preferred\n5+ years preferred") == "1 year"
+    assert extract_entry_experience("## Requirements\n1+ year experience\n3 years of professional experience") is None
+    assert extract_entry_experience("## Preferred Qualifications\n3+ years experience") is None
+    assert extract_entry_experience("## Requirements\nAt least three years of related experience") is None
+    assert extract_entry_experience("## Requirements\nTwo years of professional experience") == "2 years"
+    assert has_required_experience_evidence("## Requirements\nThree years experience")
+    assert not has_required_experience_evidence("## Preferred Qualifications\nFive years preferred")
+
+
+def test_duplicate_collapse_does_not_merge_unkeyed_distinct_postings():
+    first = replace(make_job("Example Inc", "Software Engineer I"), dedupe_key=None,
+                    application_url="https://example.com/jobs/1")
+    second = replace(make_job("Example Inc", "Software Engineer I"), dedupe_key=None,
+                     application_url="https://example.com/jobs/2")
+    assert len(collapse_duplicate_locations([first, second])) == 2
+
+
+def test_render_marks_unknown_new_and_aggregator_and_groups_by_posted_day():
+    job = replace(make_job("Example <Co>", "Software Engineer | Platform"), location=None,
+                  locations=(), location_class="unknown", is_new=True, is_aggregator=True)
+    rendered = "\n".join(render_tier_table([job], datetime(2026, 9, 19, 20, tzinfo=timezone.utc)))
+    assert "#### 2026-09-19" in rendered
+    assert "⚠ Unknown location" in rendered
+    assert "Second-hand" in rendered
+    assert "**NEW**" in rendered
+    assert "&lt;Co&gt;" in rendered and "<Co>" not in rendered
+    assert "Software Engineer \\| Platform" in rendered
+
+
+def test_apply_link_rejects_non_web_schemes_and_encodes_markdown_delimiters():
+    assert markdown_apply_link("javascript:alert(1)") == ""
+    assert markdown_apply_link("https://user:pass@example.com/job") == ""
+    assert markdown_apply_link("https://example.com/job (new)") == "[Apply](https://example.com/job%20%28new%29)"
+    assert markdown_apply_link("https://exa|mple.com/job") == ""
+    assert "&lt;script&gt;" in "\n".join(render_tier_table([replace(make_job("x", "<script>alert(1)</script>"), location_class="us")]))
+
+
+def test_update_readme_refuses_damaged_or_duplicated_markers(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text("start <!-- ENTRY_JOBS:START --> only")
+    import pytest
+    with pytest.raises(ValueError, match="markers"):
+        update_readme(readme, "new block")
+
+    readme.write_text("<!-- ENTRY_JOBS:START --> old <!-- ENTRY_JOBS:END -->\n<!-- ENTRY_JOBS:START --> x <!-- ENTRY_JOBS:END -->\n")
+    with pytest.raises(ValueError, match="markers"):
+        update_readme(readme, "new block")
