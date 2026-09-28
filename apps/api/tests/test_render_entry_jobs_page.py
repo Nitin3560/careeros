@@ -195,12 +195,15 @@ def test_dedicated_early_career_page_only_contains_explicit_zero_to_two_year_rol
         "principal_title_with_two_years": is_early_career_job({"role": "Principal Data Engineer", "experience": "2 years"}),
         "level_three_title": is_early_career_job({"role": "Software Engineer III", "experience": "1 year"}),
         "junior_one_year": is_early_career_job({"role": "Junior Frontend Engineer", "experience": "1 year"}),
+        "unit_coordinator_false_tech": is_early_career_job({"role": "Unit Coordinator - Front End Nights", "experience": "1 year"}),
+        "field_service_false_tech": is_early_career_job({"role": "MedTech Field Service Software Tech Entry Level", "experience": "1 year"}),
     }
     assert cases == {
         "0": True, "1": True, "1+": False, "2+": False, "3+": False,
         "unstated": False, "contradictory_new_grad": False,
         "senior_title_with_two_years": False, "principal_title_with_two_years": False,
         "level_three_title": False, "junior_one_year": True,
+        "unit_coordinator_false_tech": False, "field_service_false_tech": False,
     }
 
     readme = """<!-- ENTRY_JOBS:START -->
