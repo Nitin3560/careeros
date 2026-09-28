@@ -14,8 +14,8 @@ END_MARKER = "<!-- ENTRY_JOBS:END -->"
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 ALLOWED_ROLE_TAG_RE = re.compile(r"</?(?:br|sub)>", re.IGNORECASE)
 BAD_TITLE_RE = re.compile(
-    r"\b(intern|internship|co-?op|apprentice|senior|staff|principal|lead|manager|"
-    r"architect|director|analyst|sales|marketer|trainer|mechanic|machinist|technician|"
+    r"\b(intern|internship|co-?op|apprentice|analyst|sales|marketer|trainer|"
+    r"mechanic|machinist|technician|"
     r"operator|power user|annotator|labeler|mechanical|electrical|footwear|"
     r"product\s+(?:developer|designer|owner|manager)|associate,?\s+store|"
     r"retail|quality|clinical|recruiter|designer|support|customer|vice president|"
@@ -157,17 +157,11 @@ def _qualifies_for_page(job: dict[str, object]) -> bool:
     role = re.sub(r"<[^>]*>", " ", str(job.get("role", "")))
     role = role.replace(r"\(", "(").replace(r"\)", ")")
     role = re.sub(r"\\\([^)]*\\\)", " ", role)
-    experience = str(job.get("experience", "")).strip().casefold()
     location = str(job.get("location", "")).strip().casefold()
     if not TECH_TITLE_RE.search(role) or BAD_TITLE_RE.search(role):
         return False
-    if experience in {"", "not stated", "not specified", "unknown"}:
-        return False
-    match = re.search(r"(?<!\d)(\d+)\s*(?:[-–]\s*(\d+))?\s*(?:years?|yrs?)", experience)
-    if not match or int(match.group(2) or match.group(1)) > 2:
-        return False
-    if "unknown location" in location or "not shown" in location:
-        return False
+    if "unknown location" in location:
+        return True
     if not location or not US_LOCATION_RE.search(location):
         return False
     return True
@@ -175,7 +169,7 @@ def _qualifies_for_page(job: dict[str, object]) -> bool:
 
 def render_page(readme: str) -> str:
     summary, tiers = parse_feed(extract_feed(readme))
-    title = "CareerOS Recent Jobs"
+    title = "CareerOS Recent U.S. Tech Jobs"
     total_jobs = sum(len(tier["jobs"]) for tier in tiers)
     summary = [
         re.sub(r"Current feed size: \*\*[\d,]+\*\* roles", f"Current feed size: **{total_jobs}** roles", line)
@@ -183,8 +177,7 @@ def render_page(readme: str) -> str:
     ]
     summary_html = "".join(f"<p>{_inline(line)}</p>" for line in summary)
     empty_notice = (
-        '<p class="no-current-jobs">No current postings meet all feed rules: a technical role, '
-        'posting-backed experience of 0–2 years, and a confirmed U.S. location.</p>'
+        '<p class="no-current-jobs">No current classified technology postings were found in the feed window.</p>'
         if total_jobs == 0 else ""
     )
     nav = "".join(
@@ -222,7 +215,7 @@ def render_page(readme: str) -> str:
 
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Recent U.S. early-career software and technology roles from CareerOS.">
+<meta name="description" content="Recent U.S. software and technology roles from CareerOS.">
 <title>{title}</title><style>
 :root{{color-scheme:light dark;--bg:#0b1020;--card:#151d30;--line:#2c3851;--text:#edf2fc;--muted:#aebbd1;--link:#8ab4ff;--accent:#b6f09c}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}

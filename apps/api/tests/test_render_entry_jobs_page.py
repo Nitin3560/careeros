@@ -31,7 +31,7 @@ Startups.
 """
     html = render_page(readme)
 
-    assert "CareerOS Recent Jobs" in html
+    assert "CareerOS Recent U.S. Tech Jobs" in html
     assert "Last run: <strong>2026-09-28 12:00 UTC</strong>" in html
     assert "Seattle, WA" in html
     assert "Experience" in html and "$100k-$140k" in html
@@ -69,16 +69,17 @@ def test_table_split_keeps_escaped_pipes_in_a_role():
     ]
 
 
-def test_page_filter_requires_entry_signal_experience_and_confirmed_us_location():
+def test_page_keeps_tech_roles_when_experience_or_location_needs_review():
     eligible = {
         "role": "Software Engineer I",
         "experience": "1–2 years",
         "location": "Seattle, WA",
     }
     assert _qualifies_for_page(eligible)
-    assert not _qualifies_for_page({**eligible, "experience": "Not stated"})
-    assert not _qualifies_for_page({**eligible, "experience": "3+ years"})
+    assert _qualifies_for_page({**eligible, "experience": "Not stated"})
+    assert _qualifies_for_page({**eligible, "experience": "3+ years"})
     assert not _qualifies_for_page({**eligible, "location": "London, UK"})
     assert not _qualifies_for_page({**eligible, "location": "Seattle"})
     assert not _qualifies_for_page({**eligible, "role": "Mobile Service Mechanic I"})
-    assert not _qualifies_for_page({**eligible, "experience": "New grad"})
+    assert _qualifies_for_page({**eligible, "location": "⚠ Unknown location"})
+    assert _qualifies_for_page({**eligible, "role": "Senior Software Engineer"})
