@@ -57,6 +57,11 @@ NON_US_CODE_SIGNAL_RE = re.compile(
     r"(?:^|[,/])(?:DE|FR|IT|ES|NL|IN|BR|AU|SG|JP|ZA|MX|GB|UK|TW|TWN|BRA|PL|RO|IE|VN|PH|NZ|CH|BE|AT|SE|NO|DK|FI|IL|AE|SA|TH|MY|ID|PK|BD|UA|TR|EG|NG|GH|MA|PE|CR)-",
     re.I,
 )
+EARLY_PAGE_SENIOR_TITLE_RE = re.compile(
+    r"\b(?:senior|sr\.?|staff|principal|distinguished|director|vice president|vp|head of|manager|lead)\b|"
+    r"\b(?:III|IV|V|[3-9])\b",
+    re.I,
+)
 
 
 def extract_feed(readme: str) -> str:
@@ -231,6 +236,8 @@ def experience_bucket(value: str) -> str:
 def is_early_career_job(job: dict[str, object]) -> bool:
     """Keep only explicit 0–2-year labels or new-grad roles on the focused page."""
     role = re.sub(r"<[^>]*>", " ", str(job.get("role", "")))
+    if EARLY_PAGE_SENIOR_TITLE_RE.search(role):
+        return False
     new_grad_title = re.search(r"\b(?:new\s+grad(?:uate)?|university\s+graduate)\b", role, re.I)
     bucket = experience_bucket(str(job.get("experience", "")))
     return bucket == "early" or (bucket == "unknown" and bool(new_grad_title))

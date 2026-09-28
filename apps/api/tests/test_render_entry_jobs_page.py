@@ -191,8 +191,17 @@ def test_dedicated_early_career_page_only_contains_explicit_zero_to_two_year_rol
         "3+": is_early_career_job({"role": "Software Engineer", "experience": "3+ years"}),
         "unstated": is_early_career_job({"role": "Software Engineer", "experience": "Not stated"}),
         "contradictory_new_grad": is_early_career_job({"role": "Software Engineer New Grad", "experience": "4 years"}),
+        "senior_title_with_two_years": is_early_career_job({"role": "Senior Software Engineer", "experience": "2 years"}),
+        "principal_title_with_two_years": is_early_career_job({"role": "Principal Data Engineer", "experience": "2 years"}),
+        "level_three_title": is_early_career_job({"role": "Software Engineer III", "experience": "1 year"}),
+        "junior_one_year": is_early_career_job({"role": "Junior Frontend Engineer", "experience": "1 year"}),
     }
-    assert cases == {"0": True, "1": True, "1+": False, "2+": False, "3+": False, "unstated": False, "contradictory_new_grad": False}
+    assert cases == {
+        "0": True, "1": True, "1+": False, "2+": False, "3+": False,
+        "unstated": False, "contradictory_new_grad": False,
+        "senior_title_with_two_years": False, "principal_title_with_two_years": False,
+        "level_three_title": False, "junior_one_year": True,
+    }
 
     readme = """<!-- ENTRY_JOBS:START -->
 ### Tier 1
