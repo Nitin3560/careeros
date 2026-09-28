@@ -25,35 +25,48 @@ ENTRY_TITLE_RE = re.compile(
     re.I,
 )
 EXCLUDE_TITLE_RE = re.compile(
-    r"\b(intern|internship|co-?op|apprentice|senior|sr\.?|staff|principal|lead|"
-    r"manager|architect|director|head of|vp|sales|account executive|analyst|"
+    r"\b(intern|internship|co-?op|apprentice|sales|account executive|analyst|"
     r"supervisor|technician|facilities|administrator|product design|designer|support|"
-    r"customer|recruiter|engineer\s*(iii|3)\b|"
-    r"software development engineer\s*(iii|3)\b|sde\s*(iii|3)\b|level\s*5)\b",
+    r"customer|recruiter)\b",
     re.I,
 )
 TECH_TITLE_RE = re.compile(
     r"\b(software|sde|developer|backend|frontend|front[- ]?end|full[- ]?stack|"
     r"platform|infrastructure|site reliability|sre|devops|machine learning|ml|ai|"
-    r"data engineer|member of technical staff|mts|firmware|embedded|systems engineer|"
-    r"security engineer|cloud engineer|mobile engineer|ios engineer|android engineer)\b",
+    r"data engineer|data scientist|data science|member of technical staff|mts|firmware|embedded|"
+    r"systems engineer|security engineer|cloud engineer|mobile engineer|ios engineer|android engineer)\b",
     re.I,
 )
 US_LOCATION_RE = re.compile(
     r"\b(United States|USA|US Remote|Remote US|Remote - US|Remote, US|Remote in the US|"
     r"US-Remote|Remote - United States)\b|"
-    r"\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IA|KS|KY|LA|ME|MD|MA|"
-    r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|"
-    r"TX|UT|VT|VA|WA|WV|WI|WY|DC)\b|"
     r"\b(California|Washington|New York|Texas|Massachusetts|Virginia|Colorado|Illinois|"
     r"New Jersey|Michigan|Florida|Georgia|North Carolina|Oregon|Arizona|Ohio|Pennsylvania|"
     r"Tennessee|Utah|Wisconsin|Minnesota|Missouri|Connecticut|Maryland|Indiana)\b",
     re.I,
 )
+US_STATE_SUFFIX_RE = re.compile(
+    r"(?:,|\s)(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|"
+    r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|"
+    r"VA|WA|WV|WI|WY|DC)(?:\s+\d{5}(?:-\d{4})?)?(?:\s*,?\s*(?:USA|US|United States))?\s*$"
+)
+US_PREFIX_STATE_RE = re.compile(
+    r"\b(?:US|USA)[\s-]+(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|"
+    r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b",
+    re.I,
+)
+NON_US_CODE_RE = re.compile(r"(?:^|[,/])(?:DE|FR|IT|ES|NL|IN|BR|AU|SG|JP|ZA|MX|GB|UK|TW|TWN|BRA|PL|RO|IE|VN|PH|NZ|CH|BE|AT|SE|NO|DK|FI|IL|AE|SA|TH|MY|ID|PK|BD|UA|TR|EG|NG|GH|MA|PE|CR)-")
 NON_US_LOCATION_RE = re.compile(
-    r"\b(United Kingdom|England|London|Canada|Toronto|Vancouver|Poland|Romania|"
-    r"Vietnam|Singapore|India|Bengaluru|Prague|Czech|Qatar|Doha|Ireland|Dublin|"
-    r"Netherlands|Germany|France|Spain|Mexico|Brazil|Australia|Taiwan|Japan)\b",
+    r"\b(United Kingdom|UK|England|Canada|Toronto|Vancouver|"
+    r"Poland|Romania|Spain|Barcelona|Italy|Milan|Torino|Brazil|Sao Paulo|São Paulo|"
+    r"Belo Horizonte|Nairobi|Kenya|Philippines|Taguig|Vietnam|Singapore|India|Bengaluru|"
+    r"Bangalore|Hyderabad|Pune|Mumbai|Chennai|Delhi|Noida|Gurugram|Gurgaon|Kolkata|"
+    r"Bhubaneswar|Prague|Czech|Qatar|Doha|Ireland|Dublin|Netherlands|Amsterdam|"
+    r"Germany|France|Paris|Mexico|Australia|Sydney|Taiwan|Taipei|Japan|Poland|"
+    r"South Africa|Argentina|Chile|Colombia|Portugal|Switzerland|Belgium|Austria|"
+    r"Sweden|Norway|Denmark|Finland|New Zealand|Israel|UAE|Dubai|Saudi Arabia|"
+    r"Thailand|Malaysia|Indonesia|Pakistan|Bangladesh|Ukraine|Turkey|Cairo|Egypt|Nigeria|"
+    r"Ghana|Morocco|Peru|Costa Rica|Brazil|TWN|BRA)\b",
     re.I,
 )
 
@@ -149,9 +162,88 @@ def as_aware(value: datetime | None) -> datetime | None:
 def is_us_location(location: str | None) -> bool:
     if not location:
         return False
-    if NON_US_LOCATION_RE.search(location):
+    if NON_US_LOCATION_RE.search(location) or NON_US_CODE_RE.search(location):
         return False
-    return US_LOCATION_RE.search(location) is not None
+    return bool(US_LOCATION_RE.search(location) or US_STATE_SUFFIX_RE.search(location) or US_PREFIX_STATE_RE.search(location))
+
+
+def has_us_url_signal(application_url: str | None) -> bool:
+    if not application_url:
+        return False
+    path = application_url.split("?", 1)[0].split("#", 1)[0]
+    parts = path.split("/")
+    location_part = ""
+    for index, part in enumerate(parts[:-1]):
+        if part.casefold() == "job" and index + 1 < len(parts):
+            location_part = parts[index + 1]
+            break
+    normalized = location_part.replace("-", " ").replace("_", " ")
+    if re.search(r"\b(?:US|USA|United States)\b", normalized, re.I):
+        return True
+    if re.search(r"\b(?:US|USA)\b.{0,4}\b(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b", normalized, re.I):
+        return True
+    if re.search(
+        r"\s(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|"
+        r"MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?:\s|$)", normalized
+    ):
+        return True
+    return bool(re.search(
+        r"\b(?:Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|"
+        r"Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|"
+        r"Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|"
+        r"New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|"
+        r"Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|"
+        r"West Virginia|Wisconsin|Wyoming|District of Columbia)\b", normalized, re.I
+    ))
+
+
+def display_company(value: str) -> str:
+    raw = (value or "").strip()
+    parts = [part.strip() for part in raw.split("|") if part.strip()]
+    if len(parts) > 1 and ".myworkdayjobs.com" in parts[0].casefold():
+        raw = parts[-1] if parts[-1].casefold() not in {"external", "global", "careers", "jobs"} else parts[1]
+        raw = raw.replace("_", " ").replace("-", " ")
+    clean = re.sub(r"\s+", " ", raw).strip()
+    special = {
+        "capitalone": "Capital One", "bankofamerica": "Bank of America",
+        "homedepot": "The Home Depot", "dxc technology": "DXC Technology",
+        "dxc": "DXC Technology", "esri": "Esri", "t mobile": "T-Mobile",
+        "newrelic": "New Relic", "purestorage": "Pure Storage",
+        "analogdevices": "Analog Devices", "boozallenhamilton": "Booz Allen Hamilton",
+        "state street": "State Street", "cloudflare": "Cloudflare",
+    }
+    return special.get(re.sub(r"[^a-z0-9 ]", "", clean.casefold()), clean.title())
+
+
+def has_explicit_non_us_location(location: str | None, application_url: str | None = None) -> bool:
+    if location and (NON_US_LOCATION_RE.search(location) or NON_US_CODE_RE.search(location)):
+        return True
+    if application_url:
+        path = application_url.replace("-", " ").replace("_", " ")
+        if NON_US_LOCATION_RE.search(path) or NON_US_CODE_RE.search(path):
+            return True
+    return False
+
+
+def experience_label(text: str | None) -> str:
+    if not text:
+        return "Not stated"
+    if NO_EXPERIENCE_RE.search(text):
+        return "0 years"
+    pattern = re.compile(
+        r"\b(?P<low>\d{1,2})(?:\s*(?:-|–|—|to)\s*(?P<high>\d{1,2}))?\s*\+?\s*"
+        r"years?\b.{0,100}?\bexperience\b|\bexperience\b.{0,100}?"
+        r"\b(?P<low_after>\d{1,2})(?:\s*(?:-|–|—|to)\s*(?P<high_after>\d{1,2}))?\s*\+?\s*years?\b",
+        re.I | re.S,
+    )
+    match = pattern.search(text)
+    if not match:
+        return "Not stated"
+    low = int(match.group("low") or match.group("low_after"))
+    high = int(match.group("high") or match.group("high_after") or low)
+    if match.group(0).find("+") >= 0:
+        return f"{low}+ years"
+    return f"{low} year" if low == high == 1 else (f"{low} years" if low == high else f"{low}–{high} years")
 
 
 def is_eligible_tech_title(title: str, description: str | None = None) -> bool:
@@ -240,12 +332,23 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         rows = db.execute(
             text(
                 """
-                SELECT j.company, j.title, j.location, j.date_posted, j.first_seen_at,
+                SELECT coalesce(nullif(b.company_display, ''), registry.company_name, j.company) AS company,
+                       j.title, j.location, j.date_posted, j.first_seen_at,
                        j.application_url, j.source, j.description_text,
                        coalesce(j.queue_key, j.canonical_url, j.application_url, j.external_id) AS dedupe_key
                 FROM jobs j
+                LEFT JOIN ats_boards b ON b.id = j.board_id
+                LEFT JOIN LATERAL (
+                    SELECT cr.company_name
+                    FROM company_registry cr
+                    WHERE cr.board_id = j.board_id
+                    ORDER BY (cr.detection_status = 'detected') DESC, cr.priority, cr.company_name
+                    LIMIT 1
+                ) registry ON true
                 WHERE j.first_seen_at > now() - (:hours * interval '1 hour')
                   AND j.application_url IS NOT NULL
+                  AND j.expired_at IS NULL
+                  AND coalesce(j.employment_type, 'unknown') IN ('full_time', 'unknown')
                 ORDER BY j.first_seen_at DESC, j.date_posted DESC NULLS LAST
                 """
             ),
@@ -259,8 +362,11 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
     for company, title, location, date_posted, first_seen_at, application_url, source, description, dedupe_key in rows:
         if DEFENSE_COMPANY_RE.search(company):
             continue
-        experience = extract_entry_experience(description)
-        if not (is_us_location(location) and is_eligible_tech_title(title, description) and experience):
+        if has_explicit_non_us_location(location, application_url):
+            continue
+        if not is_eligible_tech_title(title, description):
+            continue
+        if not is_us_location(location) and not has_us_url_signal(application_url):
             continue
         key = str(dedupe_key or application_url or f"{company}:{title}:{location}")
         if key in seen_keys:
@@ -268,15 +374,17 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         seen_keys.add(key)
         jobs.append(
             EntryJob(
-                company=company,
+                company=display_company(company),
                 title=title,
-                location=location,
+                location=(location if is_us_location(location) else
+                          "United States (from job link)" if has_us_url_signal(application_url) else
+                          "⚠ Unknown location"),
                 date_posted=as_aware(date_posted),
                 first_seen_at=as_aware(first_seen_at) or datetime.now(timezone.utc),
                 application_url=application_url,
                 source=source,
                 salary=extract_salary(description),
-                experience=experience,
+                experience=experience_label(description),
                 dedupe_key=key,
             )
         )
@@ -288,7 +396,7 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
         ),
         reverse=True,
     )
-    return jobs[:limit]
+    return jobs if limit <= 0 else jobs[:limit]
 
 
 def escape_cell(value: object) -> str:
@@ -357,13 +465,13 @@ def render_markdown(
 
     lines = [
         START_MARKER,
-        "## New Grad & Entry-Level Engineering Roles",
+        "## Recent U.S. Technology Job Openings",
         "",
         f"Auto-updated hourly from CareerOS. Last run: **{generated_label}**. Showing U.S. software/AI/tech postings found in the last **7 days**.",
         "",
         f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
-        "Eligibility: U.S. full-time software/AI roles whose posting states **up to 2 years** of professional experience. Open-ended requirements such as **2+ years**, internships, and roles requiring more than 2 years are excluded.",
+        "Eligibility: recent software, AI/ML, data, infrastructure, security, embedded, and related engineering roles across experience levels. Internships, obvious non-technical roles, explicit non-U.S. postings, and defense/clearance-restricted roles are excluded. Unclear locations are marked for review.",
         "",
         "Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)",
         "",
@@ -413,7 +521,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--readme", default=str(ROOT / "README.md"))
     parser.add_argument("--since-hours", type=int, default=168)
-    parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument("--limit", type=int, default=0, help="maximum rows; 0 publishes every matching role")
     args = parser.parse_args()
 
     jobs = fetch_jobs(args.since_hours, args.limit)

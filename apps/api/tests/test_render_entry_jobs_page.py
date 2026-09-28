@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from render_entry_jobs_page import _qualifies_for_page, render_page, split_row  # noqa: E402
+from update_entry_jobs_readme import display_company, has_us_url_signal, is_us_location  # noqa: E402
 
 
 def test_marked_feed_renders_a_mobile_friendly_page_with_all_job_fields():
@@ -81,5 +82,33 @@ def test_page_keeps_tech_roles_when_experience_or_location_needs_review():
     assert not _qualifies_for_page({**eligible, "location": "London, UK"})
     assert not _qualifies_for_page({**eligible, "location": "Seattle"})
     assert not _qualifies_for_page({**eligible, "role": "Mobile Service Mechanic I"})
-    assert _qualifies_for_page({**eligible, "location": "⚠ Unknown location"})
+    assert not _qualifies_for_page({**eligible, "location": "⚠ Unknown location"})
+    assert _qualifies_for_page({**eligible, "location": "Cambridge, MA"})
     assert _qualifies_for_page({**eligible, "role": "Senior Software Engineer"})
+
+
+def test_unknown_locations_with_explicitly_foreign_apply_urls_are_excluded():
+    base = {
+        "role": "Software Engineer",
+        "experience": "Not stated",
+        "location": "⚠ Unknown location",
+        "apply": "[Apply](https://example.wd1.myworkdayjobs.com/job/Bengaluru/Software_Engineer)",
+    }
+    assert not _qualifies_for_page(base)
+    assert not _qualifies_for_page({**base, "apply": "[Apply](https://example.com/job/Toronto/engineer)"})
+    assert not _qualifies_for_page({**base, "location": "Hyderabad, India", "apply": "[Apply](https://example.com/job/123)"})
+    assert not _qualifies_for_page({**base, "apply": "[Apply](https://example.com/job/123)"})
+
+
+def test_us_job_location_and_workday_company_fallbacks():
+    assert has_us_url_signal("https://example.wd1.myworkdayjobs.com/External/job/US-Oregon-Hillsboro/role")
+    assert has_us_url_signal("https://example.wd1.myworkdayjobs.com/External/job/McLean-VA/role")
+    assert not has_us_url_signal("https://example.wd1.myworkdayjobs.com/External/job/Bengaluru/role")
+    assert is_us_location("Cambridge, MA")
+    assert not is_us_location("Cambridge, United Kingdom")
+    assert not is_us_location("Nairobi, Nairobi City")
+    assert not is_us_location("DE-Berlin-Trion Building")
+    assert is_us_location("Portland, OR")
+    assert not is_us_location("Portland")
+    assert display_company("capitalone.wd12.myworkdayjobs.com|capitalone|Capital_One") == "Capital One"
+    assert display_company("intel.wd1.myworkdayjobs.com|intel|External") == "Intel"

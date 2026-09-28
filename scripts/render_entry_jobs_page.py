@@ -41,6 +41,22 @@ US_LOCATION_RE = re.compile(
     r"South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|"
     r"Wisconsin|Wyoming|District of Columbia)\b", re.I,
 )
+NON_US_SIGNAL_RE = re.compile(
+    r"\b(?:India|Bengaluru|Bangalore|Hyderabad|Pune|Mumbai|Chennai|Delhi|Noida|"
+    r"Gurugram|Gurgaon|Kolkata|Bhubaneswar|Philippines|Taguig|Nairobi|Kenya|"
+    r"Romania|Spain|Barcelona|United Kingdom|UK|England|"
+    r"Netherlands|Amsterdam|Italy|Milan|France|Paris|Brazil|Sao Paulo|São Paulo|"
+    r"South Africa|Australia|Sydney|Vietnam|Ho Chi Minh City|Singapore|"
+    r"Czech Republic|Prague|Poland|Germany|Japan|Taiwan|Toronto|Vancouver|Canada|"
+    r"Mexico|Argentina|Chile|Colombia|Portugal|Switzerland|Belgium|Austria|"
+    r"Sweden|Norway|Denmark|Finland|Ireland|Dublin|New Zealand|Israel|UAE|Dubai|"
+    r"Saudi Arabia|Thailand|Malaysia|Indonesia|Pakistan|Bangladesh|Ukraine|Turkey|"
+    r"Cairo|Egypt|Nigeria|Ghana|Morocco|Peru|Costa Rica)\b", re.I,
+)
+NON_US_CODE_SIGNAL_RE = re.compile(
+    r"(?:^|[,/])(?:DE|FR|IT|ES|NL|IN|BR|AU|SG|JP|ZA|MX|GB|UK|TW|TWN|BRA|PL|RO|IE|VN|PH|NZ|CH|BE|AT|SE|NO|DK|FI|IL|AE|SA|TH|MY|ID|PK|BD|UA|TR|EG|NG|GH|MA|PE|CR)-",
+    re.I,
+)
 
 
 def extract_feed(readme: str) -> str:
@@ -160,8 +176,23 @@ def _qualifies_for_page(job: dict[str, object]) -> bool:
     location = str(job.get("location", "")).strip().casefold()
     if not TECH_TITLE_RE.search(role) or BAD_TITLE_RE.search(role):
         return False
+    # Some ATS feeds leave location blank/unknown even though the canonical
+    # application URL embeds the work city or country. Treat explicit foreign
+    # URL evidence as non-US instead of letting it pass as merely unknown.
+    apply_markdown = str(job.get("apply", ""))
+    apply_match = LINK_RE.search(apply_markdown)
+    apply_url = apply_match.group(2) if apply_match else apply_markdown
+    raw_path = urlsplit(apply_url).path
+    path = raw_path.replace("-", " ").replace("_", " ")
+    if (
+        NON_US_SIGNAL_RE.search(location)
+        or NON_US_SIGNAL_RE.search(path)
+        or NON_US_CODE_SIGNAL_RE.search(location)
+        or NON_US_CODE_SIGNAL_RE.search(raw_path)
+    ):
+        return False
     if "unknown location" in location:
-        return True
+        return False
     if not location or not US_LOCATION_RE.search(location):
         return False
     return True
