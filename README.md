@@ -333,7 +333,7 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated hourly from CareerOS. Last run: **2026-09-28 21:55 UTC**. Showing active roles found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-09-28 22:02 UTC**. Showing active roles found in the last **7 days**.
 
 The current snapshot has no postings that meet all publication checks: a software/AI/technology role, explicit posting-backed experience of 0–2 years, and a confirmed U.S. location. Roles without enough evidence are withheld rather than guessed.
 
