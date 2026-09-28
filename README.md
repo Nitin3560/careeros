@@ -2,6 +2,8 @@
 
 > **A full-stack job search and matching platform that aggregates software engineering roles, ranks opportunities against a candidate profile, and manages the workflow from job discovery to application.**
 
+> **Recent jobs:** [Browse the U.S. entry-level software and technology feed](https://nitin3560.github.io/careeros/).
+
 CareerOS was built to solve a simple problem: searching for software engineering jobs across dozens of companies quickly becomes fragmented.
 
 Jobs live across different applicant tracking systems. The same search is repeated across company career pages. Relevant roles have to be manually compared against a resume, and the information needed for an application ends up spread across multiple tools.
@@ -331,11 +333,9 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## New Grad & Entry-Level Engineering Roles
 
-Auto-updated hourly from CareerOS. Last run: **2026-09-20 01:05 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-09-28 21:55 UTC**. Showing active roles found in the last **7 days**.
 
-Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **6** roles.
-
-Eligibility: U.S. full-time software/AI roles whose posting states **up to 2 years** of professional experience. Open-ended requirements such as **2+ years**, internships, and roles requiring more than 2 years are excluded.
+The current snapshot has no postings that meet all publication checks: a software/AI/technology role, explicit posting-backed experience of 0–2 years, and a confirmed U.S. location. Roles without enough evidence are withheld rather than guessed.
 
 Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)
 
@@ -343,13 +343,7 @@ Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)
 
 Large public and established technology, financial, and enterprise companies.
 
-| Company | Role | Experience | Posted | Found | Salary | Apply |
-|---|---|---|---|---|---|---|
-| esri | Software Developer I - Web Components<br><sub>Redlands, CA</sub> | 1 year | 2026-09-15 | 3 days ago |  | [Apply](https://www.esri.com/careers/5227685007?gh_jid=5227685007) |
-| esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-14 | 3 days ago |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
-| amazon | Software Development Engineer, Catalog System Services - SPCL <br><sub>Seattle, Washington, USA</sub> | 1 year | 2026-09-14 | 5 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10539357/apply) |
-| amazon | Software Development Engineer, iOS<br><sub>Cambridge, Massachusetts, USA</sub> | 1 year | 2026-09-09 | 5 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10535234/apply) |
-| amazon | Software Development Engineer, SageMaker HyperPod Data Plane<br><sub>Santa Clara, California, USA</sub> | 1 year | 2026-08-27 | 5 hours ago |  | [Apply](https://account.amazon.jobs/jobs/10517662/apply) |
+No matching roles in this tier right now.
 
 ### Tier 2
 
@@ -361,8 +355,6 @@ No matching roles in this tier right now.
 
 Startups, early-stage companies, and smaller technology businesses.
 
-| Company | Role | Experience | Posted | Found | Salary | Apply |
-|---|---|---|---|---|---|---|
-| relativity | Software Engineer I<br><sub>Long Beach, California, United States</sub> | 1 year | 2026-09-19 | 3 hours ago |  | [Apply](https://boards.greenhouse.io/relativity/jobs/8747134002?gh_jid=8747134002) |
+No matching roles in this tier right now.
 
 <!-- ENTRY_JOBS:END -->
