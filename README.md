@@ -337,7 +337,7 @@ Auto-updated hourly from CareerOS. Last run: **2026-09-28 22:36 UTC**. Showing U
 
 Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **2089** roles.
 
-Eligibility: recent software, AI/ML, data, infrastructure, security, embedded, and related engineering roles across experience levels. Internships, obvious non-technical roles, explicit non-U.S. postings, and defense/clearance-restricted roles are excluded. Unclear locations are marked for review.
+Eligibility: recent software, AI/ML, data, infrastructure, security, embedded, and related engineering roles across experience levels. Internships, obvious non-technical roles, explicit non-U.S. postings, unclear locations, and defense/clearance-restricted roles are excluded. U.S. locations must be explicit in the posting or its application link.
 
 Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)
 
