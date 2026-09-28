@@ -200,6 +200,91 @@ def _qualifies_for_page(job: dict[str, object]) -> bool:
     return True
 
 
+def experience_bucket(value: str) -> str:
+    """Group the feed's human-readable experience labels for the page filter."""
+    normalized = re.sub(r"\s+", " ", value.strip().casefold()).replace("–", "-").replace("—", "-")
+    if not normalized or normalized in {"not stated", "unknown", "n/a"}:
+        return "unknown"
+    if "new grad" in normalized or "new graduate" in normalized:
+        return "early"
+    numbers = [int(number) for number in re.findall(r"\d+", normalized)]
+    if not numbers:
+        return "unknown"
+    if "+" in normalized:
+        minimum = numbers[0]
+        if minimum == 2:
+            return "two-plus"
+        if minimum < 3:
+            return "early"
+        return "three-plus" if minimum < 6 else "senior"
+    if len(numbers) >= 2:
+        low, high = numbers[0], numbers[1]
+    else:
+        low = high = numbers[0]
+    if high <= 2:
+        return "early"
+    if low <= 5:
+        return "mid"
+    return "senior"
+
+
+FILTER_SCRIPT = """<script>
+(() => {
+  const cards = [...document.querySelectorAll('.job')];
+  const controls = {
+    experience: document.getElementById('experience-filter'),
+    posted: document.getElementById('posted-filter'),
+    tier: document.getElementById('tier-filter'),
+    company: document.getElementById('company-filter'),
+    keyword: document.getElementById('keyword-filter'),
+    salary: document.getElementById('salary-filter'),
+  };
+  const count = document.getElementById('visible-job-count');
+  const sections = [...document.querySelectorAll('main > section')];
+  function update() {
+    const company = controls.company.value.trim().toLocaleLowerCase();
+    const keyword = controls.keyword.value.trim().toLocaleLowerCase();
+    let visible = 0;
+    for (const card of cards) {
+      const expOk = controls.experience.value === 'all' || card.dataset.experience === controls.experience.value;
+      const tierOk = controls.tier.value === 'all' || card.dataset.tier === controls.tier.value;
+      const companyOk = !company || card.dataset.company.toLocaleLowerCase().includes(company);
+      const searchable = `${card.dataset.role} ${card.dataset.company} ${card.dataset.location}`.toLocaleLowerCase();
+      const keywordOk = !keyword || searchable.includes(keyword);
+      const salaryOk = !controls.salary.checked || card.dataset.salary === 'yes';
+      let postedOk = true;
+      const days = Number(controls.posted.value);
+      if (days) {
+        const posted = card.dataset.posted;
+        const postedAt = posted ? Date.parse(`${posted}T23:59:59Z`) : NaN;
+        postedOk = Number.isFinite(postedAt) && postedAt >= Date.now() - days * 86400000;
+      }
+      const show = expOk && tierOk && companyOk && keywordOk && salaryOk && postedOk;
+      card.hidden = !show;
+      if (show) visible += 1;
+    }
+    for (const section of sections) {
+      section.hidden = !section.querySelector('.job:not([hidden])');
+    }
+    count.textContent = `Showing ${visible.toLocaleString()} of ${cards.length.toLocaleString()} jobs`;
+  }
+  for (const control of Object.values(controls)) {
+    control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', update);
+  }
+  document.getElementById('reset-filters').addEventListener('click', () => {
+    controls.experience.value = 'all';
+    controls.posted.value = '0';
+    controls.tier.value = 'all';
+    controls.company.value = '';
+    controls.keyword.value = '';
+    controls.salary.checked = false;
+    update();
+  });
+  update();
+})();
+</script>"""
+
+
 def render_page(readme: str) -> str:
     summary, tiers = parse_feed(extract_feed(readme))
     title = "CareerOS Recent U.S. Tech Jobs"
@@ -226,14 +311,26 @@ def render_page(readme: str) -> str:
             apply = _inline(str(job["apply"]))
             location = str(job.get("location") or "")
             location_markup = f'<p class="job-location">{_inline(location)}</p>' if location else ""
+            experience = str(job.get("experience") or "Not stated")
+            posted = str(job.get("posted") or "")
+            posted_date = posted if re.fullmatch(r"\d{4}-\d{2}-\d{2}", posted) else ""
+            card_data = (
+                f' data-company="{escape(str(job["company"]), quote=True)}"'
+                f' data-role="{escape(str(job["role"]), quote=True)}"'
+                f' data-location="{escape(location, quote=True)}"'
+                f' data-experience="{experience_bucket(experience)}"'
+                f' data-posted="{escape(posted_date, quote=True)}"'
+                f' data-tier="{escape(tier_name, quote=True)}"'
+                f' data-salary="{"yes" if str(job.get("salary", "")).strip() else "no"}"'
+            )
             cards.append(
-                '<article class="job">'
+                f'<article class="job"{card_data}>'
                 f'<div class="job-top"><div><h3>{_inline(str(job["role"]), role=True)}</h3>'
                 f'<p class="company">{_inline(str(job["company"]))}</p>'
                 f'{location_markup}</div>'
                 f'<div class="apply">{apply}</div></div>'
                 '<dl>'
-                f'<div><dt>Experience</dt><dd>{_inline(str(job["experience"]))}</dd></div>'
+                f'<div><dt>Experience</dt><dd>{_inline(experience)}</dd></div>'
                 f'<div><dt>Posted</dt><dd>{_inline(str(job["posted"]))}</dd></div>'
                 f'<div><dt>Found</dt><dd>{_inline(str(job["found"]))}</dd></div>'
                 f'<div><dt>Salary</dt><dd>{_inline(str(job["salary"])) or "Not listed"}</dd></div>'
@@ -242,7 +339,7 @@ def render_page(readme: str) -> str:
         description = f'<p class="tier-description">{_inline(str(tier["description"]))}</p>' if tier["description"] else ""
         content = "".join(cards) if cards else '<p class="empty">No matching roles in this tier right now.</p>'
         sections.append(
-            f'<section id="{escape(tier_name.lower().replace(" ", "-"))}">'
+            f'<section id="{escape(tier_name.lower().replace(" ", "-"))}" data-tier-section>'
             f'<h2>{escape(tier_name)}</h2>{description}{content}</section>'
         )
 
@@ -257,8 +354,20 @@ section{{margin:30px 0}}h2{{font-size:1.2rem;border-bottom:1px solid var(--line)
 .job{{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}}.job-top{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}}h3{{font-size:1.05rem;line-height:1.35;margin:0}}.company{{font-weight:650;margin:4px 0 0;color:var(--muted)}}.apply{{white-space:nowrap;padding-top:1px}}
 .job-location{{color:var(--muted);margin:3px 0 0;font-size:.9rem}}
 dl{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 16px;margin:16px 0 0}}dt{{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}}dd{{margin:2px 0 0}}.empty{{color:var(--muted);padding:16px 0}}
+.filters{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:14px}}.filters label{{display:grid;gap:5px;color:var(--muted);font-size:.82rem}}.filters input,.filters select,.filters button{{min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px;background:var(--bg);color:var(--text);font:inherit}}.filters .check{{display:flex;align-items:center;gap:8px;align-self:end;padding:10px 0}}.filters .check input{{accent-color:var(--accent)}}.filters button{{cursor:pointer;color:var(--text);font-weight:650}}.filter-status{{color:var(--muted);margin:8px 2px 18px;font-size:.9rem}}.filter-help{{grid-column:1/-1;color:var(--muted);font-size:.78rem;margin:0}}[hidden]{{display:none!important}}
 @media(max-width:600px){{main{{padding:20px 12px 40px}}.job{{padding:14px}}.job-top{{display:block}}.apply{{padding-top:10px}}dl{{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}}}
-</style></head><body><main><header><h1>{title}</h1>{summary_html}{empty_notice}<nav aria-label="Job tiers">{nav}</nav></header>{''.join(sections)}</main></body></html>'''
+</style></head><body><main><header><h1>{title}</h1>{summary_html}{empty_notice}<nav aria-label="Job tiers">{nav}</nav></header>
+<div class="filters" aria-label="Filter jobs">
+<label>Experience<select id="experience-filter"><option value="all">Any experience</option><option value="early">New grad / 0–2 years</option><option value="two-plus">2+ years</option><option value="mid">3–5 years</option><option value="three-plus">3+ years</option><option value="senior">6+ years</option><option value="unknown">Not stated</option></select></label>
+<label>Posted within<select id="posted-filter"><option value="0">Any time</option><option value="1">24 hours</option><option value="3">3 days</option><option value="7">7 days</option></select></label>
+<label>Company<input id="company-filter" type="search" placeholder="Company name"></label>
+<label>Keyword<input id="keyword-filter" type="search" placeholder="Role, skill, or location"></label>
+<label>Company size<select id="tier-filter"><option value="all">All tiers</option><option value="Tier 1">Tier 1 · Large</option><option value="Tier 2">Tier 2 · Mid-sized</option><option value="Tier 3">Tier 3 · Startup</option></select></label>
+<label class="check"><input id="salary-filter" type="checkbox"> Salary listed</label>
+<button id="reset-filters" type="button">Reset filters</button>
+<p class="filter-help">Posting-date filters use the employer’s posted date. Jobs without a posted date remain visible under “Any time.”</p>
+</div><p class="filter-status" id="visible-job-count" aria-live="polite"></p>
+{''.join(sections)}{FILTER_SCRIPT}</main></body></html>'''
 
 
 def main() -> None:

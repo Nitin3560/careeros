@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from render_entry_jobs_page import _qualifies_for_page, render_page, split_row  # noqa: E402
+from render_entry_jobs_page import _qualifies_for_page, experience_bucket, render_page, split_row  # noqa: E402
 from update_entry_jobs_readme import display_company, has_us_url_signal, is_us_location  # noqa: E402
 
 
@@ -57,7 +57,7 @@ No matching roles in this tier right now.
 """
     html = render_page(readme)
 
-    assert "<script>" not in html
+    assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "javascript:" not in html
     assert "No matching roles in this tier right now." in html
@@ -76,7 +76,7 @@ No matching roles in this tier right now.
 <!-- ENTRY_JOBS:END -->
 """
     html = render_page(readme)
-    assert html.count("Seattle, WA") == 1
+    assert html.count(">Seattle, WA</p>") == 1
 
 
 def test_table_split_keeps_escaped_pipes_in_a_role():
@@ -128,3 +128,54 @@ def test_us_job_location_and_workday_company_fallbacks():
     assert not is_us_location("Portland")
     assert display_company("capitalone.wd12.myworkdayjobs.com|capitalone|Capital_One") == "Capital One"
     assert display_company("intel.wd1.myworkdayjobs.com|intel|External") == "Intel"
+
+
+def test_filter_controls_and_card_metadata_are_rendered_for_offline_filtering():
+    readme = """<!-- ENTRY_JOBS:START -->
+### Tier 1
+| Company | Role | Location | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|---|
+| Acme & Sons | Software Engineer I | Seattle, WA | 1–2 years | 2026-09-27 | 2 hours ago | $120k | [Apply](https://jobs.example/1) |
+### Tier 2
+| Company | Role | Location | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|---|
+| Tiny | Backend Engineer | Boston, MA | 3+ years | Not shown | 5 days ago |  | [Apply](https://jobs.example/2) |
+### Tier 3
+No matching roles in this tier right now.
+<!-- ENTRY_JOBS:END -->
+"""
+    html = render_page(readme)
+
+    for control_id in (
+        "experience-filter", "posted-filter", "company-filter", "keyword-filter",
+        "tier-filter", "salary-filter", "reset-filters", "visible-job-count",
+    ):
+        assert f'id="{control_id}"' in html
+    assert 'data-company="Acme &amp; Sons"' in html
+    assert 'data-experience="early"' in html
+    assert 'data-posted="2026-09-27"' in html
+    assert 'data-tier="Tier 1"' in html
+    assert 'data-salary="yes"' in html
+    assert 'data-posted=""' in html
+    assert 'data-experience="three-plus"' in html
+    assert 'data-salary="no"' in html
+    assert "Posting-date filters use the employer’s posted date" in html
+    assert "addEventListener" in html
+
+
+def test_experience_filter_buckets_cover_common_labels_and_edge_cases():
+    cases = {
+        "New grad": "early",
+        "0 years": "early",
+        "1–2 years": "early",
+        "2 years": "early",
+        "2+ years": "two-plus",
+        "3+ years": "three-plus",
+        "3–5 years": "mid",
+        "6+ years": "senior",
+        "10 years": "senior",
+        "Not stated": "unknown",
+        "": "unknown",
+        "experience varies": "unknown",
+    }
+    assert {value: experience_bucket(value) for value in cases} == cases
