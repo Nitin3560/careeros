@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from render_entry_jobs_page import _qualifies_for_page, experience_bucket, render_page, split_row  # noqa: E402
+from render_entry_jobs_page import _qualifies_for_page, experience_bucket, is_early_career_job, render_page, split_row  # noqa: E402
 from update_entry_jobs_readme import display_company, has_us_url_signal, is_us_location  # noqa: E402
 
 
@@ -179,3 +179,43 @@ def test_experience_filter_buckets_cover_common_labels_and_edge_cases():
         "experience varies": "unknown",
     }
     assert {value: experience_bucket(value) for value in cases} == cases
+
+
+def test_dedicated_early_career_page_only_contains_explicit_zero_to_two_year_roles():
+    early = {"role": "Software Engineer I", "experience": "1–2 years"}
+    new_grad_unknown = {"role": "Software Engineer - New Grad", "experience": "Not stated"}
+    cases = {
+        **{str(index): is_early_career_job(job) for index, job in enumerate((early, new_grad_unknown))},
+        "1+": is_early_career_job({"role": "Backend Engineer", "experience": "1+ years"}),
+        "2+": is_early_career_job({"role": "Software Engineer", "experience": "2+ years"}),
+        "3+": is_early_career_job({"role": "Software Engineer", "experience": "3+ years"}),
+        "unstated": is_early_career_job({"role": "Software Engineer", "experience": "Not stated"}),
+        "contradictory_new_grad": is_early_career_job({"role": "Software Engineer New Grad", "experience": "4 years"}),
+    }
+    assert cases == {"0": True, "1": True, "1+": False, "2+": False, "3+": False, "unstated": False, "contradictory_new_grad": False}
+
+    readme = """<!-- ENTRY_JOBS:START -->
+### Tier 1
+| Company | Role | Location | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|---|
+| A | Software Engineer I | Seattle, WA | 1–2 years | 2026-09-27 | 1 day ago |  | [Apply](https://jobs.example/1) |
+| B | Software Engineer - New Grad | Boston, MA | Not stated | 2026-09-27 | 1 day ago |  | [Apply](https://jobs.example/2) |
+| C | Backend Engineer | Austin, TX | 3+ years | 2026-09-27 | 1 day ago |  | [Apply](https://jobs.example/3) |
+| D | Backend Engineer | Portland, OR | 2+ years | 2026-09-27 | 1 day ago |  | [Apply](https://jobs.example/4) |
+### Tier 2
+No matching roles in this tier right now.
+### Tier 3
+No matching roles in this tier right now.
+<!-- ENTRY_JOBS:END -->
+"""
+    page = render_page(readme, early_career_only=True)
+    assert "CareerOS New Grad & 0–2 Year U.S. Tech Jobs" in page
+    assert "New Grad / 0–2 years only" in page
+    assert "New Grad &amp; 0–2 Year Roles" not in page
+    assert "All recent tech jobs" in page
+    assert "Software Engineer I" in page
+    assert "Software Engineer - New Grad" in page
+    assert page.count('<article class="job"') == 2
+    assert page.count('data-experience="early"') == 2
+    assert "3+ years" not in page
+    assert "2+ years" not in page

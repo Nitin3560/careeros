@@ -214,8 +214,8 @@ def experience_bucket(value: str) -> str:
         minimum = numbers[0]
         if minimum == 2:
             return "two-plus"
-        if minimum < 3:
-            return "early"
+        if minimum < 2:
+            return "one-plus"
         return "three-plus" if minimum < 6 else "senior"
     if len(numbers) >= 2:
         low, high = numbers[0], numbers[1]
@@ -226,6 +226,14 @@ def experience_bucket(value: str) -> str:
     if low <= 5:
         return "mid"
     return "senior"
+
+
+def is_early_career_job(job: dict[str, object]) -> bool:
+    """Keep only explicit 0–2-year labels or new-grad roles on the focused page."""
+    role = re.sub(r"<[^>]*>", " ", str(job.get("role", "")))
+    new_grad_title = re.search(r"\b(?:new\s+grad(?:uate)?|university\s+graduate)\b", role, re.I)
+    bucket = experience_bucket(str(job.get("experience", "")))
+    return bucket == "early" or (bucket == "unknown" and bool(new_grad_title))
 
 
 FILTER_SCRIPT = """<script>
@@ -285,9 +293,12 @@ FILTER_SCRIPT = """<script>
 </script>"""
 
 
-def render_page(readme: str) -> str:
+def render_page(readme: str, *, early_career_only: bool = False) -> str:
     summary, tiers = parse_feed(extract_feed(readme))
-    title = "CareerOS Recent U.S. Tech Jobs"
+    if early_career_only:
+        for tier in tiers:
+            tier["jobs"] = [job for job in tier["jobs"] if is_early_career_job(job)]
+    title = "CareerOS New Grad & 0–2 Year U.S. Tech Jobs" if early_career_only else "CareerOS Recent U.S. Tech Jobs"
     total_jobs = sum(len(tier["jobs"]) for tier in tiers)
     summary = [
         re.sub(r"Current feed size: \*\*[\d,]+\*\* roles", f"Current feed size: **{total_jobs}** roles", line)
@@ -314,11 +325,15 @@ def render_page(readme: str) -> str:
             experience = str(job.get("experience") or "Not stated")
             posted = str(job.get("posted") or "")
             posted_date = posted if re.fullmatch(r"\d{4}-\d{2}-\d{2}", posted) else ""
+            experience_filter_value = (
+                "early" if early_career_only and is_early_career_job(job)
+                else experience_bucket(experience)
+            )
             card_data = (
                 f' data-company="{escape(str(job["company"]), quote=True)}"'
                 f' data-role="{escape(str(job["role"]), quote=True)}"'
                 f' data-location="{escape(location, quote=True)}"'
-                f' data-experience="{experience_bucket(experience)}"'
+                f' data-experience="{experience_filter_value}"'
                 f' data-posted="{escape(posted_date, quote=True)}"'
                 f' data-tier="{escape(tier_name, quote=True)}"'
                 f' data-salary="{"yes" if str(job.get("salary", "")).strip() else "no"}"'
@@ -343,6 +358,16 @@ def render_page(readme: str) -> str:
             f'<h2>{escape(tier_name)}</h2>{description}{content}</section>'
         )
 
+    page_links = (
+        '<p class="page-links"><a href="./">All recent tech jobs</a></p>'
+        if early_career_only else
+        '<p class="page-links"><a href="./early-career.html">New Grad &amp; 0–2 Year Roles</a></p>'
+    )
+    experience_control = (
+        '<label>Experience<select id="experience-filter" disabled><option value="early" selected>New Grad / 0–2 years only</option></select></label>'
+        if early_career_only else
+        '<label>Experience<select id="experience-filter"><option value="all">Any experience</option><option value="early">New grad / 0–2 years</option><option value="one-plus">1+ years</option><option value="two-plus">2+ years</option><option value="mid">3–5 years</option><option value="three-plus">3+ years</option><option value="senior">6+ years</option><option value="unknown">Not stated</option></select></label>'
+    )
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="Recent U.S. software and technology roles from CareerOS.">
@@ -354,11 +379,11 @@ section{{margin:30px 0}}h2{{font-size:1.2rem;border-bottom:1px solid var(--line)
 .job{{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}}.job-top{{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}}h3{{font-size:1.05rem;line-height:1.35;margin:0}}.company{{font-weight:650;margin:4px 0 0;color:var(--muted)}}.apply{{white-space:nowrap;padding-top:1px}}
 .job-location{{color:var(--muted);margin:3px 0 0;font-size:.9rem}}
 dl{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 16px;margin:16px 0 0}}dt{{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}}dd{{margin:2px 0 0}}.empty{{color:var(--muted);padding:16px 0}}
-.filters{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:14px}}.filters label{{display:grid;gap:5px;color:var(--muted);font-size:.82rem}}.filters input,.filters select,.filters button{{min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px;background:var(--bg);color:var(--text);font:inherit}}.filters .check{{display:flex;align-items:center;gap:8px;align-self:end;padding:10px 0}}.filters .check input{{accent-color:var(--accent)}}.filters button{{cursor:pointer;color:var(--text);font-weight:650}}.filter-status{{color:var(--muted);margin:8px 2px 18px;font-size:.9rem}}.filter-help{{grid-column:1/-1;color:var(--muted);font-size:.78rem;margin:0}}[hidden]{{display:none!important}}
+.filters{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:14px}}.filters label{{display:grid;gap:5px;color:var(--muted);font-size:.82rem}}.filters input,.filters select,.filters button{{min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px;background:var(--bg);color:var(--text);font:inherit}}.filters .check{{display:flex;align-items:center;gap:8px;align-self:end;padding:10px 0}}.filters .check input{{accent-color:var(--accent)}}.filters button{{cursor:pointer;color:var(--text);font-weight:650}}.filter-status{{color:var(--muted);margin:8px 2px 18px;font-size:.9rem}}.filter-help{{grid-column:1/-1;color:var(--muted);font-size:.78rem;margin:0}}[hidden]{{display:none!important}}.page-links{{margin:12px 0;color:var(--muted)}}.page-links a{{color:var(--link);font-weight:650}}
 @media(max-width:600px){{main{{padding:20px 12px 40px}}.job{{padding:14px}}.job-top{{display:block}}.apply{{padding-top:10px}}dl{{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}}}
 </style></head><body><main><header><h1>{title}</h1>{summary_html}{empty_notice}<nav aria-label="Job tiers">{nav}</nav></header>
-<div class="filters" aria-label="Filter jobs">
-<label>Experience<select id="experience-filter"><option value="all">Any experience</option><option value="early">New grad / 0–2 years</option><option value="two-plus">2+ years</option><option value="mid">3–5 years</option><option value="three-plus">3+ years</option><option value="senior">6+ years</option><option value="unknown">Not stated</option></select></label>
+{page_links}<div class="filters" aria-label="Filter jobs">
+{experience_control}
 <label>Posted within<select id="posted-filter"><option value="0">Any time</option><option value="1">24 hours</option><option value="3">3 days</option><option value="7">7 days</option></select></label>
 <label>Company<input id="company-filter" type="search" placeholder="Company name"></label>
 <label>Keyword<input id="keyword-filter" type="search" placeholder="Role, skill, or location"></label>
@@ -374,11 +399,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--readme", type=Path, default=ROOT / "README.md")
     parser.add_argument("--output", type=Path, default=ROOT / "site" / "index.html")
+    parser.add_argument("--early-career-output", type=Path, default=ROOT / "site" / "early-career.html")
     args = parser.parse_args()
-    page = render_page(args.readme.read_text(encoding="utf-8"))
+    readme = args.readme.read_text(encoding="utf-8")
+    page = render_page(readme)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(page, encoding="utf-8")
     print(f"wrote {args.output}")
+    early_page = render_page(readme, early_career_only=True)
+    args.early_career_output.parent.mkdir(parents=True, exist_ok=True)
+    args.early_career_output.write_text(early_page, encoding="utf-8")
+    print(f"wrote {args.early_career_output}")
 
 
 if __name__ == "__main__":
