@@ -63,6 +63,22 @@ No matching roles in this tier right now.
     assert "No matching roles in this tier right now." in html
 
 
+def test_location_embedded_in_role_is_rendered_once():
+    readme = """<!-- ENTRY_JOBS:START -->
+### Tier 1
+| Company | Role | Experience | Posted | Found | Salary | Apply |
+|---|---|---|---|---|---|---|
+| Example | Software Engineer I<br><sub>Seattle, WA</sub> | 1 year | today | now |  | [Apply](https://jobs.example/1) |
+### Tier 2
+No matching roles in this tier right now.
+### Tier 3
+No matching roles in this tier right now.
+<!-- ENTRY_JOBS:END -->
+"""
+    html = render_page(readme)
+    assert html.count("Seattle, WA") == 1
+
+
 def test_table_split_keeps_escaped_pipes_in_a_role():
     assert split_row(r"| Acme | C\|C++ Engineer | 1 year | 2026-09-27 | now |  | [Apply](https://example.com) |") == [
         "Acme", "C|C++ Engineer", "1 year", "2026-09-27", "now", "",

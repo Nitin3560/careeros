@@ -150,6 +150,8 @@ def parse_feed(markdown: str) -> tuple[list[str], list[dict[str, object]]]:
                     if "location" not in job:
                         location_match = re.search(r"<sub>(.*?)</sub>", str(job.get("role", "")), re.I)
                         job["location"] = location_match.group(1) if location_match else ""
+                        if location_match:
+                            job["role"] = re.sub(r"<sub>.*?</sub>", "", str(job["role"]), flags=re.I).strip()
                     if _qualifies_for_page(job):
                         current["jobs"].append(job)
             continue
