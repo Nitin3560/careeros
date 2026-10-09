@@ -368,6 +368,12 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
             continue
         if not is_us_location(location) and not has_us_url_signal(application_url):
             continue
+        # This feed is specifically for early-career roles. Require explicit
+        # evidence in the posting that the experience requirement is no more
+        # than two years; do not infer eligibility from the title alone.
+        experience = extract_entry_experience(description)
+        if experience is None:
+            continue
         key = str(dedupe_key or application_url or f"{company}:{title}:{location}")
         if key in seen_keys:
             continue
@@ -384,7 +390,7 @@ def fetch_jobs(since_hours: int, limit: int) -> list[EntryJob]:
                 application_url=application_url,
                 source=source,
                 salary=extract_salary(description),
-                experience=experience_label(description),
+                experience=experience,
                 dedupe_key=key,
             )
         )
@@ -471,7 +477,7 @@ def render_markdown(
         "",
         f"Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **{len(jobs)}** roles.",
         "",
-        "Eligibility: recent software, AI/ML, data, infrastructure, security, embedded, and related engineering roles across experience levels. Internships, obvious non-technical roles, explicit non-U.S. postings, unclear locations, and defense/clearance-restricted roles are excluded. U.S. locations must be explicit in the posting or its application link.",
+        "Eligibility: recent U.S. software, AI/ML, data, infrastructure, security, embedded, and related engineering roles with explicit posting evidence of no more than two years of required experience. Roles with missing, ambiguous, or greater-than-two-year requirements are excluded, as are internships, obvious non-technical roles, non-U.S. postings, and defense/clearance-restricted roles.",
         "",
         "Quick links: [Tier 1](#tier-1) · [Tier 2](#tier-2) · [Tier 3](#tier-3)",
         "",

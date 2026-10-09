@@ -7,6 +7,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from update_entry_jobs_readme import (  # noqa: E402
     EntryJob,
+    fetch_jobs,
     extract_entry_experience,
     extract_salary,
     format_time_ago,
@@ -17,6 +18,7 @@ from update_entry_jobs_readme import (  # noqa: E402
     tier_for_job,
     update_readme,
 )
+import update_entry_jobs_readme as feed_module  # noqa: E402
 
 
 def test_entry_title_filter_keeps_full_time_entry_signals():
@@ -84,6 +86,34 @@ def test_experience_filter_requires_zero_to_two_years_from_posting():
     ) is None
     assert extract_entry_experience("Requires 3+ years of professional experience.") is None
     assert extract_entry_experience("Software engineering experience is useful.") is None
+
+
+def test_feed_requires_explicit_zero_to_two_year_experience(monkeypatch):
+    now = datetime(2026, 10, 9, 12, tzinfo=timezone.utc)
+    common = ("Example Co", "Software Engineer", "Austin, TX", now, now,
+              "https://example.com/job", "greenhouse")
+    rows = [
+        (*common, "Requires 1-2 years of professional software engineering experience.", "one-to-two"),
+        (*common, "Requires 3+ years of professional software engineering experience.", "three-plus"),
+        (*common, "Software engineering experience is useful.", "unstated"),
+        (*common, "Requires 1 year. 2+ years of system design experience required.", "conflicting"),
+    ]
+
+    class FakeResult:
+        def all(self):
+            return rows
+
+    class FakeSession:
+        def execute(self, *_args, **_kwargs):
+            return FakeResult()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(feed_module, "SessionLocal", FakeSession)
+    jobs = fetch_jobs(168, 0)
+    assert [job.dedupe_key for job in jobs] == ["one-to-two"]
+    assert jobs[0].experience == "1–2 years"
 
 
 def test_found_age_is_human_readable():
