@@ -27,7 +27,12 @@ ENTRY_TITLE_RE = re.compile(
 EXCLUDE_TITLE_RE = re.compile(
     r"\b(intern|internship|co-?op|apprentice|sales|account executive|analyst|"
     r"supervisor|technician|facilities|administrator|product design|designer|support|"
-    r"customer|recruiter)\b",
+    r"customer|recruiter|senior|staff|principal|distinguished|director|vice president|"
+    r"\bvp\b|head of|manager|\blead\b|registered nurse|\bnurse\b|nursing|clinical)\b",
+    re.I,
+)
+LEVEL_3_PLUS_TITLE_RE = re.compile(
+    r"\b(?:engineer|developer|scientist|architect|programmer|sde)\s+(?:III|IV|V|[3-9])\b",
     re.I,
 )
 TECH_TITLE_RE = re.compile(
@@ -249,6 +254,8 @@ def experience_label(text: str | None) -> str:
 def is_eligible_tech_title(title: str, description: str | None = None) -> bool:
     text_blob = f"{title}\n{description or ''}"
     if TITLE_DEFENSE_RE.search(title) or DESCRIPTION_HARD_STOP_RE.search(description or ""):
+        return False
+    if LEVEL_3_PLUS_TITLE_RE.search(title):
         return False
     if re.search(r"\b(member of technical staff|mts)\b", title, re.I):
         return True

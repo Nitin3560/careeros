@@ -333,9 +333,9 @@ The result is more than a job scraper.
 <!-- ENTRY_JOBS:START -->
 ## Recent U.S. Technology Job Openings
 
-Auto-updated hourly from CareerOS. Last run: **2026-10-09 21:49 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
+Auto-updated hourly from CareerOS. Last run: **2026-10-09 21:51 UTC**. Showing U.S. software/AI/tech postings found in the last **7 days**.
 
-Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **20** roles.
+Speed: CareerOS refreshes every hour from company career pages, then records the first time each posting was found. Current feed size: **17** roles.
 
 Eligibility: recent U.S. software, AI/ML, data, infrastructure, security, embedded, and related engineering roles with explicit posting evidence of no more than two years of required experience. Roles with missing, ambiguous, or greater-than-two-year requirements are excluded, as are internships, obvious non-technical roles, non-U.S. postings, and defense/clearance-restricted roles.
 
@@ -347,15 +347,15 @@ Large public and established technology, financial, and enterprise companies.
 
 | Company | Role | Experience | Posted | Found | Salary | Apply |
 |---|---|---|---|---|---|---|
-| Roblox | Software Engineer, Engine Systems<br><sub>San Mateo, CA, United States</sub> | 1 year | 2026-10-09 | just now |  | [Apply](https://careers.roblox.com/jobs/8159854?gh_jid=8159854) |
-| Roblox | Software Engineer, Test Frameworks & Tooling<br><sub>San Mateo, CA, United States</sub> | 1 year | 2026-10-09 | just now |  | [Apply](https://careers.roblox.com/jobs/8229705?gh_jid=8229705) |
-| Stripe | Software Engineer<br><sub>Seattle, WA</sub> | 1–2 years | 2026-10-09 | just now |  | [Apply](https://stripe.com/jobs/search?gh_jid=8267736) |
-| Esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-10-07 | just now |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
-| Esri | C++ Software Development Engineer II - Graph Algorithms<br><sub>Redlands, CA</sub> | 1 year | 2026-10-06 | just now |  | [Apply](https://www.esri.com/careers/5032353007?gh_jid=5032353007) |
-| Amazon | Software Development Engineer<br><sub>Newark, New Jersey, USA</sub> | 1 year | 2026-10-01 | just now |  | [Apply](https://account.amazon.jobs/jobs/10566605/apply) |
-| Esri | DevOps Engineer I - ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-11 | just now |  | [Apply](https://www.esri.com/careers/5012634007?gh_jid=5012634007) |
-| Lyft | Data Scientist <br><sub>Seattle, WA</sub> | 2 years | 2026-09-10 | just now | $129,709 - $192,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8772592002?gh_jid=8772592002) |
-| Lyft | Software Engineer<br><sub>Seattle, WA</sub> | 2 years | 2026-09-09 | just now | $149,240 - $192,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8772594002?gh_jid=8772594002) |
+| Roblox | Software Engineer, Engine Systems<br><sub>San Mateo, CA, United States</sub> | 1 year | 2026-10-09 | 1 min ago |  | [Apply](https://careers.roblox.com/jobs/8159854?gh_jid=8159854) |
+| Roblox | Software Engineer, Test Frameworks & Tooling<br><sub>San Mateo, CA, United States</sub> | 1 year | 2026-10-09 | 1 min ago |  | [Apply](https://careers.roblox.com/jobs/8229705?gh_jid=8229705) |
+| Stripe | Software Engineer<br><sub>Seattle, WA</sub> | 1–2 years | 2026-10-09 | 1 min ago |  | [Apply](https://stripe.com/jobs/search?gh_jid=8267736) |
+| Esri | Software Engineer I - Front-End Engineer for ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-10-07 | 1 min ago |  | [Apply](https://www.esri.com/careers/5190253007?gh_jid=5190253007) |
+| Esri | C++ Software Development Engineer II - Graph Algorithms<br><sub>Redlands, CA</sub> | 1 year | 2026-10-06 | 1 min ago |  | [Apply](https://www.esri.com/careers/5032353007?gh_jid=5032353007) |
+| Amazon | Software Development Engineer<br><sub>Newark, New Jersey, USA</sub> | 1 year | 2026-10-01 | 1 min ago |  | [Apply](https://account.amazon.jobs/jobs/10566605/apply) |
+| Esri | DevOps Engineer I - ArcGIS Enterprise<br><sub>Redlands, CA</sub> | 1 year | 2026-09-11 | 1 min ago |  | [Apply](https://www.esri.com/careers/5012634007?gh_jid=5012634007) |
+| Lyft | Data Scientist <br><sub>Seattle, WA</sub> | 2 years | 2026-09-10 | 1 min ago | $129,709 - $192,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8772592002?gh_jid=8772592002) |
+| Lyft | Software Engineer<br><sub>Seattle, WA</sub> | 2 years | 2026-09-09 | 1 min ago | $149,240 - $192,000 | [Apply](https://app.careerpuck.com/job-board/lyft/job/8772594002?gh_jid=8772594002) |
 
 ### Tier 2
 
@@ -363,10 +363,9 @@ Established mid-sized companies with meaningful engineering organizations.
 
 | Company | Role | Experience | Posted | Found | Salary | Apply |
 |---|---|---|---|---|---|---|
-| Chime | Full-Stack Engineer, Human Agent Tooling <br><sub>San Francisco, CA, USA</sub> | 1 year | 2026-10-02 | just now |  | [Apply](https://boards.greenhouse.io/chime/jobs/8606649002?gh_jid=8606649002) |
-| Chime | Software Engineer, Infrastructure Platform <br><sub>Chicago, IL, USA; New York, NY, USA; San Francisco, CA, USA</sub> | 2 years | 2026-10-02 | just now |  | [Apply](https://boards.greenhouse.io/chime/jobs/8859182002?gh_jid=8859182002) |
-| Chime | Software Engineer, Infrastructure<br><sub>Chicago, IL, USA; New York, NY, USA; San Francisco, CA, USA</sub> | 2 years | 2026-10-01 | just now |  | [Apply](https://boards.greenhouse.io/chime/jobs/8616359002?gh_jid=8616359002) |
-| Anthropic | Engineering Manager, GPU (ML Accelerator)<br><sub>San Francisco, CA \| New York City, NY \| Seattle, WA</sub> | 1 year | 2026-08-21 | just now |  | [Apply](https://job-boards.greenhouse.io/anthropic/jobs/4741104008) |
+| Chime | Full-Stack Engineer, Human Agent Tooling <br><sub>San Francisco, CA, USA</sub> | 1 year | 2026-10-02 | 1 min ago |  | [Apply](https://boards.greenhouse.io/chime/jobs/8606649002?gh_jid=8606649002) |
+| Chime | Software Engineer, Infrastructure Platform <br><sub>Chicago, IL, USA; New York, NY, USA; San Francisco, CA, USA</sub> | 2 years | 2026-10-02 | 1 min ago |  | [Apply](https://boards.greenhouse.io/chime/jobs/8859182002?gh_jid=8859182002) |
+| Chime | Software Engineer, Infrastructure<br><sub>Chicago, IL, USA; New York, NY, USA; San Francisco, CA, USA</sub> | 2 years | 2026-10-01 | 1 min ago |  | [Apply](https://boards.greenhouse.io/chime/jobs/8616359002?gh_jid=8616359002) |
 
 ### Tier 3
 
@@ -374,12 +373,10 @@ Startups, early-stage companies, and smaller technology businesses.
 
 | Company | Role | Experience | Posted | Found | Salary | Apply |
 |---|---|---|---|---|---|---|
-| Altentechnologyusa | SAP ABAP & BTP Full Stack Developer (Entry-Level)<br><sub>Foster City, California, United States</sub> | 0–2 years | 2026-10-09 | just now | $70,000 - 80,000 | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5262456007) |
-| Twitch | Software Engineer I<br><sub>San Francisco, CA</sub> | 1 year | 2026-10-08 | just now |  | [Apply](https://job-boards.greenhouse.io/twitch/jobs/8879673002) |
-| Lilasciences | Senior / Staff Machine Learning Engineer, Applied AI<br><sub>Cambridge, MA USA; San Francisco, CA USA</sub> | 1–2 years | 2026-10-07 | just now |  | [Apply](https://job-boards.greenhouse.io/lilasciences/jobs/4400741009) |
-| Nimblerobotics | Robotics Software Engineer<br><sub>San Francisco, CA</sub> | 1 year | 2026-09-28 | just now | $230,000/year | [Apply](https://job-boards.greenhouse.io/nimblerobotics/jobs/4371388009) |
-| Connectionshealthsolutions | Registered Nurse (RN) (FT, Front End Nights)<br><sub>Phoenix, Arizona, United States</sub> | 1 year | 2026-09-22 | just now |  | [Apply](https://job-boards.greenhouse.io/connectionshealthsolutions/jobs/4405220009) |
-| Twitch | Software Engineer I, Payments<br><sub>San Francisco, CA</sub> | 1 year | 2026-09-18 | just now |  | [Apply](https://job-boards.greenhouse.io/twitch/jobs/8700578002) |
-| Oldmissioncapital | Junior Trading Operations/DevOps Engineer<br><sub>Chicago, IL, United States</sub> | 0–2 years | 2026-09-08 | just now | $150,000 - $200,000 | [Apply](https://www.oldmissioncapital.com/careers/?gh_jid=7989374003) |
+| Altentechnologyusa | SAP ABAP & BTP Full Stack Developer (Entry-Level)<br><sub>Foster City, California, United States</sub> | 0–2 years | 2026-10-09 | 1 min ago | $70,000 - 80,000 | [Apply](https://job-boards.greenhouse.io/altentechnologyusa/jobs/5262456007) |
+| Twitch | Software Engineer I<br><sub>San Francisco, CA</sub> | 1 year | 2026-10-08 | 1 min ago |  | [Apply](https://job-boards.greenhouse.io/twitch/jobs/8879673002) |
+| Nimblerobotics | Robotics Software Engineer<br><sub>San Francisco, CA</sub> | 1 year | 2026-09-28 | 1 min ago | $230,000/year | [Apply](https://job-boards.greenhouse.io/nimblerobotics/jobs/4371388009) |
+| Twitch | Software Engineer I, Payments<br><sub>San Francisco, CA</sub> | 1 year | 2026-09-18 | 1 min ago |  | [Apply](https://job-boards.greenhouse.io/twitch/jobs/8700578002) |
+| Oldmissioncapital | Junior Trading Operations/DevOps Engineer<br><sub>Chicago, IL, United States</sub> | 0–2 years | 2026-09-08 | 1 min ago | $150,000 - $200,000 | [Apply](https://www.oldmissioncapital.com/careers/?gh_jid=7989374003) |
 
 <!-- ENTRY_JOBS:END -->

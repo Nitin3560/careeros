@@ -58,6 +58,9 @@ def test_entry_title_filter_excludes_intern_senior_and_non_engineering_noise():
     assert not is_eligible_tech_title("Radiation Effects Engineer I")
     assert not is_eligible_tech_title("GNC Simulation Engineer I")
     assert not is_eligible_tech_title("Software Development Engineer III")
+    assert not is_eligible_tech_title("Engineering Manager, GPU")
+    assert not is_eligible_tech_title("Senior / Staff Machine Learning Engineer")
+    assert not is_eligible_tech_title("Registered Nurse (RN) (FT, Front End Nights)")
     assert not is_eligible_tech_title("Software Development Engineer, Strategic Defense")
     assert not is_eligible_tech_title("Software and Mobility Asset Supervisor")
     assert not is_eligible_tech_title("Environmental Services & Facilities Technician (FT, Front End Days)")
@@ -90,13 +93,18 @@ def test_experience_filter_requires_zero_to_two_years_from_posting():
 
 def test_feed_requires_explicit_zero_to_two_year_experience(monkeypatch):
     now = datetime(2026, 10, 9, 12, tzinfo=timezone.utc)
-    common = ("Example Co", "Software Engineer", "Austin, TX", now, now,
-              "https://example.com/job", "greenhouse")
+    def row(title, description, key):
+        return ("Example Co", title, "Austin, TX", now, now,
+                "https://example.com/job", "greenhouse", description, key)
+
     rows = [
-        (*common, "Requires 1-2 years of professional software engineering experience.", "one-to-two"),
-        (*common, "Requires 3+ years of professional software engineering experience.", "three-plus"),
-        (*common, "Software engineering experience is useful.", "unstated"),
-        (*common, "Requires 1 year. 2+ years of system design experience required.", "conflicting"),
+        row("Software Engineer", "Requires 1-2 years of professional software engineering experience.", "one-to-two"),
+        row("Software Engineer", "Requires 3+ years of professional software engineering experience.", "three-plus"),
+        row("Software Engineer", "Software engineering experience is useful.", "unstated"),
+        row("Software Engineer", "Requires 1 year. 2+ years of system design experience required.", "conflicting"),
+        row("Engineering Manager, GPU", "Requires 1 year of engineering experience.", "manager"),
+        row("Senior / Staff Machine Learning Engineer", "Requires 1 year of experience.", "senior"),
+        row("Registered Nurse (RN) (FT, Front End Nights)", "Requires 1 year of experience.", "nurse"),
     ]
 
     class FakeResult:
